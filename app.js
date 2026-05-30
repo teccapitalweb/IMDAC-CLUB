@@ -257,9 +257,11 @@ function renderCanal(){
   <div class="card" style="padding:30px;margin-top:8px">
     <h3 style="text-align:center;font-family:var(--font-display);font-size:1.2rem;margin-bottom:18px">¿Qué recibirás en el canal?</h3>
     <div class="feature-list">
-      ${feat('M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z','Contenido exclusivo','Tips, detalles constructivos y técnicas que solo compartimos en el canal.')}
-      ${feat('M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5','Avisos en tiempo real','Entérate primero de nuevos cursos, webinars y material.')}
+      ${feat('M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z','Contenido exclusivo','Tips, detalles constructivos y técnicas que solo compartimos con miembros del canal.')}
+      ${feat('M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5','Avisos en tiempo real','Entérate primero de nuevos cursos, webinars y material antes que nadie.')}
+      ${feat('M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z','Ofertas y descuentos','Promociones especiales y descuentos exclusivos para miembros del canal.')}
       ${feat('M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z','Comunidad profesional','Conecta con otros arquitectos, ingenieros y constructores del club.')}
+      ${feat('M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z','Recordatorios de eventos','No te pierdas ningún webinar en vivo ni fecha importante del club.')}
     </div>
   </div>`;
 }
@@ -304,16 +306,31 @@ function saveProfile(){
 const val=id=>document.getElementById(id)?.value||'';
 
 function renderSuscripcion(){
+  const incluye=[
+    ['Acceso ilimitado','A todos los cursos grabados, 24/7'],
+    ['Webinars en vivo','Sesiones mensuales con expertos'],
+    ['Material PDF','Planos tipo y guías descargables'],
+    ['20% de descuento','En cursos y certificaciones'],
+    ['Canal exclusivo','Comunidad de miembros'],
+  ];
+  const check='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
   return `<h1 class="page-h">Suscripción</h1><p class="page-sub">Administra tu membresía IMDAC.</p>
   <div class="card" style="padding:30px;max-width:560px">
     <span class="pill" style="background:var(--negro);color:#fff">Plan Premium · Activo</span>
     <h3 style="font-family:var(--font-display);font-size:1.6rem;margin:14px 0 4px">$499 <span style="font-size:1rem;color:var(--muted);font-weight:400">MXN / mes</span></h3>
     <p style="color:var(--muted)">Acceso ilimitado a cursos, webinars, material y herramientas profesionales.</p>
-    <div class="feature-list" style="margin:18px 0">
-      ${feat('M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z','Catálogo completo','Todos los cursos y certificaciones.')}
-      ${feat('M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z','Herramientas de obra','Calculadoras, fichas y normativas.')}
+    <button class="btn-primary" style="background:var(--negro);margin-top:20px" onclick="toast('Gestión de pago vía Stripe (pendiente integrar)')">Gestionar suscripción</button>
+  </div>
+
+  <div style="margin-top:32px">
+    <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700">Lo que incluye tu plan</h3>
+    <div class="plan-grid">
+      ${incluye.map(i=>`<div class="plan-item"><div class="ck">${check}</div><div><b>${i[0]}</b><span>${i[1]}</span></div></div>`).join('')}
     </div>
-    <button class="btn-primary" style="background:var(--negro)" onclick="toast('Gestión de pago vía Stripe (pendiente integrar)')">Gestionar suscripción</button>
+    <div class="legal-links">
+      <button onclick="go('terminos')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Términos y Condiciones</button>
+      <button onclick="go('privacidad')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Política de Privacidad</button>
+    </div>
   </div>`;
 }
 
