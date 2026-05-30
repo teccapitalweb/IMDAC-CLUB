@@ -18,7 +18,11 @@ const IMDAC = {
   cupon: "CLUB20IMDAC",
   whatsapp: "52XXXXXXXXXX",          // WhatsApp del canal/soporte
   canalWA: "https://chat.whatsapp.com/REEMPLAZAR",
-  sitioOficial: "https://imdac.mx"
+  sitioOficial: "https://imdac.mx",
+  soporte: {
+    l1:"522382196286", l1Label:"238 219 6286",   // Línea 1
+    l2:"522361112213", l2Label:"236 111 2213"    // Línea 2
+  }
 };
 
 let db=null, auth=null, FB_OK=false;
@@ -239,7 +243,7 @@ function renderDescuento(){
     <hr style="border:none;border-top:1px solid var(--line);margin:22px 0">
     <p style="color:var(--muted);font-size:.9rem;margin-bottom:14px">¿Necesitas ayuda para aplicar tu descuento?</p>
     <a class="btn-wa" href="https://wa.me/${IMDAC.whatsapp}?text=Hola%2C%20quiero%20aplicar%20mi%20cup%C3%B3n%20${IMDAC.cupon}" target="_blank">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
       Aplicar descuento
     </a>
   </div>`;
@@ -249,10 +253,10 @@ function copyCoupon(){navigator.clipboard?.writeText(IMDAC.cupon);toast('Cupón 
 function renderCanal(){
   return `<h1 class="page-h">Canal privado de miembros</h1><p class="page-sub">Comunidad exclusiva para miembros del club.</p>
   <div class="benefit-card">
-    <div style="width:70px;height:70px;border-radius:50%;background:#e8f9ee;display:grid;place-items:center;margin:0 auto 16px"><svg width="32" height="32" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg></div>
+    <div style="width:70px;height:70px;border-radius:50%;background:#e8f9ee;display:grid;place-items:center;margin:0 auto 16px"><svg width="32" height="32" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg></div>
     <h3 style="font-family:var(--font-display);font-size:1.3rem;font-weight:700">WhatsApp · Canal IMDAC</h3>
     <p style="color:var(--muted);margin:8px 0 20px">Recibe actualizaciones, tips de obra y promociones directamente en tu WhatsApp.</p>
-    <a class="btn-wa" href="${IMDAC.canalWA}" target="_blank"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/></svg>Unirme al canal</a>
+    <a class="btn-wa" href="${IMDAC.canalWA}" target="_blank"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>Unirme al canal</a>
   </div>
   <div class="card" style="padding:30px;margin-top:8px">
     <h3 style="text-align:center;font-family:var(--font-display);font-size:1.2rem;margin-bottom:18px">¿Qué recibirás en el canal?</h3>
@@ -347,18 +351,97 @@ function renderLogros(){
 
 function renderConfig(){
   const dark=document.documentElement.dataset.theme==='dark';
-  return `<h1 class="page-h">Configuración</h1><p class="page-sub">Ajusta tu experiencia en el club.</p>
-  <div class="card" style="padding:8px 26px;max-width:560px">
-    ${cfgRow('Modo oscuro','Cambia entre tema claro y oscuro',`<button class="filter ${dark?'active':''}" onclick="toggleTheme();renderSection('configuracion')">${dark?'Activado':'Desactivado'}</button>`)}
-    ${cfgRow('Notificaciones por correo','Recibe avisos de nuevos cursos','<button class="filter active">Activado</button>')}
-    ${cfgRow('Idioma','Idioma de la interfaz','<button class="filter">Español</button>')}
+  const notifs=[
+    ['Nuevos cursos','Recibe aviso cuando se suba un nuevo curso'],
+    ['Webinars en vivo','Recordatorio antes de cada sesión'],
+    ['Nuevos PDFs','Aviso cuando se publique nuevo material'],
+    ['Promociones','Ofertas especiales y descuentos del Club'],
+    ['Anuncios generales','Avisos importantes del Club'],
+  ];
+  const motivos=['Problema con un curso','Problema de pago o suscripción','Problema técnico','Sugerencia o comentario','Otro'];
+  return `<h1 class="page-h">Configuración</h1><p class="page-sub">Preferencias de la aplicación y la cuenta.</p>
+
+  <div class="card cfg-card">
+    <h3>Apariencia</h3>
+    <div class="cfg-item"><div class="ci-t"><b>Modo oscuro</b><span>Cambia entre tema claro y oscuro</span></div>
+      <label class="toggle"><input type="checkbox" ${dark?'checked':''} onchange="toggleTheme()"><span class="tk"></span></label></div>
   </div>
-  <div class="card" style="padding:8px 26px;max-width:560px;margin-top:18px">
-    ${cfgRow('Términos y Condiciones','',`<button class="filter" onclick="go('terminos')">Ver →</button>`)}
-    ${cfgRow('Política de Privacidad','',`<button class="filter" onclick="go('privacidad')">Ver →</button>`)}
+
+  <div class="card cfg-card">
+    <h3>Notificaciones</h3>
+    ${notifs.map(n=>`<div class="cfg-item"><div class="ci-t"><b>${n[0]}</b><span>${n[1]}</span></div>
+      <label class="toggle"><input type="checkbox" checked onchange="toast('Preferencia actualizada')"><span class="tk"></span></label></div>`).join('')}
+  </div>
+
+  <div class="card cfg-card">
+    <h3>Instalar aplicación</h3>
+    <p class="cfg-note" style="margin:-8px 0 16px">Instala IMDAC en tu dispositivo para acceso rápido y uso offline. Aparece como app nativa en tu pantalla de inicio.</p>
+    <div class="install-banner">
+      <div class="ib-ic">📲</div>
+      <div style="flex:1"><b>Instala IMDAC</b><span>Acceso rápido desde tu home screen, funciona offline y se ve como una app nativa.</span></div>
+      <button class="btn-outline" onclick="installPWA()">Instalar ahora</button>
+    </div>
+  </div>
+
+  <div class="card cfg-card">
+    <h3>Idioma y Región</h3>
+    <div class="field"><label>Idioma de la plataforma</label><select class="cfg-select"><option>Español (México)</option></select><p class="cfg-note">Próximamente más idiomas.</p></div>
+    <div class="field" style="margin-top:16px"><label>Zona horaria</label><select class="cfg-select"><option>América/Ciudad de México (GMT-6)</option></select>
+      <p class="cfg-note">Si te encuentras en otra zona horaria, los horarios de clases en vivo se muestran en hora centro de México.</p></div>
+  </div>
+
+  <div class="card cfg-card">
+    <h3>Seguridad</h3>
+    <div class="cfg-item"><div class="ci-t"><b>Cambiar contraseña</b><span>Te enviaremos un correo para restablecer tu contraseña</span></div>
+      <button class="btn-outline" onclick="changePass()">Cambiar</button></div>
+    <div class="cfg-item"><div class="ci-t danger"><b>Eliminar mi cuenta</b><span>Esta acción es permanente y no se puede deshacer</span></div>
+      <button class="btn-outline danger" onclick="deleteAccount()">Eliminar</button></div>
+  </div>
+
+  <div class="card cfg-card">
+    <h3>Soporte</h3>
+    <p class="cfg-note" style="margin:-8px 0 16px">¿Tienes algún problema o sugerencia? Completa el formulario y te atenderemos por WhatsApp.</p>
+    <div class="field"><label>¿Cuál es el motivo de tu contacto?</label>
+      <select class="cfg-select" id="sp-motivo"><option value="">— Selecciona una opción —</option>${motivos.map(m=>`<option>${m}</option>`).join('')}</select></div>
+    <div class="field" style="margin-top:16px"><label>Descríbenos brevemente tu situación</label>
+      <textarea id="sp-desc" rows="3" placeholder="Cuéntanos qué pasó o qué necesitas para ayudarte mejor..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>
+    <div class="field" style="margin-top:16px"><label>¿Qué tan urgente es?</label>
+      <div class="urg-pills" id="sp-urg">
+        <button class="filter" data-urg="Baja" onclick="setUrg('Baja')">Baja</button>
+        <button class="filter active" data-urg="Media" onclick="setUrg('Media')">Media</button>
+        <button class="filter" data-urg="Urgente" onclick="setUrg('Urgente')">Urgente</button>
+      </div></div>
+    <div class="field" style="margin-top:16px"><label>Elige a qué línea deseas contactar:</label>
+      <div class="wa-lines">
+        <a class="btn-wa" onclick="sendSoporte('${IMDAC.soporte.l1}')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>Línea 1 — ${IMDAC.soporte.l1Label}</a>
+        <a class="btn-wa" onclick="sendSoporte('${IMDAC.soporte.l2}')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>Línea 2 — ${IMDAC.soporte.l2Label}</a>
+      </div></div>
   </div>`;
 }
-function cfgRow(t,d,ctrl){return `<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0;border-bottom:1px solid var(--line)"><div><b style="font-family:var(--font-display)">${t}</b>${d?`<div style="color:var(--muted);font-size:.86rem;margin-top:2px">${d}</div>`:''}</div>${ctrl}</div>`;}
+let _spUrg='Media';
+function setUrg(u){_spUrg=u;document.querySelectorAll('#sp-urg .filter').forEach(b=>b.classList.toggle('active',b.dataset.urg===u));}
+function sendSoporte(num){
+  const motivo=val('sp-motivo')||'Consulta general';
+  const desc=val('sp-desc')||'(sin descripción)';
+  const txt=`Hola IMDAC, necesito soporte.%0A%0A*Motivo:* ${encodeURIComponent(motivo)}%0A*Urgencia:* ${_spUrg}%0A*Situación:* ${encodeURIComponent(desc)}`;
+  window.open(`https://wa.me/${num}?text=${txt}`,'_blank');
+}
+function changePass(){
+  const email=CURRENT_USER?.email;
+  if(FB_OK&&email){auth.sendPasswordResetEmail(email).then(()=>toast('Correo de recuperación enviado a '+email)).catch(()=>toast('No se pudo enviar el correo'));}
+  else toast('(Demo) Te enviaríamos un correo de recuperación');
+}
+function deleteAccount(){
+  if(!confirm('¿Seguro que deseas eliminar tu cuenta? Esta acción es permanente y no se puede deshacer.'))return;
+  if(FB_OK&&CURRENT_USER&&CURRENT_USER.uid!=='demo'){
+    CURRENT_USER.delete().then(()=>toast('Cuenta eliminada')).catch(()=>toast('Por seguridad, vuelve a iniciar sesión antes de eliminar la cuenta.'));
+  }else toast('(Demo) La cuenta se eliminaría aquí');
+}
+let _deferredPrompt=null;
+function installPWA(){
+  if(_deferredPrompt){_deferredPrompt.prompt();_deferredPrompt.userChoice.then(()=>{_deferredPrompt=null;});}
+  else toast('Para instalar: usa el menú del navegador → "Agregar a pantalla de inicio".');
+}
 
 function renderTerminos(){return legalPage('Términos y Condiciones','Al usar el Club de Miembros IMDAC aceptas las siguientes condiciones de uso. El contenido es para fines educativos y profesionales en arquitectura y construcción. La membresía es personal e intransferible. IMDAC se reserva el derecho de actualizar cursos, herramientas y precios. El uso indebido del contenido o su redistribución sin autorización puede resultar en la cancelación de la cuenta.');}
 function renderPrivacidad(){return legalPage('Política de Privacidad','IMDAC protege tus datos personales conforme a la legislación mexicana aplicable. Recopilamos únicamente la información necesaria para operar tu membresía: nombre, correo, datos de contacto y profesionales. No vendemos ni compartimos tus datos con terceros sin tu consentimiento. Puedes solicitar la modificación o eliminación de tus datos en cualquier momento contactando a soporte.');}
@@ -629,6 +712,9 @@ function bootDone(){document.getElementById('boot').classList.add('hide');}
 window.addEventListener('DOMContentLoaded',()=>{
   // tema guardado
   try{const t=localStorage.getItem('imdac-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+  // PWA: service worker + prompt de instalación
+  if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(()=>{});}catch(e){}}
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_deferredPrompt=e;});
   if(FB_OK){
     auth.onAuthStateChanged(u=>{
       bootDone();

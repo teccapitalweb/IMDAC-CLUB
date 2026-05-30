@@ -1,0 +1,13 @@
+{
+  "name": "IMDAC · Club de Miembros",
+  "short_name": "IMDAC",
+  "description": "Instituto Mexicano de Arquitectura y Construcción — Club de educación continua.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#FF2C2C",
+  "icons": [
+    { "src": "assets/logo-imdac.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/logo-imdac.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

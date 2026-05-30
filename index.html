@@ -6,6 +6,9 @@
 <title>IMDAC · Club de Miembros</title>
 <meta name="description" content="Instituto Mexicano de Arquitectura y Construcción — Club de educación continua.">
 <link rel="icon" href="assets/logo-imdac.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF2C2C">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ====================== IMDAC · SISTEMA DE DISEÑO ====================== */
@@ -255,6 +258,37 @@ body.logged #app{display:block}
 .feature .fi svg{width:20px;height:20px}
 .feature b{font-family:var(--font-display);display:block;margin-bottom:3px}
 .feature span{color:var(--muted);font-size:.88rem}
+
+/* CONFIGURACIÓN */
+.cfg-card{padding:26px 30px;margin-bottom:20px}
+.cfg-card>h3{font-family:var(--font-display);font-size:1.15rem;font-weight:700;margin-bottom:18px}
+.cfg-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}
+.cfg-item:last-child{border-bottom:none}
+.cfg-item .ci-t b{font-family:var(--font-display);font-weight:600;display:block}
+.cfg-item .ci-t span{color:var(--muted);font-size:.86rem}
+.cfg-item .ci-t.danger b{color:var(--rojo)}
+.toggle{position:relative;width:46px;height:26px;flex-shrink:0;cursor:pointer;display:inline-block}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle .tk{position:absolute;inset:0;background:var(--gris-300);border-radius:50px;transition:.2s}
+.toggle .tk::before{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.toggle input:checked + .tk{background:var(--rojo)}
+.toggle input:checked + .tk::before{transform:translateX(20px)}
+.cfg-select{width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;font-size:.95rem;cursor:pointer}
+.cfg-select:focus{outline:none;border-color:var(--rojo)}
+.cfg-note{color:var(--muted);font-size:.82rem;margin-top:8px}
+.install-banner{display:flex;align-items:center;gap:16px;background:linear-gradient(120deg,var(--rojo-50),var(--surface));border:1px solid var(--line);border-radius:var(--radius);padding:18px 22px}
+[data-theme="dark"] .install-banner{background:linear-gradient(120deg,#221416,var(--surface))}
+.install-banner .ib-ic{width:48px;height:48px;border-radius:12px;background:var(--rojo);color:#fff;display:grid;place-items:center;flex-shrink:0;font-size:1.3rem}
+.install-banner b{font-family:var(--font-display);color:var(--rojo)}
+.install-banner span{display:block;color:var(--muted);font-size:.86rem;margin-top:2px}
+.btn-outline{padding:10px 20px;border:1.5px solid var(--line);border-radius:10px;font-weight:600;font-size:.9rem;background:var(--surface);transition:.16s;white-space:nowrap}
+.btn-outline:hover{border-color:var(--gris-300)}
+.btn-outline.danger{border-color:#ffd5d5;color:var(--rojo)}
+.btn-outline.danger:hover{background:var(--rojo-50);border-color:var(--rojo)}
+[data-theme="dark"] .btn-outline.danger{border-color:#4a1f1f}
+[data-theme="dark"] .btn-outline.danger:hover{background:#2a1414}
+.urg-pills{display:flex;gap:9px;margin-top:8px}
+.wa-lines{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
 
 /* PLAN / SUSCRIPCIÓN */
 .plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:16px}
