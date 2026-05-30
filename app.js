@@ -20,8 +20,8 @@ const IMDAC = {
   canalWA: "https://chat.whatsapp.com/REEMPLAZAR",
   sitioOficial: "https://imdac.mx",
   soporte: {
-    l1:"522382196286", l1Label:"238 219 6286",   // Línea 1
-    l2:"522361112213", l2Label:"236 111 2213"    // Línea 2
+    l1:"522382196286", l1Label:"+52 1 238 219 6286",   // Línea 1
+    l2:"522361112213", l2Label:"+52 1 236 111 2213"    // Línea 2
   }
 };
 
@@ -293,7 +293,7 @@ function renderPerfil(){
       <div class="field"><label>Teléfono</label><input id="pf-phone" placeholder="+52 ..."></div>
       <div class="field"><label>Ciudad</label><input id="pf-city" placeholder="Tu ciudad, MX"></div>
       <div class="field form-full"><label>Profesión / Cédula</label><input id="pf-prof" placeholder="Arquitecto / Ing. Civil — Cédula..."></div>
-      <div class="field form-full"><label>Biografía</label><textarea id="pf-bio" rows="3" placeholder="Cuéntanos un poco sobre ti..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>
+      <div class="field form-full"><label>Biografía</label><textarea id="pf-bio" rows="3" placeholder="Cuéntanos un poco sobre ti..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
     </div>
     <button class="btn-primary" style="width:auto;padding:13px 30px;margin-top:16px" onclick="saveProfile()">Guardar cambios</button>
   </div>`;
@@ -318,15 +318,22 @@ function renderSuscripcion(){
     ['Canal exclusivo','Comunidad de miembros'],
   ];
   const check='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
-  return `<h1 class="page-h">Suscripción</h1><p class="page-sub">Administra tu membresía IMDAC.</p>
-  <div class="card" style="padding:30px;max-width:560px">
-    <span class="pill" style="background:var(--negro);color:#fff">Plan Premium · Activo</span>
-    <h3 style="font-family:var(--font-display);font-size:1.6rem;margin:14px 0 4px">$499 <span style="font-size:1rem;color:var(--muted);font-weight:400">MXN / mes</span></h3>
-    <p style="color:var(--muted)">Acceso ilimitado a cursos, webinars, material y herramientas profesionales.</p>
-    <button class="btn-primary" style="background:var(--negro);margin-top:20px" onclick="toast('Gestión de pago vía Stripe (pendiente integrar)')">Gestionar suscripción</button>
+  const alta=CURRENT_USER?.metadata?.creationTime?new Date(CURRENT_USER.metadata.creationTime).toLocaleDateString('es-MX'):'—';
+  return `<h1 class="page-h">Mi Suscripción</h1><p class="page-sub">Detalles de tu plan y beneficios activos.</p>
+
+  <div class="sub-hero">
+    <div class="pa">Plan actual</div>
+    <div class="pn">IMDAC Mensual</div>
+    <div class="pp">$499 MXN / mes</div>
+    <hr>
+    <div class="sub-meta">
+      <div><div class="ml">Estado</div><div class="mv activa">Activa</div></div>
+      <div><div class="ml">Activada desde</div><div class="mv">${alta}</div></div>
+    </div>
+    <button class="btn-outline danger" onclick="if(confirm('¿Seguro que deseas cancelar tu suscripción? Perderás el acceso al catálogo al terminar el periodo.'))toast('Cancelación enviada (pendiente integrar Stripe)')">Cancelar suscripción</button>
   </div>
 
-  <div style="margin-top:32px">
+  <div>
     <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700">Lo que incluye tu plan</h3>
     <div class="plan-grid">
       ${incluye.map(i=>`<div class="plan-item"><div class="ck">${check}</div><div><b>${i[0]}</b><span>${i[1]}</span></div></div>`).join('')}
@@ -385,8 +392,8 @@ function renderConfig(){
 
   <div class="card cfg-card">
     <h3>Idioma y Región</h3>
-    <div class="field"><label>Idioma de la plataforma</label><select class="cfg-select"><option>Español (México)</option></select><p class="cfg-note">Próximamente más idiomas.</p></div>
-    <div class="field" style="margin-top:16px"><label>Zona horaria</label><select class="cfg-select"><option>América/Ciudad de México (GMT-6)</option></select>
+    <div class="field"><label>Idioma de la plataforma</label><input class="cfg-select cfg-fixed" value="Español (México)" readonly tabindex="-1"><p class="cfg-note">Próximamente más idiomas.</p></div>
+    <div class="field" style="margin-top:16px"><label>Zona horaria</label><input class="cfg-select cfg-fixed" value="América/Ciudad de México (GMT-6)" readonly tabindex="-1">
       <p class="cfg-note">Si te encuentras en otra zona horaria, los horarios de clases en vivo se muestran en hora centro de México.</p></div>
   </div>
 
@@ -404,7 +411,7 @@ function renderConfig(){
     <div class="field"><label>¿Cuál es el motivo de tu contacto?</label>
       <select class="cfg-select" id="sp-motivo"><option value="">— Selecciona una opción —</option>${motivos.map(m=>`<option>${m}</option>`).join('')}</select></div>
     <div class="field" style="margin-top:16px"><label>Descríbenos brevemente tu situación</label>
-      <textarea id="sp-desc" rows="3" placeholder="Cuéntanos qué pasó o qué necesitas para ayudarte mejor..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>
+      <textarea id="sp-desc" rows="3" placeholder="Cuéntanos qué pasó o qué necesitas para ayudarte mejor..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
     <div class="field" style="margin-top:16px"><label>¿Qué tan urgente es?</label>
       <div class="urg-pills" id="sp-urg">
         <button class="filter" data-urg="Baja" onclick="setUrg('Baja')">Baja</button>
@@ -463,7 +470,7 @@ function renderFichaObra(){
       <div class="field"><label>Tipo de obra</label><input id="fo-tipo" placeholder="Residencial / Comercial / Industrial"></div>
       <div class="field"><label>Responsable (DRO)</label><input id="fo-dro" placeholder="Director Responsable de Obra"></div>
       <div class="field"><label>Fecha de inicio</label><input id="fo-inicio" type="date"></div>
-      <div class="field form-full"><label>Descripción / Alcances</label><textarea id="fo-desc" rows="3" placeholder="Detalle de la obra..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:vertical"></textarea></div>
+      <div class="field form-full"><label>Descripción / Alcances</label><textarea id="fo-desc" rows="3" placeholder="Detalle de la obra..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
     </div>
     <button class="btn-primary" style="width:auto;padding:13px 30px;margin-top:8px" onclick="genFichaPDF()">📄 Generar PDF</button>
   </div>`;
@@ -565,23 +572,58 @@ function renderNormativas(){
   <p style="color:var(--muted);font-size:.82rem;margin-top:14px">* Guía de referencia. Consulta siempre la versión vigente publicada por la autoridad correspondiente.</p>`;
 }
 
-/* ====== 7. MODAL CURSO ====== */
+/* ====== 7. DETALLE DE CURSO (vista completa) ====== */
+let _cursoActivo=null;
 function openCurso(id){
   const c=DATA.cursos.find(x=>x.id===id); if(!c)return;
+  _cursoActivo=id;
+  document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec==='biblioteca'));
+  document.getElementById('content').innerHTML=`<div class="section active">${renderCursoDetalle(id)}</div>`;
+  window.scrollTo(0,0);
+}
+function renderCursoDetalle(id){
+  const c=DATA.cursos.find(x=>x.id===id); if(!c)return renderBiblioteca();
+  const total=c.clases||0;
   const prog=DATA.progresos[id]||0;
-  document.getElementById('modal-content').innerHTML=`
-    <div class="modal-head" style="background-image:url('${c.img||''}')"><button class="modal-x" onclick="closeModal()">✕</button></div>
-    <div class="modal-body">
-      <span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${c.categoria||'General'}</span>
-      <h3 style="margin-top:12px">${c.titulo}</h3>
-      <p style="color:var(--muted);margin-bottom:16px">${c.desc||'Curso de formación profesional IMDAC.'}</p>
-      <div style="display:flex;gap:20px;font-size:.88rem;color:var(--muted);margin-bottom:8px">
-        <span>📚 ${c.clases||0} clases</span><span>📊 ${c.nivel||'Intermedio'}</span><span>✅ ${prog}% completado</span>
+  const completadas=Math.round(prog/100*total);
+  const clases=Array.isArray(c.listaClases)&&c.listaClases.length
+    ? c.listaClases
+    : Array.from({length:total},(_,i)=>({titulo:`Clase ${i+1}`,duracion:'2 Horas'}));
+  return `
+  <button class="cd-back" onclick="go('biblioteca')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Volver a la biblioteca</button>
+  <div class="cd-hero">
+    <div class="cd-hero-img" style="background-image:url('${c.img||''}')"></div>
+    <div class="cd-hero-body">
+      <div class="cat">${c.categoria||'General'}</div>
+      <h2>${c.titulo}</h2>
+      <p class="desc">${c.desc||'Capacitación profesional enfocada en arquitectura y construcción. Contenido teórico-práctico con criterios aplicables a obra real.'}</p>
+      <div class="cd-hero-meta">
+        <span><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;display:inline;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m0 16v1m8-9h1M3 12H2m15.364 6.364l.707.707M5.929 5.929l.707.707M18.364 5.636l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg> Nivel: <b>${c.nivel||'Intermedio'}</b></span>
       </div>
-      <div class="progress"><i style="width:${prog}%"></i></div>
-      <button class="btn-block" onclick="toast('Reproductor de video conectado a Google Drive')">${prog>0?'Continuar curso':'Comenzar curso'}</button>
-    </div>`;
-  document.getElementById('modal').classList.add('open');
+      <div class="cd-clases-badge"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>${total} clases</div>
+    </div>
+  </div>
+  <div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>
+  <div class="cd-list-head"><h3>Lista de clases</h3><span>${total} clases</span></div>
+  ${clases.map((cl,i)=>claseRow(cl,i,true,id)).join('')}`;
+}
+function claseRow(cl,i,disp,cursoId){
+  const dispIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>';
+  const lockIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
+  const playIcon='<svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+  const clock='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+  return `<div class="clase ${disp?'disp':'lock'}" ${disp?`onclick="playClase('${cursoId}',${i})"`:''}>
+    <div class="cst">${disp?dispIcon:lockIcon}</div>
+    <div class="cinfo"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${disp?'Disponible':'Bloqueada'}</span>
+      <div class="dur">${clock}${cl.duracion||'2 Horas'}</div></div>
+    ${disp?`<div class="play">${playIcon}</div>`:''}
+  </div>`;
+}
+function playClase(cursoId,i){
+  const c=DATA.cursos.find(x=>x.id===cursoId);
+  const cl=(c.listaClases||[])[i];
+  if(cl&&cl.videoUrl)window.open(cl.videoUrl,'_blank');
+  else toast('Reproductor conectado a Google Drive · Clase '+(i+1));
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');}
 
@@ -692,6 +734,15 @@ function toggleTheme(){
   const cur=document.documentElement.dataset.theme==='dark'?'light':'dark';
   document.documentElement.dataset.theme=cur;
   try{localStorage.setItem('imdac-theme',cur);}catch(e){}
+  updateThemeIcon();
+}
+function updateThemeIcon(){
+  const btn=document.getElementById('theme-btn'); if(!btn)return;
+  const dark=document.documentElement.dataset.theme==='dark';
+  const sun='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>';
+  const moon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>';
+  btn.innerHTML=dark?sun:moon;
+  btn.title=dark?'Modo claro':'Modo oscuro';
 }
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
 function loadJsPDF(cb){
@@ -703,7 +754,7 @@ function loadJsPDF(cb){
 async function onLogged(){
   document.body.classList.add('logged');
   document.getElementById('login').classList.add('hidden');
-  renderSidebar();refreshUserUI();
+  renderSidebar();refreshUserUI();updateThemeIcon();
   await loadData();
   go('inicio');
 }
