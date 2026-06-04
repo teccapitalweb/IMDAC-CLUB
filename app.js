@@ -750,7 +750,7 @@ function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg,logoImg}){
   doc.setFillColor(rojo[0],rojo[1],rojo[2]);const cs=2.4;
   [[11.5,11.5],[W-11.5-cs,11.5],[11.5,H-11.5-cs],[W-11.5-cs,H-11.5-cs]].forEach(p=>doc.rect(p[0],p[1],cs,cs,'F'));
   // ===== logo + bajada institucional =====
-  const lw=42,lh=lw/1.458;
+  const lw=42,lh=lw/1.473;
   if(logoImg){try{doc.addImage(logoImg,'PNG',W/2-lw/2,15,lw,lh);}catch(e){logoImg=null;}}
   if(!logoImg){doc.setFont('helvetica','bold');doc.setFontSize(24);const tw=doc.getTextWidth('IMDAC');doc.setTextColor(negro[0],negro[1],negro[2]);doc.text('IM',W/2-tw/2,36);doc.setTextColor(rojo[0],rojo[1],rojo[2]);doc.text('DAC',W/2-tw/2+doc.getTextWidth('IM'),36);}
   doc.setFont('helvetica','normal');doc.setFontSize(7.2);doc.setTextColor(gris[0],gris[1],gris[2]);
