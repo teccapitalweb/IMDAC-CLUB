@@ -701,7 +701,6 @@ function getLogoDataURL(cb){
 }
 function generarCertificado(cursoId){
   const c=DATA.cursos.find(x=>x.id===cursoId);if(!c)return;
-  const nombre=CURRENT_USER?.displayName||'Miembro IMDAC';
   const curso=c.titulo;
   const fecha=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
   const totalCl=c.listaClases?c.listaClases.length:(c.clases||0);
@@ -709,13 +708,22 @@ function generarCertificado(cursoId){
   const horasTxt=horas?(horas+' horas'):(totalCl?totalCl+' clases':'el programa completo');
   const folio=genFolio(cursoId);
   toast('Generando certificado...');
-  loadJsPDF(()=>{
-    const verifyURL=buildVerifyURL({nombre,curso,folio,fecha,horas:horasTxt});
-    const fin=(logo,qr)=>buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg:qr,logoImg:logo});
-    const withLogo=logo=>qrDataURL(verifyURL,qr=>fin(logo,qr),()=>fin(logo,null));
-    if(window.IMDAC_LOGO_B64)withLogo(window.IMDAC_LOGO_B64);
-    else getLogoDataURL(withLogo);
-  });
+  const render=(nombre)=>{
+    loadJsPDF(()=>{
+      const verifyURL=buildVerifyURL({nombre,curso,folio,fecha,horas:horasTxt});
+      const fin=(logo,qr)=>buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg:qr,logoImg:logo});
+      const withLogo=logo=>qrDataURL(verifyURL,qr=>fin(logo,qr),()=>fin(logo,null));
+      if(window.IMDAC_LOGO_B64)withLogo(window.IMDAC_LOGO_B64);
+      else getLogoDataURL(withLogo);
+    });
+  };
+  // nombre real: Firestore miembros/{uid}.nombre (fuente actualizada) -> displayName -> default
+  const fallback=CURRENT_USER?.displayName||'Miembro IMDAC';
+  if(FB_OK && window.db && CURRENT_USER?.uid && CURRENT_USER.uid!=='demo'){
+    db.collection('miembros').doc(CURRENT_USER.uid).get()
+      .then(s=>{const n=(s.exists&&s.data().nombre)?String(s.data().nombre).trim():'';render(n||fallback);})
+      .catch(()=>render(fallback));
+  }else render(fallback);
 }
 function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg,logoImg}){
   const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
