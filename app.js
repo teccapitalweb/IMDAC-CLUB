@@ -38,7 +38,7 @@ try{
 let CURRENT_USER=null;
 let LOADING=true;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{}};
+let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{}};
 let activeFilter="Todos";
 
 /* ====== 3. NAV (sidebar) ====== */
@@ -625,12 +625,18 @@ function openCurso(id){
 }
 function renderCursoDetalle(id){
   const c=DATA.cursos.find(x=>x.id===id); if(!c)return renderBiblioteca();
-  const total=c.clases||0;
-  const prog=DATA.progresos[id]||0;
-  const completadas=Math.round(prog/100*total);
   const clases=Array.isArray(c.listaClases)&&c.listaClases.length
     ? c.listaClases
-    : Array.from({length:total},(_,i)=>({titulo:`Clase ${i+1}`,duracion:'2 Horas'}));
+    : Array.from({length:(c.clases||0)},(_,i)=>({titulo:`Clase ${i+1}`,duracion:'2 Horas'}));
+  const total=clases.length;
+  // seguimiento por clase: si aún no existe, lo sembramos desde el porcentaje guardado
+  if(!Array.isArray(DATA.clasesHechas[id])){
+    const seed=Math.round((DATA.progresos[id]||0)/100*total);
+    DATA.clasesHechas[id]=Array.from({length:seed},(_,k)=>k);
+  }
+  const hechas=DATA.clasesHechas[id];
+  const prog=total?Math.round(hechas.length/total*100):0;
+  DATA.progresos[id]=prog;
   return `
   <div class="crumbs"><a onclick="go('inicio')">Inicio</a><span class="sep">›</span><a onclick="go('biblioteca')">Biblioteca</a><span class="sep">›</span><span class="cur">${c.titulo}</span></div>
   <button class="cd-back" onclick="go('biblioteca')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Volver a la biblioteca</button>
@@ -648,28 +654,53 @@ function renderCursoDetalle(id){
   </div>
   <div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>
   ${prog>=100?`<div class="cert-banner"><div class="cbi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div><b>¡Curso completado!</b><p>Descarga tu certificado de finalización con folio y QR verificable.</p></div><button onclick="generarCertificado('${id}')">Descargar certificado</button></div>`:''}
-  <div class="cd-list-head"><h3>Lista de clases</h3><span>${total} clases</span></div>
-  ${clases.map((cl,i)=>claseRow(cl,i,true,id)).join('')}`;
+  <div class="cd-list-head"><h3>Lista de clases</h3><span>${hechas.length} de ${total} completadas</span></div>
+  ${clases.map((cl,i)=>claseRow(cl,i,true,id,hechas.includes(i))).join('')}`;
 }
-function claseRow(cl,i,disp,cursoId){
-  const dispIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>';
-  const lockIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
+function claseRow(cl,i,disp,cursoId,hecha){
   const playIcon='<svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
   const clock='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-  return `<div class="clase ${disp?'disp':'lock'}" ${disp?`onclick="playClase('${cursoId}',${i})"`:''}>
-    <div class="cst">${disp?dispIcon:lockIcon}</div>
-    <div class="cinfo"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${disp?'Disponible':'Bloqueada'}</span>
+  const checkDone='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6" d="M5 13l4 4L19 7"/></svg>';
+  const checkEmpty='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>';
+  const lockIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
+  if(!disp){
+    return `<div class="clase lock">
+      <div class="cst">${lockIcon}</div>
+      <div class="cinfo"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">Bloqueada</span>
+        <div class="dur">${clock}${cl.duracion||'2 Horas'}</div></div>
+    </div>`;
+  }
+  return `<div class="clase disp ${hecha?'done':''}">
+    <button class="cst chk ${hecha?'on':''}" onclick="toggleClaseHecha('${cursoId}',${i})" title="${hecha?'Marcar como pendiente':'Marcar como completada'}">${hecha?checkDone:checkEmpty}</button>
+    <div class="cinfo" onclick="playClase('${cursoId}',${i})" style="cursor:pointer"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${hecha?'Completada':'Disponible'}</span>
       <div class="dur">${clock}${cl.duracion||'2 Horas'}</div></div>
-    ${disp?`<div class="play">${playIcon}</div>`:''}
+    <div class="play" onclick="playClase('${cursoId}',${i})" style="cursor:pointer">${playIcon}</div>
   </div>`;
 }
 function playClase(cursoId,i){
-  const c=DATA.cursos.find(x=>x.id===cursoId);
-  const total=c.listaClases?c.listaClases.length:(c.clases||0);
+  const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const cl=(c.listaClases||[])[i];
   if(cl&&cl.videoUrl)window.open(cl.videoUrl,'_blank');
   else toast('Reproductor conectado a Google Drive · Clase '+(i+1));
-  if(i===total-1&&total>0){DATA.progresos[cursoId]=100;confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),300);if(_cursoActivo===cursoId)openCurso(cursoId);}
+}
+function toggleClaseHecha(cursoId,i){
+  const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
+  const total=(c.listaClases&&c.listaClases.length)||c.clases||0; if(!total)return;
+  const set=new Set(DATA.clasesHechas[cursoId]||[]);
+  const yaCompleto=set.size>=total;
+  if(set.has(i))set.delete(i); else set.add(i);
+  const arr=[...set].filter(x=>x<total).sort((a,b)=>a-b);
+  DATA.clasesHechas[cursoId]=arr;
+  const prog=Math.round(arr.length/total*100);
+  DATA.progresos[cursoId]=prog;
+  guardarProgreso(cursoId,prog,arr);
+  if(_cursoActivo===cursoId)openCurso(cursoId);
+  if(arr.length>=total&&!yaCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
+}
+function guardarProgreso(cursoId,prog,arr){
+  if(!FB_OK||!window.db||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  db.collection('progreso').doc(CURRENT_USER.uid+'_'+cursoId)
+    .set({uid:CURRENT_USER.uid,cursoId,porcentaje:prog,clases:arr},{merge:true}).catch(()=>{});
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');}
 
@@ -926,7 +957,7 @@ function demoLogin(email,name){
 async function loadData(){
   // Datos demo de arranque (se reemplazan con Firestore cuando esté configurado)
   DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
-  DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos;
+  DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos; DATA.clasesHechas={};
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){await sleep(650);LOADING=false;return;}
   try{
     const [cur,web,not,mat,foro]=await Promise.all([
@@ -941,7 +972,7 @@ async function loadData(){
     if(!foro.empty)DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));
     // progreso del usuario
     const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();
-    DATA.progresos={}; prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0;});
+    DATA.progresos={}; DATA.clasesHechas={}; prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0; if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});
     // ¿es admin? (para saltar drip)
     const adm=await db.collection('admins').doc(CURRENT_USER.uid).get();
     window._imdacAdmin=adm.exists;

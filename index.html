@@ -244,6 +244,10 @@ body.logged #app{display:block}
 .clase .cinfo{flex:1;min-width:0}
 .clase .cinfo b{font-family:var(--font-display)}
 .clase .cinfo .est{color:var(--muted);font-weight:500;font-size:.86rem;margin-left:8px}
+.clase .chk{background:none;padding:0;font:inherit;cursor:pointer;transition:transform .15s,background .15s,border-color .15s}
+.clase .chk:hover{transform:scale(1.08)}
+.clase .chk.on,.clase.done .cst{background:var(--rojo);border-color:var(--rojo);color:#fff}
+.clase.done .cinfo .est{color:var(--rojo)}
 .clase .cinfo .dur{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.82rem;margin-top:4px}
 .clase .cinfo .dur svg{width:14px;height:14px}
 .clase .play{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;color:var(--rojo);flex-shrink:0;transition:.16s}
