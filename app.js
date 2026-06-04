@@ -15,8 +15,9 @@ const firebaseConfig = {
 };
 // Cupón y contacto IMDAC (placeholders — cambiar por los reales)
 const IMDAC = {
+  precio: 499,
   cupon: "CLUB20IMDAC",
-  whatsapp: "52XXXXXXXXXX",          // WhatsApp del canal/soporte
+  whatsapp: "522382196286",          // WhatsApp soporte/descuento (se sobreescribe desde config)
   canalWA: "https://chat.whatsapp.com/REEMPLAZAR",
   sitioOficial: "https://imdac.mx",
   soporte: {
@@ -24,6 +25,7 @@ const IMDAC = {
     l2:"522361112213", l2Label:"+52 1 236 111 2213"    // Línea 2
   }
 };
+const waDigits=s=>'52'+String(s||'').replace(/\D/g,'').slice(-10);
 
 let db=null, auth=null, FB_OK=false;
 try{
@@ -34,6 +36,8 @@ try{
 
 /* ====== 2. ESTADO ====== */
 let CURRENT_USER=null;
+let LOADING=true;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{}};
 let activeFilter="Todos";
 
@@ -100,15 +104,19 @@ function renderSection(sec){
     notificaciones:renderNotificaciones, perfil:renderPerfil, suscripcion:renderSuscripcion,
     logros:renderLogros, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
   };
-  c.innerHTML = `<div class="section active">${(R[sec]||renderInicio)()}</div>`;
+  const cr = sec==='inicio'?'':crumbs(navLabel(sec));
+  c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio') startCountdown();
 }
+function navLabel(sec){for(const g of NAV)for(const it of g.items)if(it.id===sec)return it.label;return '';}
+function crumbs(cur){return `<div class="crumbs"><a onclick="go('inicio')">Inicio</a><span class="sep">›</span><span class="cur">${cur}</span></div>`;}
 
 /* ====== 5. SECCIONES ====== */
 function firstName(){const n=CURRENT_USER?.displayName||CURRENT_USER?.email||'Miembro';return n.split(' ')[0].split('@')[0];}
 function saludo(){const h=new Date().getHours();return h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';}
 
 function renderInicio(){
+  if(LOADING)return skelInicio();
   const cursos=DATA.cursos.slice(0,2);
   const noticias=DATA.noticias.slice(0,3);
   const enProg=Object.values(DATA.progresos).filter(p=>p>0&&p<100).length;
@@ -183,12 +191,13 @@ function dripStatus(c){
 
 let CATS=["Todos","Estructuras","Instalaciones","Costos y Presupuestos","Topografía","Diseño CAD","Normatividad","Sustentabilidad","Gestión de Obra"];
 function renderBiblioteca(){
+  if(LOADING)return `<h1 class="page-h">Biblioteca de cursos</h1><p class="page-sub">Cargando catálogo...</p>${skelGrid(8)}`;
   const list=activeFilter==="Todos"?DATA.cursos:DATA.cursos.filter(c=>c.categoria===activeFilter);
   return `
   <h1 class="page-h">Biblioteca de cursos</h1>
   <p class="page-sub">Todo nuestro catálogo de cursos grabados, disponibles 24/7.</p>
-  <div class="filters">${CATS.map(c=>`<button class="filter ${c===activeFilter?'active':''}" onclick="setFilter('${c}')">${c}</button>`).join('')}</div>
-  <div class="course-grid">${list.length?list.map(courseCard).join(''):emptyMini('No hay cursos en esta categoría todavía.')}</div>`;
+  <div class="filters">${CATS.map(c=>`<button class="filter ${c===activeFilter?'active':''}" onclick="setFilter('${c.replace(/'/g,"\\'")}')">${c}</button>`).join('')}</div>
+  ${list.length?`<div class="course-grid">${list.map(courseCard).join('')}</div>`:emptyIllus('No hay cursos aquí','Aún no hay cursos en esta categoría. Prueba con otra o vuelve pronto.','Ver todos los cursos',"setFilter('Todos')")}`;
 }
 function setFilter(c){activeFilter=c;renderSection('biblioteca');}
 
@@ -326,7 +335,7 @@ function renderSuscripcion(){
   <div class="sub-card">
     <div class="sub-top"><span class="sub-badge">✦ Premium</span><span class="sub-status">Activa</span></div>
     <div class="sub-plan">IMDAC Mensual</div>
-    <div class="sub-price">$499 <span>MXN / mes</span></div>
+    <div class="sub-price">$${IMDAC.precio||499} <span>MXN / mes</span></div>
     <div class="sub-divider"></div>
     <div class="sub-meta2">
       <div><div class="ml">Miembro desde</div><div class="mv">${alta}</div></div>
@@ -525,7 +534,33 @@ function renderCalculadora(){
       <div class="field"><label>Alto del muro (m)</label><input id="bk-alto" type="number" value="0" oninput="calcBlock()"></div>
     </div>
     <div class="calc-result"><b id="bk-piezas">0 piezas</b><span>Block 15×20×40 cm · 12.5 pzas/m² (incluye 5% desperdicio)</span></div>
-  </div>`;
+  </div>
+  <button class="btn-primary" style="width:auto;padding:13px 30px" onclick="exportCalcPDF()">📄 Exportar cálculo a PDF</button>`;
+}
+function exportCalcPDF(){
+  loadJsPDF(()=>{
+    const {jsPDF}=window.jspdf;const doc=new jsPDF();
+    doc.setFillColor(13,13,13);doc.rect(0,0,210,32,'F');doc.setFillColor(255,44,44);doc.rect(0,32,210,2.5,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text('IMDAC',16,16);
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('Instituto Mexicano de Arquitectura y Construcción',16,23);
+    doc.setTextColor(255,44,44);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('CÁLCULO DE MATERIALES',150,18,{align:'center'});
+    let y=50;doc.setTextColor(20,20,20);
+    const sec=(t)=>{doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(255,44,44);doc.text(t,16,y);y+=8;doc.setTextColor(20,20,20);};
+    const row=(l,v)=>{doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(110,110,110);doc.text(l,18,y);doc.setFont('helvetica','bold');doc.setTextColor(20,20,20);doc.text(String(v),120,y);y+=7;};
+    sec('Concreto (losa / firme)');
+    row('Dimensiones',`${val('cc-largo')||0} x ${val('cc-ancho')||0} m, esp. ${val('cc-esp')||0} cm`);
+    row('Volumen de concreto',document.getElementById('cc-vol')?.textContent||'0 m³');
+    row('Sacos de cemento (aprox.)',document.getElementById('cc-sacos')?.textContent||'0');
+    row('Arena',`${document.getElementById('cc-arena')?.textContent||'0'} m³`);
+    row('Grava',`${document.getElementById('cc-grava')?.textContent||'0'} m³`);
+    y+=6;sec('Muro de block');
+    row('Dimensiones del muro',`${val('bk-largo')||0} x ${val('bk-alto')||0} m`);
+    row('Piezas de block (con 5% desperdicio)',document.getElementById('bk-piezas')?.textContent||'0');
+    doc.setFontSize(8);doc.setTextColor(150,150,150);
+    doc.text('Cálculo de referencia generado por IMDAC · Club de Miembros · '+new Date().toLocaleDateString('es-MX'),16,285);
+    doc.text('Los valores son estimados. Ajusta según proyecto, proveedor y normativa vigente.',16,290);
+    doc.save('calculo-materiales-imdac.pdf');toast('PDF generado');
+  });
 }
 function calcConcreto(){
   const l=+val('cc-largo'),a=+val('cc-ancho'),e=+val('cc-esp')/100;
@@ -594,6 +629,7 @@ function renderCursoDetalle(id){
     ? c.listaClases
     : Array.from({length:total},(_,i)=>({titulo:`Clase ${i+1}`,duracion:'2 Horas'}));
   return `
+  <div class="crumbs"><a onclick="go('inicio')">Inicio</a><span class="sep">›</span><a onclick="go('biblioteca')">Biblioteca</a><span class="sep">›</span><span class="cur">${c.titulo}</span></div>
   <button class="cd-back" onclick="go('biblioteca')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Volver a la biblioteca</button>
   <div class="cd-hero">
     <div class="cd-hero-img" style="background-image:url('${c.img||''}')"></div>
@@ -625,9 +661,11 @@ function claseRow(cl,i,disp,cursoId){
 }
 function playClase(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId);
+  const total=c.listaClases?c.listaClases.length:(c.clases||0);
   const cl=(c.listaClases||[])[i];
   if(cl&&cl.videoUrl)window.open(cl.videoUrl,'_blank');
   else toast('Reproductor conectado a Google Drive · Clase '+(i+1));
+  if(i===total-1&&total>0){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),300);}
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');}
 
@@ -647,6 +685,53 @@ function startCountdown(){
   }
   tick();cdTimer=setInterval(tick,1000);
 }
+
+/* ====== PRO: skeletons / empty / confetti / ⌘K ====== */
+function skelGrid(n){return `<div class="course-grid">${Array.from({length:n},()=>`<div class="skel-card"><div class="skel" style="aspect-ratio:16/10"></div><div style="padding:16px"><div class="skel skel-line" style="width:80%"></div><div class="skel skel-line" style="width:50%"></div><div class="skel skel-line" style="width:100%;margin-top:14px"></div></div></div>`).join('')}</div>`;}
+function skelInicio(){
+  return `<div class="skel" style="height:96px;border-radius:16px;margin-bottom:22px"></div>
+  <div class="inicio-grid"><div>
+    <div class="skel" style="height:150px;border-radius:16px;margin-bottom:22px"></div>
+    <div class="stats-row">${Array.from({length:3},()=>'<div class="skel" style="height:90px;border-radius:16px"></div>').join('')}</div>
+    <div class="skel skel-line" style="width:200px;height:20px;margin:8px 0 16px"></div>
+    ${skelGrid(2)}
+  </div><aside class="news-side"><div class="skel" style="height:300px;border-radius:16px"></div></aside></div>`;
+}
+function emptyIllus(title,desc,actionLabel,actionFn){
+  const illus=`<svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="55" width="120" height="80" rx="10" fill="var(--gris-100)"/><path d="M40 70l60 38 60-38" stroke="var(--gris-300)" stroke-width="3" fill="none"/><rect x="64" y="30" width="72" height="48" rx="8" fill="var(--surface)" stroke="var(--rojo)" stroke-width="3"/><circle cx="100" cy="50" r="9" fill="var(--rojo)" opacity=".25"/><path d="M100 45v8m0 4h.01" stroke="var(--rojo)" stroke-width="3" stroke-linecap="round"/></svg>`;
+  return `<div class="card"><div class="empty-illus">${illus}<b>${title}</b><span>${desc}</span>${actionLabel?`<br><button class="ea" onclick="${actionFn}">${actionLabel}</button>`:''}</div></div>`;
+}
+function confetti(){
+  let cv=document.getElementById('confetti-canvas');
+  if(!cv){cv=document.createElement('canvas');cv.id='confetti-canvas';document.body.appendChild(cv);}
+  cv.width=innerWidth;cv.height=innerHeight;const ctx=cv.getContext('2d');
+  const cols=['#FF2C2C','#0d0d0d','#ff7a7a','#ffd5d5','#888'];
+  const P=Array.from({length:140},()=>({x:innerWidth/2,y:innerHeight/3,vx:(Math.random()-.5)*14,vy:Math.random()*-15-4,r:Math.random()*6+3,c:cols[Math.random()*cols.length|0],a:1,rot:Math.random()*6}));
+  let t=0;
+  (function run(){ctx.clearRect(0,0,cv.width,cv.height);t++;let alive=false;
+    P.forEach(p=>{p.vy+=.45;p.x+=p.vx;p.y+=p.vy;p.rot+=.2;p.a-=.012;if(p.a>0){alive=true;ctx.save();ctx.globalAlpha=Math.max(0,p.a);ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.c;ctx.fillRect(-p.r,-p.r,p.r*2,p.r*1.4);ctx.restore();}});
+    if(alive&&t<160)requestAnimationFrame(run);else ctx.clearRect(0,0,cv.width,cv.height);
+  })();
+}
+let _cmdkItems=[],_cmdkSel=0;
+function openCmdK(){document.getElementById('cmdk-bg').classList.add('open');const i=document.getElementById('cmdk-input');i.value='';cmdkSearch('');setTimeout(()=>i.focus(),50);}
+function closeCmdK(){document.getElementById('cmdk-bg').classList.remove('open');}
+function cmdkSearch(q){
+  q=q.toLowerCase().trim();const res=[];
+  NAV.forEach(g=>g.items.forEach(it=>{if(it.label.toLowerCase().includes(q))res.push({t:it.label,s:'Sección',ic:'M4 6h16M4 12h16M4 18h16',fn:`go('${it.id}');closeCmdK()`});}));
+  DATA.cursos.filter(c=>c.titulo.toLowerCase().includes(q)).slice(0,5).forEach(c=>res.push({t:c.titulo,s:'Curso · '+(c.categoria||''),ic:'M12 6.253v13',fn:`closeCmdK();openCurso('${c.id}')`}));
+  DATA.material.filter(m=>m.titulo.toLowerCase().includes(q)).slice(0,4).forEach(m=>res.push({t:m.titulo,s:'Material PDF',ic:'M9 12h6m-6 4h6',fn:`go('material');closeCmdK()`}));
+  DATA.noticias.filter(n=>n.titulo.toLowerCase().includes(q)).slice(0,4).forEach(n=>res.push({t:n.titulo,s:'Noticia',ic:'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1',fn:`go('noticias');closeCmdK()`}));
+  _cmdkItems=res;_cmdkSel=0;
+  const box=document.getElementById('cmdk-results');
+  box.innerHTML=res.length?res.map((r,i)=>`<div class="cmdk-item ${i===0?'sel':''}" onclick="${r.fn}"><div class="ci"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${r.ic}"/></svg></div><div><div class="ct">${r.t}</div><div class="cs">${r.s}</div></div></div>`).join(''):'<div class="cmdk-empty">Sin resultados</div>';
+}
+function cmdkKey(e){
+  if(e.key==='ArrowDown'){e.preventDefault();_cmdkSel=Math.min(_cmdkSel+1,_cmdkItems.length-1);cmdkHighlight();}
+  else if(e.key==='ArrowUp'){e.preventDefault();_cmdkSel=Math.max(_cmdkSel-1,0);cmdkHighlight();}
+  else if(e.key==='Enter'){const it=_cmdkItems[_cmdkSel];if(it){closeCmdK();eval(it.fn);}}
+}
+function cmdkHighlight(){document.querySelectorAll('.cmdk-item').forEach((el,i)=>el.classList.toggle('sel',i===_cmdkSel));}
 
 /* ====== 9. AUTH ====== */
 function switchTab(t){
@@ -688,6 +773,7 @@ function doReset(){
   auth.sendPasswordResetEmail(email).then(()=>toast('Enlace de recuperación enviado')).catch(e=>showErr(authMsg(e.code)));
 }
 function doLogout(){
+  document.getElementById('maint-overlay')?.remove();
   if(FB_OK)auth.signOut();
   else{CURRENT_USER=null;document.body.classList.remove('logged');document.getElementById('login').classList.remove('hidden');}
 }
@@ -701,7 +787,7 @@ async function loadData(){
   // Datos demo de arranque (se reemplazan con Firestore cuando esté configurado)
   DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
   DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos;
-  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){await sleep(650);LOADING=false;return;}
   try{
     const [cur,web,not,mat,foro]=await Promise.all([
       db.collection('cursos').get(), db.collection('webinars').get(),
@@ -719,10 +805,19 @@ async function loadData(){
     // ¿es admin? (para saltar drip)
     const adm=await db.collection('admins').doc(CURRENT_USER.uid).get();
     window._imdacAdmin=adm.exists;
-    // categorías configurables (sincronizadas con el Admin)
+    // configuración global (sincronizada con el Admin)
     const cfg=await db.collection('config').doc('app').get();
-    if(cfg.exists&&Array.isArray(cfg.data().categorias)&&cfg.data().categorias.length)CATS=['Todos',...cfg.data().categorias];
+    if(cfg.exists){const cd=cfg.data();
+      if(Array.isArray(cd.categorias)&&cd.categorias.length)CATS=['Todos',...cd.categorias];
+      if(cd.precio)IMDAC.precio=cd.precio;
+      if(cd.cupon)IMDAC.cupon=cd.cupon;
+      if(cd.canal)IMDAC.canalWA=cd.canal;
+      if(cd.wa1){IMDAC.soporte.l1=waDigits(cd.wa1);IMDAC.soporte.l1Label=cd.wa1;IMDAC.whatsapp=waDigits(cd.wa1);}
+      if(cd.wa2){IMDAC.soporte.l2=waDigits(cd.wa2);IMDAC.soporte.l2Label=cd.wa2;}
+      window._mantenimiento=!!cd.mantenimiento;
+    }
   }catch(e){console.warn('Firestore:',e.message);}
+  LOADING=false;
 }
 
 /* ====== 11. UI helpers ====== */
@@ -762,8 +857,22 @@ async function onLogged(){
   document.body.classList.add('logged');
   document.getElementById('login').classList.add('hidden');
   renderSidebar();refreshUserUI();updateThemeIcon();
+  LOADING=true; go('inicio');
   await loadData();
+  if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
   go('inicio');
+}
+function renderMantenimiento(){
+  if(document.getElementById('maint-overlay'))return;
+  const ov=document.createElement('div');
+  ov.id='maint-overlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:5500;background:var(--negro);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:8px';
+  ov.innerHTML=`
+    <img src="assets/logo-imdac.png" style="width:80px;height:80px;border-radius:18px;background:#fff;padding:5px;margin-bottom:10px">
+    <h1 style="font-family:var(--font-display);font-size:1.8rem">Estamos en mantenimiento 🛠️</h1>
+    <p style="color:#b5b5bd;max-width:420px;line-height:1.6">Estamos actualizando el Club IMDAC para mejorar tu experiencia. Vuelve en un momento, ¡no tardamos!</p>
+    <button onclick="doLogout()" style="margin-top:18px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.18);padding:12px 24px;border-radius:11px;font-weight:600;cursor:pointer">Cerrar sesión</button>`;
+  document.body.appendChild(ov);
 }
 function bootDone(){document.getElementById('boot').classList.add('hide');}
 
@@ -773,6 +882,11 @@ window.addEventListener('DOMContentLoaded',()=>{
   // PWA: service worker + prompt de instalación
   if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(()=>{});}catch(e){}}
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_deferredPrompt=e;});
+  // Command palette ⌘K / Ctrl+K
+  document.addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(document.body.classList.contains('logged')){document.getElementById('cmdk-bg').classList.contains('open')?closeCmdK():openCmdK();}}
+    else if(e.key==='Escape')closeCmdK();
+  });
   if(FB_OK){
     auth.onAuthStateChanged(u=>{
       bootDone();

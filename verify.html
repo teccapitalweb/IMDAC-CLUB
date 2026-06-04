@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificación de Certificado · IMDAC</title>
+<link rel="icon" href="assets/logo-imdac.png">
+<meta name="theme-color" content="#FF2C2C">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--rojo:#FF2C2C;--negro:#0d0d0d;--line:#e7e7ea;--muted:#7a7a82;--base:#f7f7f8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--base);color:#141414;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:#fff;border:1px solid var(--line);border-radius:22px;max-width:560px;width:100%;box-shadow:0 20px 50px rgba(13,13,13,.1);overflow:hidden}
+.head{background:linear-gradient(135deg,var(--negro),#1a1a1a);padding:30px 34px;color:#fff;position:relative;overflow:hidden}
+.head::after{content:"";position:absolute;top:-50%;right:-10%;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(255,44,44,.35),transparent 65%)}
+.brand{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+.brand img{width:46px;height:46px;border-radius:10px;background:#fff;padding:3px}
+.brand b{font-family:'Space Grotesk',sans-serif;font-size:1.35rem;letter-spacing:.05em}
+.brand b span{color:var(--rojo)}
+.brand small{display:block;font-size:.66rem;color:#9a9aa2;letter-spacing:.04em;text-transform:uppercase;margin-top:2px}
+.body{padding:36px 34px}
+.status{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:28px}
+.check{width:84px;height:84px;border-radius:50%;background:#e8f9ee;display:grid;place-items:center;margin-bottom:18px;animation:pop .5s cubic-bezier(.34,1.6,.5,1)}
+.check svg{width:44px;height:44px;color:#16a34a;stroke-width:3}
+@keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+.status h1{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:700}
+.status p{color:var(--muted);margin-top:6px}
+.invalid .check{background:#fdeaea}
+.invalid .check svg{color:var(--rojo)}
+.rows{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{display:flex;justify-content:space-between;gap:16px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.row:last-child{border:none}
+.row .l{color:var(--muted);font-size:.84rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.row .v{font-weight:600;font-family:'Space Grotesk',sans-serif;text-align:right}
+.foot{text-align:center;color:var(--muted);font-size:.8rem;margin-top:24px;line-height:1.6}
+.foot a{color:var(--rojo);font-weight:600;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head"><div class="brand"><img src="assets/logo-imdac.png" alt="IMDAC"><div><b>IM<span>DAC</span></b><small>Verificación de certificado</small></div></div></div>
+  <div class="body" id="body"></div>
+</div>
+<script>
+function getData(){
+  const p=new URLSearchParams(location.search);
+  const raw=p.get('d');
+  if(!raw)return null;
+  try{return JSON.parse(decodeURIComponent(escape(atob(raw))));}catch(e){try{return JSON.parse(atob(raw));}catch(e2){return null;}}
+}
+const d=getData();
+const body=document.getElementById('body');
+const check='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+const xmark='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+if(d && d.nombre && d.curso){
+  body.innerHTML=`
+    <div class="status"><div class="check">${check}</div><h1>Certificado válido</h1><p>Este certificado fue emitido oficialmente por IMDAC.</p></div>
+    <div class="rows">
+      <div class="row"><span class="l">Nombre</span><span class="v">${esc(d.nombre)}</span></div>
+      <div class="row"><span class="l">Curso</span><span class="v">${esc(d.curso)}</span></div>
+      ${d.folio?`<div class="row"><span class="l">Folio</span><span class="v">${esc(d.folio)}</span></div>`:''}
+      ${d.fecha?`<div class="row"><span class="l">Fecha de emisión</span><span class="v">${esc(d.fecha)}</span></div>`:''}
+      ${d.horas?`<div class="row"><span class="l">Duración</span><span class="v">${esc(d.horas)}</span></div>`:''}
+    </div>
+    <div class="foot">Instituto Mexicano de Arquitectura y Construcción<br><a href="index.html">Ir al Club IMDAC →</a></div>`;
+}else{
+  body.innerHTML=`
+    <div class="status invalid"><div class="check">${xmark}</div><h1>Certificado no válido</h1><p>No pudimos verificar este certificado. El enlace puede estar incompleto o ser inválido.</p></div>
+    <div class="foot">Si crees que es un error, contacta a soporte de IMDAC.<br><a href="index.html">Ir al Club IMDAC →</a></div>`;
+}
+function esc(s){return (s==null?'':String(s)).replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+</body>
+</html>
