@@ -249,6 +249,14 @@ body.logged #app{display:block}
 .clase .play{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;color:var(--rojo);flex-shrink:0;transition:.16s}
 .clase.disp:hover .play{background:var(--rojo);color:#fff;border-color:var(--rojo)}
 .clase .play svg{width:18px;height:18px}
+.cert-banner{display:flex;align-items:center;gap:16px;background:linear-gradient(120deg,var(--rojo-50),var(--surface));border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:18px 0}
+[data-theme="dark"] .cert-banner{background:linear-gradient(120deg,#2a1414,var(--surface))}
+.cert-banner .cbi{width:48px;height:48px;border-radius:12px;background:var(--rojo);color:#fff;display:grid;place-items:center;flex-shrink:0}
+.cert-banner .cbi svg{width:24px;height:24px;stroke-width:1.9}
+.cert-banner b{font-family:var(--font-display)}
+.cert-banner p{color:var(--muted);font-size:.86rem;margin-top:2px}
+.cert-banner button{margin-left:auto;background:var(--rojo);color:#fff;padding:11px 20px;border-radius:10px;font-weight:700;white-space:nowrap;transition:transform .15s,box-shadow .15s}
+.cert-banner button:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(255,44,44,.3)}
 @media(max-width:760px){.cd-hero{grid-template-columns:1fr}.cd-hero-img{min-height:200px}}
 
 /* LISTAS (noticias/foro/material) */

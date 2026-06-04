@@ -365,8 +365,11 @@ function renderLogros(){
     {n:'Maestro de obra',d:'Completa 10 cursos',ic:'👷',ok:false},
     {n:'Influencer',d:'Recibe 10 likes en el foro',ic:'⭐',ok:false},
   ];
+  const completados=DATA.cursos.filter(c=>(DATA.progresos[c.id]||0)>=100);
   return `<h1 class="page-h">Logros</h1><p class="page-sub">Tu progreso y reconocimientos en el club.</p>
-  <div class="course-grid">${logros.map(l=>`<div class="card" style="padding:24px;text-align:center;${l.ok?'':'opacity:.5'}"><div style="font-size:2.4rem">${l.ic}</div><h4 style="font-family:var(--font-display);margin:10px 0 4px">${l.n}</h4><p style="color:var(--muted);font-size:.86rem">${l.d}</p>${l.ok?'<span class="pill" style="background:var(--rojo-50);color:var(--rojo);margin-top:10px">Desbloqueado</span>':''}</div>`).join('')}</div>`;
+  <div class="course-grid">${logros.map(l=>`<div class="card" style="padding:24px;text-align:center;${l.ok?'':'opacity:.5'}"><div style="font-size:2.4rem">${l.ic}</div><h4 style="font-family:var(--font-display);margin:10px 0 4px">${l.n}</h4><p style="color:var(--muted);font-size:.86rem">${l.d}</p>${l.ok?'<span class="pill" style="background:var(--rojo-50);color:var(--rojo);margin-top:10px">Desbloqueado</span>':''}</div>`).join('')}</div>
+  ${completados.length?`<h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;margin:34px 0 14px">Tus certificados</h3>
+    <div class="card" style="padding:6px 22px">${completados.map(c=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)"><div><b style="font-family:var(--font-display)">${c.titulo}</b><div style="color:var(--muted);font-size:.84rem">${c.categoria||''}</div></div><button class="filter" onclick="generarCertificado('${c.id}')">📄 Descargar PDF</button></div>`).join('')}</div>`:''}`;
 }
 
 function renderConfig(){
@@ -644,6 +647,7 @@ function renderCursoDetalle(id){
     </div>
   </div>
   <div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>
+  ${prog>=100?`<div class="cert-banner"><div class="cbi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div><b>¡Curso completado!</b><p>Descarga tu certificado de finalización con folio y QR verificable.</p></div><button onclick="generarCertificado('${id}')">Descargar certificado</button></div>`:''}
   <div class="cd-list-head"><h3>Lista de clases</h3><span>${total} clases</span></div>
   ${clases.map((cl,i)=>claseRow(cl,i,true,id)).join('')}`;
 }
@@ -665,9 +669,89 @@ function playClase(cursoId,i){
   const cl=(c.listaClases||[])[i];
   if(cl&&cl.videoUrl)window.open(cl.videoUrl,'_blank');
   else toast('Reproductor conectado a Google Drive · Clase '+(i+1));
-  if(i===total-1&&total>0){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),300);}
+  if(i===total-1&&total>0){DATA.progresos[cursoId]=100;confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),300);if(_cursoActivo===cursoId)openCurso(cursoId);}
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');}
+
+/* ====== CERTIFICADO ====== */
+function genFolio(cursoId){
+  const s=(CURRENT_USER?.uid||'demo')+'_'+cursoId;let h=0;
+  for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;
+  return 'IMDAC-'+new Date().getFullYear()+'-'+h.toString(36).toUpperCase().padStart(6,'0').slice(0,6);
+}
+function buildVerifyURL(data){
+  const base=location.href.replace(/[?#].*$/,'').replace(/[^/]*$/,'');
+  const d=btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  return base+'verify.html?d='+d;
+}
+function qrDataURL(text,ok,fail){
+  const url='https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data='+encodeURIComponent(text);
+  const xhr=new XMLHttpRequest();xhr.open('GET',url);xhr.responseType='blob';
+  xhr.onload=()=>{if(xhr.status===200){const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=fail;fr.readAsDataURL(xhr.response);}else fail();};
+  xhr.onerror=fail;xhr.send();
+}
+function generarCertificado(cursoId){
+  const c=DATA.cursos.find(x=>x.id===cursoId);if(!c)return;
+  const nombre=CURRENT_USER?.displayName||'Miembro IMDAC';
+  const curso=c.titulo;
+  const fecha=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+  const totalCl=c.listaClases?c.listaClases.length:(c.clases||0);
+  const horasTxt=totalCl?totalCl+' clases':'Curso completo';
+  const folio=genFolio(cursoId);
+  toast('Generando certificado...');
+  loadJsPDF(()=>{
+    const verifyURL=buildVerifyURL({nombre,curso,folio,fecha,horas:horasTxt});
+    qrDataURL(verifyURL,img=>buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg:img}),()=>buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg:null}));
+  });
+}
+function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg}){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210;
+  doc.setFillColor(253,251,247);doc.rect(0,0,W,H,'F');
+  doc.setDrawColor(255,44,44);doc.setLineWidth(2.5);doc.rect(8,8,W-16,H-16);
+  doc.setLineWidth(.6);doc.rect(12,12,W-24,H-24);
+  // esquinas rojas
+  doc.setFillColor(255,44,44);const cs=15;
+  doc.triangle(8,8,8+cs,8,8,8+cs,'F');doc.triangle(W-8,8,W-8-cs,8,W-8,8+cs,'F');
+  doc.triangle(8,H-8,8+cs,H-8,8,H-8-cs,'F');doc.triangle(W-8,H-8,W-8-cs,H-8,W-8,H-8-cs,'F');
+  // marca IMDAC (dos tonos, centrada)
+  doc.setFont('helvetica','bold');doc.setFontSize(30);
+  const im='IM',dac='DAC';const wIM=doc.getTextWidth(im),wDAC=doc.getTextWidth(dac);const sx=W/2-(wIM+wDAC)/2;
+  doc.setTextColor(13,13,13);doc.text(im,sx,32);doc.setTextColor(255,44,44);doc.text(dac,sx+wIM,32);
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);
+  doc.text('INSTITUTO MEXICANO DE ARQUITECTURA Y CONSTRUCCIÓN',W/2,39,{align:'center'});
+  // título
+  doc.setTextColor(255,44,44);doc.setFont('helvetica','bold');doc.setFontSize(21);
+  doc.text('CERTIFICADO DE FINALIZACIÓN',W/2,57,{align:'center'});
+  // cuerpo
+  doc.setTextColor(95,95,95);doc.setFont('helvetica','normal');doc.setFontSize(12);
+  doc.text('Se otorga el presente certificado a:',W/2,73,{align:'center'});
+  doc.setTextColor(13,13,13);doc.setFont('helvetica','bolditalic');doc.setFontSize(30);
+  doc.text(nombre,W/2,89,{align:'center'});
+  const nw=Math.min(doc.getTextWidth(nombre),180);
+  doc.setDrawColor(255,44,44);doc.setLineWidth(.7);doc.line(W/2-nw/2-8,94,W/2+nw/2+8,94);
+  doc.setTextColor(95,95,95);doc.setFont('helvetica','normal');doc.setFontSize(12);
+  doc.text('por haber completado satisfactoriamente el curso:',W/2,107,{align:'center'});
+  doc.setTextColor(13,13,13);doc.setFont('helvetica','bold');doc.setFontSize(15);
+  doc.text(doc.splitTextToSize(curso,210),W/2,118,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(110,110,110);
+  doc.text(horasTxt+'  ·  Fecha de emisión: '+fecha,W/2,133,{align:'center'});
+  // QR centro
+  if(qrImg){doc.addImage(qrImg,'PNG',W/2-11,142,22,22);doc.setFontSize(7);doc.setTextColor(120,120,120);doc.text('Verifica este certificado',W/2,167,{align:'center'});}
+  // firmas
+  const sy=175;doc.setDrawColor(60,60,60);doc.setLineWidth(.4);
+  doc.line(42,sy,105,sy);doc.line(W-105,sy,W-42,sy);
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(13,13,13);
+  doc.text('Dirección Académica',73,sy+6,{align:'center'});
+  doc.text('Coordinación de Certificación',W-73,sy+6,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
+  doc.text('IMDAC',73,sy+11,{align:'center'});
+  doc.text('IPCI Latinoamericano',W-73,sy+11,{align:'center'});
+  // folio
+  doc.setFontSize(8);doc.setTextColor(120,120,120);doc.text('Folio: '+folio,16,H-13);
+  doc.save('certificado-imdac-'+folio+'.pdf');
+  toast('Certificado generado');
+}
 
 /* ====== 8. COUNTDOWN ====== */
 let cdTimer=null;
