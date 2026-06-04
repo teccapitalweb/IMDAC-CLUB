@@ -311,37 +311,41 @@ const val=id=>document.getElementById(id)?.value||'';
 
 function renderSuscripcion(){
   const incluye=[
-    ['Acceso ilimitado','A todos los cursos grabados, 24/7'],
-    ['Webinars en vivo','Sesiones mensuales con expertos'],
-    ['Material PDF','Planos tipo y guías descargables'],
-    ['20% de descuento','En cursos y certificaciones'],
-    ['Canal exclusivo','Comunidad de miembros'],
+    ['Acceso ilimitado','A todos los cursos grabados, 24/7','M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'],
+    ['Webinars en vivo','Sesiones mensuales con expertos','M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'],
+    ['Material PDF','Planos tipo y guías descargables','M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
+    ['20% de descuento','En cursos y certificaciones','M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'],
+    ['Canal exclusivo','Comunidad de miembros','M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'],
   ];
-  const check='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
-  const alta=CURRENT_USER?.metadata?.creationTime?new Date(CURRENT_USER.metadata.creationTime).toLocaleDateString('es-MX'):'—';
+  let alta='—', renueva='—';
+  if(CURRENT_USER?.metadata?.creationTime){
+    const d=new Date(CURRENT_USER.metadata.creationTime);alta=d.toLocaleDateString('es-MX');
+    const r=new Date(d);r.setMonth(r.getMonth()+1);renueva=r.toLocaleDateString('es-MX');
+  }
   return `<h1 class="page-h">Mi Suscripción</h1><p class="page-sub">Detalles de tu plan y beneficios activos.</p>
-
-  <div class="sub-hero">
-    <div class="pa">Plan actual</div>
-    <div class="pn">IMDAC Mensual</div>
-    <div class="pp">$499 MXN / mes</div>
-    <hr>
-    <div class="sub-meta">
-      <div><div class="ml">Estado</div><div class="mv activa">Activa</div></div>
-      <div><div class="ml">Activada desde</div><div class="mv">${alta}</div></div>
+  <div class="sub-card">
+    <div class="sub-top"><span class="sub-badge">✦ Premium</span><span class="sub-status">Activa</span></div>
+    <div class="sub-plan">IMDAC Mensual</div>
+    <div class="sub-price">$499 <span>MXN / mes</span></div>
+    <div class="sub-divider"></div>
+    <div class="sub-meta2">
+      <div><div class="ml">Miembro desde</div><div class="mv">${alta}</div></div>
+      <div><div class="ml">Próxima renovación</div><div class="mv">${renueva}</div></div>
+      <div><div class="ml">Método de pago</div><div class="mv">Stripe</div></div>
     </div>
-    <button class="btn-outline danger" onclick="if(confirm('¿Seguro que deseas cancelar tu suscripción? Perderás el acceso al catálogo al terminar el periodo.'))toast('Cancelación enviada (pendiente integrar Stripe)')">Cancelar suscripción</button>
+    <div class="sub-actions">
+      <button class="btn-manage" onclick="toast('Gestión de pago vía Stripe (pendiente integrar)')">Gestionar suscripción</button>
+      <button class="btn-cancel" onclick="if(confirm('¿Seguro que deseas cancelar tu suscripción? Perderás el acceso al catálogo al terminar el periodo.'))toast('Cancelación enviada (pendiente integrar Stripe)')">Cancelar</button>
+    </div>
   </div>
-
-  <div>
-    <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700">Lo que incluye tu plan</h3>
-    <div class="plan-grid">
-      ${incluye.map(i=>`<div class="plan-item"><div class="ck">${check}</div><div><b>${i[0]}</b><span>${i[1]}</span></div></div>`).join('')}
-    </div>
-    <div class="legal-links">
-      <button onclick="go('terminos')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Términos y Condiciones</button>
-      <button onclick="go('privacidad')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Política de Privacidad</button>
-    </div>
+  <h3 class="plan-section-title">Lo que incluye tu plan</h3>
+  <p class="plan-section-sub">Todo esto viene con tu membresía activa.</p>
+  <div class="plan-grid">
+    ${incluye.map(i=>`<div class="plan-item"><div class="pic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${i[2]}"/></svg></div><b>${i[0]}</b><span>${i[1]}</span></div>`).join('')}
+  </div>
+  <div class="legal-links">
+    <button onclick="go('terminos')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Términos y Condiciones</button>
+    <button onclick="go('privacidad')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Política de Privacidad</button>
   </div>`;
 }
 
