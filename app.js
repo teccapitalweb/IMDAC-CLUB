@@ -690,65 +690,91 @@ function qrDataURL(text,ok,fail){
   xhr.onload=()=>{if(xhr.status===200){const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=fail;fr.readAsDataURL(xhr.response);}else fail();};
   xhr.onerror=fail;xhr.send();
 }
+function getLogoDataURL(cb){
+  try{
+    const img=document.querySelector('.sb-brand img')||document.querySelector('#login img');
+    if(!img){cb(null);return;}
+    const toData=el=>{try{const cv=document.createElement('canvas');cv.width=el.naturalWidth||el.width||300;cv.height=el.naturalHeight||el.height||300;cv.getContext('2d').drawImage(el,0,0);cb(cv.toDataURL('image/png'));}catch(e){cb(null);}};
+    if(img.complete&&(img.naturalWidth||0)>0)toData(img);
+    else{const i2=new Image();i2.onload=()=>toData(i2);i2.onerror=()=>cb(null);i2.src=img.src;}
+  }catch(e){cb(null);}
+}
 function generarCertificado(cursoId){
   const c=DATA.cursos.find(x=>x.id===cursoId);if(!c)return;
   const nombre=CURRENT_USER?.displayName||'Miembro IMDAC';
   const curso=c.titulo;
   const fecha=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
   const totalCl=c.listaClases?c.listaClases.length:(c.clases||0);
-  const horasTxt=totalCl?totalCl+' clases':'Curso completo';
+  let horas=0;(c.listaClases||[]).forEach(cl=>{const m=String(cl.duracion||'').match(/[\d.]+/);if(m)horas+=parseFloat(m[0]);});
+  const horasTxt=horas?(horas+' horas'):(totalCl?totalCl+' clases':'el programa completo');
   const folio=genFolio(cursoId);
   toast('Generando certificado...');
   loadJsPDF(()=>{
     const verifyURL=buildVerifyURL({nombre,curso,folio,fecha,horas:horasTxt});
-    qrDataURL(verifyURL,img=>buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg:img}),()=>buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg:null}));
+    const fin=(logo,qr)=>buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg:qr,logoImg:logo});
+    const withLogo=logo=>qrDataURL(verifyURL,qr=>fin(logo,qr),()=>fin(logo,null));
+    if(window.IMDAC_LOGO_B64)withLogo(window.IMDAC_LOGO_B64);
+    else getLogoDataURL(withLogo);
   });
 }
-function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg}){
+function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg,logoImg}){
   const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  const W=297,H=210;
-  doc.setFillColor(253,251,247);doc.rect(0,0,W,H,'F');
-  doc.setDrawColor(255,44,44);doc.setLineWidth(2.5);doc.rect(8,8,W-16,H-16);
-  doc.setLineWidth(.6);doc.rect(12,12,W-24,H-24);
-  // esquinas rojas
-  doc.setFillColor(255,44,44);const cs=15;
-  doc.triangle(8,8,8+cs,8,8,8+cs,'F');doc.triangle(W-8,8,W-8-cs,8,W-8,8+cs,'F');
-  doc.triangle(8,H-8,8+cs,H-8,8,H-8-cs,'F');doc.triangle(W-8,H-8,W-8-cs,H-8,W-8,H-8-cs,'F');
-  // marca IMDAC (dos tonos, centrada)
-  doc.setFont('helvetica','bold');doc.setFontSize(30);
-  const im='IM',dac='DAC';const wIM=doc.getTextWidth(im),wDAC=doc.getTextWidth(dac);const sx=W/2-(wIM+wDAC)/2;
-  doc.setTextColor(13,13,13);doc.text(im,sx,32);doc.setTextColor(255,44,44);doc.text(dac,sx+wIM,32);
-  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);
-  doc.text('INSTITUTO MEXICANO DE ARQUITECTURA Y CONSTRUCCIÓN',W/2,39,{align:'center'});
-  // título
-  doc.setTextColor(255,44,44);doc.setFont('helvetica','bold');doc.setFontSize(21);
-  doc.text('CERTIFICADO DE FINALIZACIÓN',W/2,57,{align:'center'});
-  // cuerpo
-  doc.setTextColor(95,95,95);doc.setFont('helvetica','normal');doc.setFontSize(12);
-  doc.text('Se otorga el presente certificado a:',W/2,73,{align:'center'});
-  doc.setTextColor(13,13,13);doc.setFont('helvetica','bolditalic');doc.setFontSize(30);
-  doc.text(nombre,W/2,89,{align:'center'});
-  const nw=Math.min(doc.getTextWidth(nombre),180);
-  doc.setDrawColor(255,44,44);doc.setLineWidth(.7);doc.line(W/2-nw/2-8,94,W/2+nw/2+8,94);
-  doc.setTextColor(95,95,95);doc.setFont('helvetica','normal');doc.setFontSize(12);
-  doc.text('por haber completado satisfactoriamente el curso:',W/2,107,{align:'center'});
-  doc.setTextColor(13,13,13);doc.setFont('helvetica','bold');doc.setFontSize(15);
-  doc.text(doc.splitTextToSize(curso,210),W/2,118,{align:'center'});
-  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(110,110,110);
-  doc.text(horasTxt+'  ·  Fecha de emisión: '+fecha,W/2,133,{align:'center'});
-  // QR centro
-  if(qrImg){doc.addImage(qrImg,'PNG',W/2-11,142,22,22);doc.setFontSize(7);doc.setTextColor(120,120,120);doc.text('Verifica este certificado',W/2,167,{align:'center'});}
-  // firmas
-  const sy=175;doc.setDrawColor(60,60,60);doc.setLineWidth(.4);
-  doc.line(42,sy,105,sy);doc.line(W-105,sy,W-42,sy);
-  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(13,13,13);
-  doc.text('Dirección Académica',73,sy+6,{align:'center'});
-  doc.text('Coordinación de Certificación',W-73,sy+6,{align:'center'});
+  const W=297,H=210;const gold=[176,138,48],navy=[26,35,72];
+  // fuente caligráfica para el nombre
+  let nameFont='times',nameStyle='bolditalic';
+  if(window.GREATVIBES_B64){try{doc.addFileToVFS('GreatVibes.ttf',window.GREATVIBES_B64);doc.addFont('GreatVibes.ttf','GreatVibes','normal');nameFont='GreatVibes';nameStyle='normal';}catch(e){}}
+  // marco azul marino delgado + interior blanco
+  doc.setFillColor(navy[0],navy[1],navy[2]);doc.rect(0,0,W,H,'F');
+  doc.setFillColor(255,255,255);doc.rect(8,8,W-16,H-16,'F');
+  // marco dorado doble con esquinas redondeadas
+  doc.setDrawColor(gold[0],gold[1],gold[2]);doc.setLineWidth(1);doc.roundedRect(13,13,W-26,H-26,6,6,'S');
+  doc.setLineWidth(0.4);doc.roundedRect(15,15,W-30,H-30,5,5,'S');
+  // logo IMDAC grande (fondo blanco, sin badge)
+  const lw=52,lh=lw/1.458;
+  if(logoImg){try{doc.addImage(logoImg,'PNG',W/2-lw/2,23,lw,lh);}catch(e){logoImg=null;}}
+  if(!logoImg){doc.setFont('helvetica','bold');doc.setFontSize(22);doc.setTextColor(13,13,13);doc.text('IM',W/2-doc.getTextWidth('IMDAC')/2,34);doc.setTextColor(255,44,44);doc.text('DAC',W/2-doc.getTextWidth('IMDAC')/2+doc.getTextWidth('IM'),34);}
+  // título serif
+  doc.setFont('times','bold');doc.setFontSize(32);doc.setTextColor(navy[0],navy[1],navy[2]);
+  doc.text('Certificado de finalización',W/2,69,{align:'center'});
+  // se certifica que
+  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(gold[0],gold[1],gold[2]);
+  doc.text('SE CERTIFICA QUE',W/2,81,{align:'center',charSpace:2.2});
+  // nombre caligráfico (autoajustado)
+  let fsz=nameFont==='GreatVibes'?50:34;
+  doc.setFont(nameFont,nameStyle);doc.setFontSize(fsz);
+  const maxw=W-94;let nwid=doc.getTextWidth(nombre);
+  if(nwid>maxw){fsz=fsz*maxw/nwid;doc.setFontSize(fsz);}
+  doc.setTextColor(navy[0],navy[1],navy[2]);
+  doc.text(nombre,W/2,103,{align:'center'});
+  doc.setDrawColor(gold[0],gold[1],gold[2]);doc.setLineWidth(0.5);doc.line(58,111,W-58,111);
+  // párrafo
+  doc.setFont('times','normal');doc.setFontSize(12.5);doc.setTextColor(70,70,80);
+  const para=`completó satisfactoriamente el curso "${curso}", cubriendo un total de ${horasTxt} de formación profesional en arquitectura y construcción impartida por IMDAC.`;
+  doc.text(doc.splitTextToSize(para,196),W/2,123,{align:'center',lineHeightFactor:1.5});
+  // sello dorado central (en la fila de firmas)
+  const cx=W/2,cy=152,r=13;
+  doc.setDrawColor(gold[0],gold[1],gold[2]);doc.setLineWidth(1);doc.circle(cx,cy,r);doc.setLineWidth(0.4);doc.circle(cx,cy,r-2.4);
+  doc.setFont('helvetica','bold');doc.setTextColor(gold[0],gold[1],gold[2]);
+  doc.setFontSize(8);doc.text('* * *',cx,cy-3.5,{align:'center'});
+  doc.setFontSize(6.6);doc.text('OTORGADO',cx,cy+1.5,{align:'center'});doc.text('EN '+new Date().getFullYear(),cx,cy+5,{align:'center'});
+  // firmas reales
+  const sy=163;
+  const drawFirma=(b64,ar,cxs)=>{if(!b64||!ar)return;const boxW=56,boxH=26;let w=boxW,h=boxW/ar;if(h>boxH){h=boxH;w=boxH*ar;}try{doc.addImage(b64,'PNG',cxs-w/2,sy-2-h,w,h);}catch(e){}};
+  drawFirma(window.FIRMA1_B64,window.FIRMA1_AR,71);
+  drawFirma(window.FIRMA2_B64,window.FIRMA2_AR,W-71);
+  doc.setDrawColor(gold[0],gold[1],gold[2]);doc.setLineWidth(0.4);
+  doc.line(42,sy,100,sy);doc.line(W-100,sy,W-42,sy);
+  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(navy[0],navy[1],navy[2]);
+  doc.text('Katya Arredondo Martínez',71,sy+5,{align:'center'});
+  doc.text('Coordinación de Certificación',W-71,sy+5,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
-  doc.text('IMDAC',73,sy+11,{align:'center'});
-  doc.text('IPCI Latinoamericano',W-73,sy+11,{align:'center'});
-  // folio
-  doc.setFontSize(8);doc.setTextColor(120,120,120);doc.text('Folio: '+folio,16,H-13);
+  doc.text('Dirección Académica · IMDAC',71,sy+9.5,{align:'center'});
+  doc.text('IPCI Latinoamericano',W-71,sy+9.5,{align:'center'});
+  // QR + ID + fecha
+  if(qrImg){try{doc.addImage(qrImg,'PNG',24,171,13,13);doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(130,130,130);doc.text('Verifica',30.5,187,{align:'center'});}catch(e){}}
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90,90,90);
+  doc.text('ID del certificado: '+folio,42,185);
+  doc.text('Fecha de emisión: '+fecha,W-26,185,{align:'right'});
   doc.save('certificado-imdac-'+folio+'.pdf');
   toast('Certificado generado');
 }
