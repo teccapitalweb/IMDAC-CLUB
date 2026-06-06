@@ -202,6 +202,7 @@ function renderBiblioteca(){
 function setFilter(c){activeFilter=c;renderSection('biblioteca');}
 
 function renderWebinar(){
+  if(LOADING)return `<h1 class="page-h">Webinars</h1><p class="page-sub">Sesiones en vivo y grabaciones para miembros.</p>`+skelGrid(4);
   if(!DATA.webinars.length) return emptyState('webinar','Sin webinars programados','En cuanto haya un webinar agendado, aparecerá aquí con su fecha y enlace.');
   return `<h1 class="page-h">Webinars</h1><p class="page-sub">Sesiones en vivo y grabaciones para miembros.</p>
   <div class="course-grid">${DATA.webinars.map(w=>`
@@ -212,6 +213,7 @@ function renderWebinar(){
 }
 
 function renderMaterial(){
+  if(LOADING)return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+skelGrid(4);
   if(!DATA.material.length) return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+emptyState('material','Próximamente','Estamos preparando material descargable para ti. Pronto encontrarás guías, normas y plantillas aquí.');
   return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>
   <div class="course-grid">${DATA.material.map(m=>`
@@ -221,6 +223,7 @@ function renderMaterial(){
 }
 
 function renderNoticias(){
+  if(LOADING)return `<h1 class="page-h">Noticias &amp; actualizaciones</h1><p class="page-sub">Lo último del sector de la arquitectura y la construcción.</p>`+skelNews(5);
   return `<h1 class="page-h">Noticias & actualizaciones</h1><p class="page-sub">Lo último del sector de la arquitectura y la construcción.</p>
   ${DATA.noticias.length?DATA.noticias.map(n=>`
     <div class="news-item" onclick="window.open('${n.url||'#'}','_blank')">
@@ -230,6 +233,7 @@ function renderNoticias(){
 }
 
 function renderForo(){
+  if(LOADING)return `<h1 class="page-h">Foro</h1><p class="page-sub">Pregunta, comparte y aprende con la comunidad IMDAC.</p>`+skelNews(4);
   return `<h1 class="page-h">Foro</h1><p class="page-sub">Pregunta, comparte y aprende con la comunidad IMDAC.</p>
   <div class="search-bar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input placeholder="Buscar temas..." oninput="filterForo(this.value)"></div>
   <div id="foro-list">${renderForoList(DATA.foro)}</div>
@@ -859,6 +863,7 @@ function startCountdown(){
 
 /* ====== PRO: skeletons / empty / confetti / ⌘K ====== */
 function skelGrid(n){return `<div class="course-grid">${Array.from({length:n},()=>`<div class="skel-card"><div class="skel" style="aspect-ratio:16/10"></div><div style="padding:16px"><div class="skel skel-line" style="width:80%"></div><div class="skel skel-line" style="width:50%"></div><div class="skel skel-line" style="width:100%;margin-top:14px"></div></div></div>`).join('')}</div>`;}
+function skelNews(n){return Array.from({length:n},()=>`<div class="skel-card" style="display:flex;gap:14px;padding:14px;margin-bottom:12px"><div class="skel" style="width:120px;height:80px;border-radius:10px;flex-shrink:0"></div><div style="flex:1"><div class="skel skel-line" style="width:30%"></div><div class="skel skel-line" style="width:85%"></div><div class="skel skel-line" style="width:60%"></div></div></div>`).join('');}
 function skelInicio(){
   return `<div class="skel" style="height:96px;border-radius:16px;margin-bottom:22px"></div>
   <div class="inicio-grid"><div>
