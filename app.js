@@ -945,12 +945,7 @@ function doGoogle(){
     if(res&&res.user&&res.additionalUserInfo&&res.additionalUserInfo.isNewUser){
       db.collection('miembros').doc(res.user.uid).set({nombre:res.user.displayName||'',email:res.user.email||'',creado:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).catch(()=>{});
     }
-  }).catch(e=>{
-    // Si el navegador bloquea el popup (COOP / bloqueado / cerrado) → caer a redirect
-    if(['auth/popup-blocked','auth/popup-closed-by-user','auth/cancelled-popup-request','auth/internal-error','auth/web-storage-unsupported'].includes(e.code)){
-      auth.signInWithRedirect(provider).catch(er=>showErr(authMsg(er.code)));
-    } else showErr(authMsg(e.code));
-  });
+  }).catch(e=>{ if(e.code!=='auth/popup-closed-by-user')showErr(authMsg(e.code)); });
 }
 function doReset(){
   const email=val('li-email');
