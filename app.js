@@ -300,6 +300,7 @@ function renderForoList(list){
   }).join('');
 }
 let _temaAbierto=null;
+let _comentarios={};
 function toggleTema(id){
   const panel=document.getElementById('tp-'+id); if(!panel)return;
   if(_temaAbierto&&_temaAbierto!==id){const prev=document.getElementById('tp-'+_temaAbierto);if(prev){prev.style.display='none';prev.innerHTML='';}}
@@ -316,7 +317,7 @@ function renderTemaPanel(id){
   const esMio=uid&&(t.autorUid===uid||window._imdacAdmin);
   return `<div class="ft-full">${(t.texto||'').replace(/</g,'&lt;')||'<i style="color:var(--muted)">Sin contenido</i>'}</div>
     <div class="fa-row">
-      <button class="fa-btn ${liked?'liked':''}" onclick="toggleLike('${id}')">❤️ <span id="lk-${id}">${t.likes||0}</span></button>
+      <button class="fa-btn ${liked?'liked':''}" id="lkbtn-${id}" onclick="toggleLike('${id}')">${liked?'❤️':'🤍'} <span id="lk-${id}">${t.likes||0}</span></button>
       ${esMio?`<button class="fa-btn" onclick="editarTema('${id}')">✏️ Editar</button><button class="fa-btn" onclick="borrarTema('${id}')">🗑️ Borrar</button>`:''}
     </div>
     <div id="cm-${id}"><div style="color:var(--muted);font-size:.85rem;padding:6px 0">Cargando comentarios…</div></div>
@@ -330,7 +331,7 @@ function toggleLike(id){
   if(i>=0){t.likedBy.splice(i,1);t.likes=Math.max(0,(t.likes||0)-1);}
   else{t.likedBy.push(uid);t.likes=(t.likes||0)+1;}
   const liked=t.likedBy.includes(uid);
-  const cnt=document.getElementById('lk-'+id); if(cnt){cnt.textContent=t.likes;const b=cnt.closest('.fa-btn');if(b)b.classList.toggle('liked',liked);}
+  const btn=document.getElementById('lkbtn-'+id); if(btn){btn.classList.toggle('liked',liked);btn.innerHTML=`${liked?'❤️':'🤍'} <span id="lk-${id}">${t.likes}</span>`;}
   const card=document.getElementById('cardlk-'+id); if(card)card.textContent=(liked?'❤️':'🤍')+' '+t.likes;
   db.collection('foro_temas').doc(id).update({likes:t.likes,likedBy:t.likedBy}).catch(()=>toast('No se pudo guardar tu reacción'));
 }
@@ -339,13 +340,26 @@ function cargarComentarios(id){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){cont.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:6px 0">Los comentarios se activan al iniciar sesión.</div>';return;}
   db.collection('foro_temas').doc(id).collection('comentarios').orderBy('creado','asc').get().then(snap=>{
     const arr=snap.docs.map(d=>({id:d.id,...d.data()}));
+    _comentarios[id]=arr;
     cont.innerHTML=arr.length?arr.map(c=>renderComent(id,c)).join(''):'<div style="color:var(--muted);font-size:.85rem;padding:6px 0">Sé el primero en comentar.</div>';
   }).catch(()=>{cont.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:6px 0">No se pudieron cargar los comentarios.</div>';});
 }
 function renderComent(temaId,c){
   const uid=CURRENT_USER&&CURRENT_USER.uid;
   const mio=uid&&(c.autorUid===uid||window._imdacAdmin);
-  return `<div class="coment" id="cmt-${c.id}"><div class="ch"><div><span class="ca">${(c.autor||'Miembro').replace(/</g,'&lt;')}</span><span class="cd">${c.fecha||''}</span></div>${mio?`<div class="coment-acts"><button onclick="editarComentario('${temaId}','${c.id}')">Editar</button><button onclick="borrarComentario('${temaId}','${c.id}')">Borrar</button></div>`:''}</div><p id="cmt-txt-${c.id}">${(c.texto||'').replace(/</g,'&lt;')}</p></div>`;
+  const liked=(c.likedBy||[]).includes(uid);
+  return `<div class="coment" id="cmt-${c.id}"><div class="ch"><div><span class="ca">${(c.autor||'Miembro').replace(/</g,'&lt;')}</span><span class="cd">${c.fecha||''}</span></div>${mio?`<div class="coment-acts"><button onclick="editarComentario('${temaId}','${c.id}')">Editar</button><button onclick="borrarComentario('${temaId}','${c.id}')">Borrar</button></div>`:''}</div><p id="cmt-txt-${c.id}">${(c.texto||'').replace(/</g,'&lt;')}</p><button class="clike ${liked?'on':''}" id="clk-${c.id}" onclick="toggleLikeComent('${temaId}','${c.id}')">${liked?'❤️':'🤍'} <span>${c.likes||0}</span></button></div>`;
+}
+function toggleLikeComent(temaId,cId){
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return toast('Inicia sesión para reaccionar');
+  const arr=_comentarios[temaId]||[]; const c=arr.find(x=>x.id===cId); if(!c)return;
+  const uid=CURRENT_USER.uid; c.likedBy=c.likedBy||[];
+  const i=c.likedBy.indexOf(uid);
+  if(i>=0){c.likedBy.splice(i,1);c.likes=Math.max(0,(c.likes||0)-1);}
+  else{c.likedBy.push(uid);c.likes=(c.likes||0)+1;}
+  const liked=c.likedBy.includes(uid);
+  const btn=document.getElementById('clk-'+cId); if(btn){btn.classList.toggle('on',liked);btn.innerHTML=`${liked?'❤️':'🤍'} <span>${c.likes}</span>`;}
+  db.collection('foro_temas').doc(temaId).collection('comentarios').doc(cId).update({likes:c.likes,likedBy:c.likedBy}).catch(()=>toast('No se pudo guardar tu reacción'));
 }
 function comentar(id){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return toast('Inicia sesión para comentar');
@@ -433,9 +447,52 @@ function renderCanal(){
 }
 function feat(ic,t,d){return `<div class="feature"><div class="fi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${ic}"/></svg></div><div><b>${t}</b><span>${d}</span></div></div>`;}
 
+/* ===== Notificaciones (broadcast desde Admin vía Firestore, estado por usuario en localStorage) ===== */
+const NOTIS_READ_KEY='imdac_notis_read';
+const NOTIS_DEL_KEY='imdac_notis_del';
+function _notisArr(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+function _notisSet(k,a){try{localStorage.setItem(k,JSON.stringify(a));}catch(e){}}
+function notisDismissed(){return _notisArr(NOTIS_DEL_KEY);}
+function notiVigente(n){
+  const t=(n.creado&&n.creado.toMillis)?n.creado.toMillis():null;
+  if(t===null)return true; // recién creada (timestamp aún resolviéndose) → mostrar
+  return (Date.now()-t) < 24*60*60*1000; // 24 horas
+}
+function notisVisibles(){const del=notisDismissed();return (DATA.notificaciones||[]).filter(n=>!del.includes(n.id)&&notiVigente(n));}
+function notisNoLeidas(){const rd=_notisArr(NOTIS_READ_KEY);return notisVisibles().filter(n=>!rd.includes(n.id)).length;}
+function updateNotisBadge(){
+  const item=document.querySelector('.sb-item[data-sec="notificaciones"]'); if(!item)return;
+  let dot=item.querySelector('.nav-dot'); const n=notisNoLeidas();
+  if(n>0){ if(!dot){dot=document.createElement('span');dot.className='nav-dot';item.appendChild(dot);} dot.textContent=n>9?'9+':n; }
+  else if(dot){dot.remove();}
+}
+function escucharNotis(){
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  db.collection('notificaciones').onSnapshot(snap=>{
+    DATA.notificaciones=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>((b.creado&&b.creado.toMillis?b.creado.toMillis():0)-(a.creado&&a.creado.toMillis?a.creado.toMillis():0)));
+    updateNotisBadge();
+    if(currentSection==='notificaciones')renderSection('notificaciones');
+  },()=>{});
+}
+function eliminarNoti(id){
+  const del=notisDismissed(); if(!del.includes(id)){del.push(id);_notisSet(NOTIS_DEL_KEY,del);}
+  renderSection('notificaciones'); updateNotisBadge();
+}
+function eliminarTodasNotis(){
+  const del=notisDismissed(); notisVisibles().forEach(n=>{if(!del.includes(n.id))del.push(n.id);});
+  _notisSet(NOTIS_DEL_KEY,del); renderSection('notificaciones'); updateNotisBadge();
+}
 function renderNotificaciones(){
-  return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div><h1 class="page-h">Notificaciones</h1><p class="page-sub">Mantente al día con novedades y recordatorios.</p></div><button class="filter" onclick="toast('Todas marcadas como leídas')">Marcar todas leídas</button></div>
-  ${emptyState('notificaciones','Todo al día','No tienes notificaciones nuevas. Te avisaremos cuando haya novedades.')}`;
+  const vis=notisVisibles();
+  // marcar como leídas al entrar (quita el puntito)
+  const rd=_notisArr(NOTIS_READ_KEY); let ch=false;
+  vis.forEach(n=>{if(!rd.includes(n.id)){rd.push(n.id);ch=true;}});
+  if(ch)_notisSet(NOTIS_READ_KEY,rd);
+  setTimeout(updateNotisBadge,0);
+  const lista=vis.length?vis.map(n=>`<div class="noti-item"><div class="noti-ic">${n.emoji||'📢'}</div><div class="noti-body"><h4>${(n.titulo||'').replace(/</g,'&lt;')}</h4><p>${(n.mensaje||'').replace(/</g,'&lt;')}</p><span class="noti-date">${n.fecha||''}</span></div><button class="noti-del" onclick="eliminarNoti('${n.id}')" title="Eliminar">🗑️</button></div>`).join(''):emptyState('notificaciones','Todo al día','No tienes notificaciones nuevas. Te avisaremos cuando haya novedades.');
+  return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div><h1 class="page-h">Notificaciones</h1><p class="page-sub">Mantente al día con novedades y recordatorios.</p></div>${vis.length?`<button class="filter" onclick="eliminarTodasNotis()">Eliminar todas</button>`:''}</div>
+  <div class="noti-list">${lista}</div>`;
 }
 
 function renderPerfil(){
@@ -1244,6 +1301,7 @@ async function onLogged(){
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
   go('inicio');
   cargarNoticiasAuto();
+  escucharNotis();
 }
 function renderMantenimiento(){
   if(document.getElementById('maint-overlay'))return;
