@@ -580,16 +580,44 @@ function renderSuscripcion(){
   </div>`;
 }
 
+function calcLogros(){
+  const uid=CURRENT_USER&&CURRENT_USER.uid;
+  const progs=Object.values(DATA.progresos||{});
+  const iniciados=progs.filter(p=>p>0).length;
+  const completos=progs.filter(p=>p>=100).length;
+  const clasesTot=Object.values(DATA.clasesHechas||{}).reduce((a,arr)=>a+(arr?arr.length:0),0);
+  const misTemas=(DATA.foro||[]).filter(t=>t.autorUid===uid);
+  const likesRecibidos=misTemas.reduce((a,t)=>a+(t.likes||0),0);
+  const diLike=(DATA.foro||[]).some(t=>(t.likedBy||[]).includes(uid));
+  return [
+    {n:'Primer paso',d:'Inicia tu primer curso',ic:'🎯',v:iniciados,m:1},
+    {n:'Manos a la obra',d:'Completa tu primera clase',ic:'🧱',v:clasesTot,m:1},
+    {n:'Cimientos firmes',d:'Completa tu primer curso',ic:'🏠',v:completos,m:1},
+    {n:'Media jornada',d:'Completa 25 clases',ic:'⏱️',v:clasesTot,m:25},
+    {n:'Constructor',d:'Completa 3 cursos',ic:'🏗️',v:completos,m:3},
+    {n:'Supervisor',d:'Completa 5 cursos · mitad del catálogo',ic:'📐',v:completos,m:5},
+    {n:'Residente de obra',d:'Completa 7 cursos',ic:'🦺',v:completos,m:7},
+    {n:'Maestro de obra',d:'Completa los 10 cursos del catálogo',ic:'👷',v:completos,m:10},
+    {n:'Voz del gremio',d:'Publica tu primer tema en el foro',ic:'💬',v:misTemas.length,m:1},
+    {n:'Buen colega',d:'Reacciona a un tema del foro',ic:'❤️',v:diLike?1:0,m:1},
+    {n:'Influencer',d:'Recibe 10 reacciones en tus temas',ic:'⭐',v:likesRecibidos,m:10},
+    {n:'Leyenda IMDAC',d:'Catálogo completo + 25 reacciones recibidas',ic:'🏆',v:(completos>=10&&likesRecibidos>=25)?1:0,m:1},
+  ].map(l=>({...l,ok:l.v>=l.m}));
+}
 function renderLogros(){
-  const logros=[
-    {n:'Primer paso',d:'Inicia tu primer curso',ic:'🎯',ok:Object.keys(DATA.progresos).length>0},
-    {n:'Constructor',d:'Completa 3 cursos',ic:'🏗️',ok:false},
-    {n:'Maestro de obra',d:'Completa 10 cursos',ic:'👷',ok:false},
-    {n:'Influencer',d:'Recibe 10 likes en el foro',ic:'⭐',ok:false},
-  ];
+  const logros=calcLogros();
+  const des=logros.filter(l=>l.ok).length;
   const completados=DATA.cursos.filter(c=>(DATA.progresos[c.id]||0)>=100);
-  return `<h1 class="page-h">Logros</h1><p class="page-sub">Tu progreso y reconocimientos en el club.</p>
-  <div class="course-grid">${logros.map(l=>`<div class="card" style="padding:24px;text-align:center;${l.ok?'':'opacity:.5'}"><div style="font-size:2.4rem">${l.ic}</div><h4 style="font-family:var(--font-display);margin:10px 0 4px">${l.n}</h4><p style="color:var(--muted);font-size:.86rem">${l.d}</p>${l.ok?'<span class="pill" style="background:var(--rojo-50);color:var(--rojo);margin-top:10px">Desbloqueado</span>':''}</div>`).join('')}</div>
+  return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div><h1 class="page-h">Logros</h1><p class="page-sub">Tu progreso y reconocimientos en el club.</p></div><span class="pill" style="background:var(--rojo-50);color:var(--rojo);font-weight:700">${des}/${logros.length} desbloqueados</span></div>
+  <div class="course-grid">${logros.map(l=>{
+    const pct=Math.min(100,Math.round((l.v/l.m)*100));
+    return `<div class="card logro-card ${l.ok?'ok':''}" style="padding:24px;text-align:center">
+      <div class="logro-ic">${l.ic}</div>
+      <h4 style="font-family:var(--font-display);margin:10px 0 4px">${l.n}</h4>
+      <p style="color:var(--muted);font-size:.86rem">${l.d}</p>
+      ${l.ok?'<span class="pill" style="background:var(--rojo-50);color:var(--rojo);margin-top:10px">✓ Desbloqueado</span>'
+        :`<div class="logro-bar"><i style="width:${pct}%"></i></div><span class="logro-cnt">${Math.min(l.v,l.m)}/${l.m}</span>`}
+    </div>`;}).join('')}</div>
   ${completados.length?`<h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;margin:34px 0 14px">Tus certificados</h3>
     <div class="card" style="padding:6px 22px">${completados.map(c=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)"><div><b style="font-family:var(--font-display)">${c.titulo}</b><div style="color:var(--muted);font-size:.84rem">${c.categoria||''}</div></div><button class="filter" onclick="generarCertificado('${c.id}')">📄 Descargar PDF</button></div>`).join('')}</div>`:''}`;
 }
