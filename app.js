@@ -296,7 +296,7 @@ function renderForoList(list){
   const uid=CURRENT_USER&&CURRENT_USER.uid;
   return list.map(t=>{
     const liked=(t.likedBy||[]).includes(uid);
-    return `<div class="topic" onclick="toggleTema('${t.id}')"><h4>${(t.titulo||'').replace(/</g,'&lt;')}</h4><p>${(t.texto||'').replace(/</g,'&lt;')}</p><div class="topic-meta"><span class="au">${(t.autor||'Miembro').replace(/</g,'&lt;')}</span><span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${t.tag||'General'}</span><span>${t.fecha||''}</span><span>${liked?'❤️':'🤍'} ${t.likes||0}</span></div></div><div class="tema-panel" id="tp-${t.id}" style="display:none"></div>`;
+    return `<div class="topic" onclick="toggleTema('${t.id}')"><h4>${(t.titulo||'').replace(/</g,'&lt;')}</h4><p>${(t.texto||'').replace(/</g,'&lt;')}</p><div class="topic-meta"><span class="au">${(t.autor||'Miembro').replace(/</g,'&lt;')}</span><span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${t.tag||'General'}</span><span>${t.fecha||''}</span><span id="cardlk-${t.id}">${liked?'❤️':'🤍'} ${t.likes||0}</span></div></div><div class="tema-panel" id="tp-${t.id}" style="display:none"></div>`;
   }).join('');
 }
 let _temaAbierto=null;
@@ -329,7 +329,9 @@ function toggleLike(id){
   const i=t.likedBy.indexOf(uid);
   if(i>=0){t.likedBy.splice(i,1);t.likes=Math.max(0,(t.likes||0)-1);}
   else{t.likedBy.push(uid);t.likes=(t.likes||0)+1;}
-  const cnt=document.getElementById('lk-'+id); if(cnt){cnt.textContent=t.likes;const b=cnt.closest('.fa-btn');if(b)b.classList.toggle('liked',t.likedBy.includes(uid));}
+  const liked=t.likedBy.includes(uid);
+  const cnt=document.getElementById('lk-'+id); if(cnt){cnt.textContent=t.likes;const b=cnt.closest('.fa-btn');if(b)b.classList.toggle('liked',liked);}
+  const card=document.getElementById('cardlk-'+id); if(card)card.textContent=(liked?'❤️':'🤍')+' '+t.likes;
   db.collection('foro_temas').doc(id).update({likes:t.likes,likedBy:t.likedBy}).catch(()=>toast('No se pudo guardar tu reacción'));
 }
 function cargarComentarios(id){
