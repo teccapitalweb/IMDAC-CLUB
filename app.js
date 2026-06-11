@@ -640,8 +640,6 @@ function renderConfig(){
     <h3>Seguridad</h3>
     <div class="cfg-item"><div class="ci-t"><b>Cambiar contraseña</b><span>Te enviaremos un correo para restablecer tu contraseña</span></div>
       <button class="btn-outline" onclick="changePass()">Cambiar</button></div>
-    <div class="cfg-item"><div class="ci-t danger"><b>Eliminar mi cuenta</b><span>Esta acción es permanente y no se puede deshacer</span></div>
-      <button class="btn-outline danger" onclick="deleteAccount()">Eliminar</button></div>
   </div>
 
   <div class="card cfg-card">
@@ -676,12 +674,6 @@ function changePass(){
   const email=CURRENT_USER?.email;
   if(FB_OK&&email){auth.sendPasswordResetEmail(email).then(()=>toast('Correo de recuperación enviado a '+email)).catch(()=>toast('No se pudo enviar el correo'));}
   else toast('(Demo) Te enviaríamos un correo de recuperación');
-}
-function deleteAccount(){
-  if(!confirm('¿Seguro que deseas eliminar tu cuenta? Esta acción es permanente y no se puede deshacer.'))return;
-  if(FB_OK&&CURRENT_USER&&CURRENT_USER.uid!=='demo'){
-    CURRENT_USER.delete().then(()=>toast('Cuenta eliminada')).catch(()=>toast('Por seguridad, vuelve a iniciar sesión antes de eliminar la cuenta.'));
-  }else toast('(Demo) La cuenta se eliminaría aquí');
 }
 let _deferredPrompt=null;
 function installPWA(){
