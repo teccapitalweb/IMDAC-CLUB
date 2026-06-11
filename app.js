@@ -237,7 +237,39 @@ function renderForo(){
   return `<h1 class="page-h">Foro</h1><p class="page-sub">Pregunta, comparte y aprende con la comunidad IMDAC.</p>
   <div class="search-bar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input placeholder="Buscar temas..." oninput="filterForo(this.value)"></div>
   <div id="foro-list">${renderForoList(DATA.foro)}</div>
-  <div class="new-topic" onclick="toast('Función de publicación conectada a Firestore')"><b>+ Crear un nuevo tema</b><span>Comparte tu pregunta o experiencia con la comunidad</span></div>`;
+  <div class="new-topic" id="nt-card" onclick="abrirNuevoTema()"><b>+ Crear un nuevo tema</b><span>Comparte tu pregunta o experiencia con la comunidad</span></div>
+  <div id="nt-form" style="display:none"></div>`;
+}
+function abrirNuevoTema(){
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){toast('Inicia sesión para publicar');return;}
+  const card=document.getElementById('nt-card'); if(card)card.style.display='none';
+  const cats=['General','Estructuras','Instalaciones','Costos y Presupuestos','Topografía','Diseño CAD','Normatividad','Sustentabilidad','Gestión de Obra'];
+  const f=document.getElementById('nt-form'); if(!f)return;
+  f.style.display='block';
+  const inp='width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);margin-bottom:10px';
+  f.innerHTML=`<div class="card" style="padding:18px;margin-top:8px">
+    <input id="nt-titulo" placeholder="Título de tu tema" style="${inp}">
+    <textarea id="nt-texto" rows="3" placeholder="Escribe tu pregunta o experiencia..." style="${inp};font-family:inherit;resize:none"></textarea>
+    <select id="nt-tag" style="${inp}">${cats.map(c=>`<option>${c}</option>`).join('')}</select>
+    <div style="display:flex;gap:8px">
+      <button onclick="publicarTema()" style="flex:1;padding:12px;border:none;border-radius:11px;background:var(--rojo);color:#fff;font-weight:700;cursor:pointer">Publicar</button>
+      <button onclick="cerrarNuevoTema()" style="padding:12px 18px;border:1.5px solid var(--line);border-radius:11px;background:var(--surface);color:var(--text);font-weight:600;cursor:pointer">Cancelar</button>
+    </div>
+  </div>`;
+}
+function cerrarNuevoTema(){const f=document.getElementById('nt-form');if(f){f.style.display='none';f.innerHTML='';}const c=document.getElementById('nt-card');if(c)c.style.display='';}
+function publicarTema(){
+  const titulo=(document.getElementById('nt-titulo').value||'').trim();
+  const texto=(document.getElementById('nt-texto').value||'').trim();
+  const tag=document.getElementById('nt-tag').value||'General';
+  if(!titulo){toast('Ponle un título a tu tema');return;}
+  const tema={titulo,texto,tag,autor:CURRENT_USER.displayName||'Miembro',autorUid:CURRENT_USER.uid,fecha:new Date().toLocaleDateString('es-MX'),vistas:0,likes:0,creado:firebase.firestore.FieldValue.serverTimestamp()};
+  db.collection('foro_temas').add(tema).then(ref=>{
+    DATA.foro.unshift({id:ref.id,...tema});
+    cerrarNuevoTema();
+    const list=document.getElementById('foro-list'); if(list)list.innerHTML=renderForoList(DATA.foro);
+    toast('¡Tema publicado!');
+  }).catch(()=>toast('No se pudo publicar el tema'));
 }
 function renderForoList(list){
   if(!list.length) return '<div class="empty"><b>Aún no hay temas</b><span>Sé el primero en abrir una conversación.</span></div>';
