@@ -108,9 +108,9 @@ function renderSection(sec){
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
 }
-let _newsTimer=null;
+let _newsRAF=null;
 function initNewsCarousel(){
-  if(_newsTimer){clearInterval(_newsTimer);_newsTimer=null;}
+  if(_newsRAF){cancelAnimationFrame(_newsRAF);_newsRAF=null;}
   const el=document.querySelector('.news-carousel');
   if(!el)return;
   let pausa=false;
@@ -118,15 +118,22 @@ function initNewsCarousel(){
   el.addEventListener('mouseleave',()=>pausa=false);
   el.addEventListener('touchstart',()=>pausa=true,{passive:true});
   el.addEventListener('touchend',()=>setTimeout(()=>pausa=false,2500),{passive:true});
-  _newsTimer=setInterval(()=>{
+  const VEL=0.35; // px por frame a 60fps — lento y fluido
+  let last=performance.now();
+  let pos=el.scrollLeft||0;
+  function step(now){
     const c=document.querySelector('.news-carousel');
-    if(!c){clearInterval(_newsTimer);_newsTimer=null;return;}
-    if(pausa)return;
-    const max=c.scrollWidth-c.clientWidth;
-    if(max<=1)return;
-    if(c.scrollLeft>=max-1)c.scrollTo({left:0,behavior:'smooth'});
-    else c.scrollLeft+=1;
-  },40);
+    if(!c){_newsRAF=null;return;}
+    const dt=Math.min(now-last,50); last=now;
+    const half=c.scrollWidth/2;
+    if(!pausa&&half>1){
+      pos+=VEL*(dt/16.67);
+      if(pos>=half)pos-=half;   // reinicio invisible (la 2ª mitad es idéntica)
+      c.scrollLeft=pos;
+    }else{ pos=c.scrollLeft; }   // si pausado/arrastrando, continúa desde ahí
+    _newsRAF=requestAnimationFrame(step);
+  }
+  _newsRAF=requestAnimationFrame(step);
 }
 function navLabel(sec){for(const g of NAV)for(const it of g.items)if(it.id===sec)return it.label;return '';}
 function crumbs(cur){return `<div class="crumbs"><a onclick="go('inicio')">Inicio</a><span class="sep">›</span><span class="cur">${cur}</span></div>`;}
@@ -166,7 +173,7 @@ function renderInicio(){
   <div class="course-grid">${cursos.length?cursos.map(courseCard).join(''):emptyMini('Aún no hay cursos. ¡Pronto se liberan!')}</div>
   ${noticias.length?`
   <div class="sec-head" style="margin-top:26px"><h3>Noticias</h3><a onclick="go('noticias')">Ver todas →</a></div>
-  <div class="news-carousel">${noticias.map(n=>`<div class="news-card" onclick="window.open('${n.url||'#'}','_blank')"><img class="nc-img" src="${n.img}" alt="" loading="lazy" onerror="var p=this.closest('.news-card');if(p)p.remove();"><div class="nc-body"><div class="nc-src">${n.fuente||'IMDAC'}</div><h5>${n.titulo}</h5><div class="nc-date">${n.fecha||''}</div></div></div>`).join('')}</div>`:''}`;
+  <div class="news-carousel"><div class="news-track">${[...noticias,...noticias].map(n=>`<div class="news-card" onclick="window.open('${n.url||'#'}','_blank')"><img class="nc-img" src="${n.img}" alt="" loading="lazy" onerror="var p=this.closest('.news-card');if(p)p.remove();"><div class="nc-body"><div class="nc-src">${n.fuente||'IMDAC'}</div><h5>${n.titulo}</h5><div class="nc-date">${n.fecha||''}</div></div></div>`).join('')}</div></div>`:''}`;
 }
 function stat(label,val,icon){return `<div class="stat"><div class="si"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg></div><div><b>${val}</b><span>${label}</span></div></div>`;}
 function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t}</b></div>`;}
