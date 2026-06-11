@@ -1218,7 +1218,7 @@ function doReset(){
   const email=val('li-email');
   if(!email)return showErr('Escribe tu correo para enviarte el enlace de recuperación.');
   if(!FB_OK)return toast('(Demo) Enlace de recuperación enviado a '+email);
-  auth.sendPasswordResetEmail(email).then(()=>toast('Enlace de recuperación enviado')).catch(e=>showErr(authMsg(e.code)));
+  auth.sendPasswordResetEmail(email).then(()=>toast('Enlace enviado a '+email+' — revisa tu bandeja y spam')).catch(e=>showErr(authMsg(e.code)));
 }
 function doLogout(){
   document.getElementById('maint-overlay')?.remove();
