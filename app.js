@@ -293,7 +293,102 @@ function publicarTema(){
 }
 function renderForoList(list){
   if(!list.length) return '<div class="empty"><b>Aún no hay temas</b><span>Sé el primero en abrir una conversación.</span></div>';
-  return list.map(t=>`<div class="topic"><h4>${t.titulo}</h4><p>${t.texto||''}</p><div class="topic-meta"><span class="au">${t.autor||'Miembro'}</span><span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${t.tag||'General'}</span><span>${t.fecha||''}</span><span>👁 ${t.vistas||0}</span><span>❤️ ${t.likes||0}</span></div></div>`).join('');
+  const uid=CURRENT_USER&&CURRENT_USER.uid;
+  return list.map(t=>{
+    const liked=(t.likedBy||[]).includes(uid);
+    return `<div class="topic" onclick="toggleTema('${t.id}')"><h4>${(t.titulo||'').replace(/</g,'&lt;')}</h4><p>${(t.texto||'').replace(/</g,'&lt;')}</p><div class="topic-meta"><span class="au">${(t.autor||'Miembro').replace(/</g,'&lt;')}</span><span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${t.tag||'General'}</span><span>${t.fecha||''}</span><span>${liked?'❤️':'🤍'} ${t.likes||0}</span></div></div><div class="tema-panel" id="tp-${t.id}" style="display:none"></div>`;
+  }).join('');
+}
+let _temaAbierto=null;
+function toggleTema(id){
+  const panel=document.getElementById('tp-'+id); if(!panel)return;
+  if(_temaAbierto&&_temaAbierto!==id){const prev=document.getElementById('tp-'+_temaAbierto);if(prev){prev.style.display='none';prev.innerHTML='';}}
+  if(_temaAbierto===id){panel.style.display='none';panel.innerHTML='';_temaAbierto=null;return;}
+  _temaAbierto=id;
+  panel.style.display='block';
+  panel.innerHTML=renderTemaPanel(id);
+  cargarComentarios(id);
+}
+function renderTemaPanel(id){
+  const t=DATA.foro.find(x=>x.id===id); if(!t)return '';
+  const uid=CURRENT_USER&&CURRENT_USER.uid;
+  const liked=(t.likedBy||[]).includes(uid);
+  const esMio=uid&&(t.autorUid===uid||window._imdacAdmin);
+  return `<div class="ft-full">${(t.texto||'').replace(/</g,'&lt;')||'<i style="color:var(--muted)">Sin contenido</i>'}</div>
+    <div class="fa-row">
+      <button class="fa-btn ${liked?'liked':''}" onclick="toggleLike('${id}')">❤️ <span id="lk-${id}">${t.likes||0}</span></button>
+      ${esMio?`<button class="fa-btn" onclick="editarTema('${id}')">✏️ Editar</button><button class="fa-btn" onclick="borrarTema('${id}')">🗑️ Borrar</button>`:''}
+    </div>
+    <div id="cm-${id}"><div style="color:var(--muted);font-size:.85rem;padding:6px 0">Cargando comentarios…</div></div>
+    <div class="coment-input"><input id="ci-${id}" placeholder="Escribe un comentario..." onkeydown="if(event.key==='Enter')comentar('${id}')"><button class="fa-btn" style="background:var(--rojo);color:#fff;border-color:var(--rojo)" onclick="comentar('${id}')">Comentar</button></div>`;
+}
+function toggleLike(id){
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return toast('Inicia sesión para reaccionar');
+  const t=DATA.foro.find(x=>x.id===id); if(!t)return;
+  const uid=CURRENT_USER.uid; t.likedBy=t.likedBy||[];
+  const i=t.likedBy.indexOf(uid);
+  if(i>=0){t.likedBy.splice(i,1);t.likes=Math.max(0,(t.likes||0)-1);}
+  else{t.likedBy.push(uid);t.likes=(t.likes||0)+1;}
+  const cnt=document.getElementById('lk-'+id); if(cnt){cnt.textContent=t.likes;const b=cnt.closest('.fa-btn');if(b)b.classList.toggle('liked',t.likedBy.includes(uid));}
+  db.collection('foro_temas').doc(id).update({likes:t.likes,likedBy:t.likedBy}).catch(()=>toast('No se pudo guardar tu reacción'));
+}
+function cargarComentarios(id){
+  const cont=document.getElementById('cm-'+id); if(!cont)return;
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){cont.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:6px 0">Los comentarios se activan al iniciar sesión.</div>';return;}
+  db.collection('foro_temas').doc(id).collection('comentarios').orderBy('creado','asc').get().then(snap=>{
+    const arr=snap.docs.map(d=>({id:d.id,...d.data()}));
+    cont.innerHTML=arr.length?arr.map(c=>renderComent(id,c)).join(''):'<div style="color:var(--muted);font-size:.85rem;padding:6px 0">Sé el primero en comentar.</div>';
+  }).catch(()=>{cont.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:6px 0">No se pudieron cargar los comentarios.</div>';});
+}
+function renderComent(temaId,c){
+  const uid=CURRENT_USER&&CURRENT_USER.uid;
+  const mio=uid&&(c.autorUid===uid||window._imdacAdmin);
+  return `<div class="coment" id="cmt-${c.id}"><div class="ch"><div><span class="ca">${(c.autor||'Miembro').replace(/</g,'&lt;')}</span><span class="cd">${c.fecha||''}</span></div>${mio?`<div class="coment-acts"><button onclick="editarComentario('${temaId}','${c.id}')">Editar</button><button onclick="borrarComentario('${temaId}','${c.id}')">Borrar</button></div>`:''}</div><p id="cmt-txt-${c.id}">${(c.texto||'').replace(/</g,'&lt;')}</p></div>`;
+}
+function comentar(id){
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return toast('Inicia sesión para comentar');
+  const inp=document.getElementById('ci-'+id); const texto=(inp.value||'').trim(); if(!texto)return;
+  const c={texto,autor:CURRENT_USER.displayName||'Miembro',autorUid:CURRENT_USER.uid,fecha:new Date().toLocaleDateString('es-MX'),creado:firebase.firestore.FieldValue.serverTimestamp()};
+  db.collection('foro_temas').doc(id).collection('comentarios').add(c).then(()=>{inp.value='';cargarComentarios(id);}).catch(()=>toast('No se pudo comentar'));
+}
+function editarComentario(temaId,cId){
+  const p=document.getElementById('cmt-txt-'+cId); if(!p)return;
+  const actual=p.textContent;
+  p.innerHTML=`<input id="ce-${cId}" value="${actual.replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)"><div style="margin-top:6px;display:flex;gap:6px"><button class="fa-btn" style="background:var(--rojo);color:#fff;border-color:var(--rojo);padding:6px 12px" onclick="guardarComentario('${temaId}','${cId}')">Guardar</button><button class="fa-btn" style="padding:6px 12px" onclick="cargarComentarios('${temaId}')">Cancelar</button></div>`;
+}
+function guardarComentario(temaId,cId){
+  const inp=document.getElementById('ce-'+cId); const texto=(inp.value||'').trim(); if(!texto)return;
+  db.collection('foro_temas').doc(temaId).collection('comentarios').doc(cId).update({texto}).then(()=>cargarComentarios(temaId)).catch(()=>toast('No se pudo editar'));
+}
+function borrarComentario(temaId,cId){
+  if(!confirm('¿Borrar este comentario?'))return;
+  db.collection('foro_temas').doc(temaId).collection('comentarios').doc(cId).delete().then(()=>cargarComentarios(temaId)).catch(()=>toast('No se pudo borrar'));
+}
+function editarTema(id){
+  const t=DATA.foro.find(x=>x.id===id); if(!t)return;
+  const panel=document.getElementById('tp-'+id); if(!panel)return;
+  const inp='width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);margin-bottom:8px';
+  panel.innerHTML=`<input id="et-tit-${id}" value="${(t.titulo||'').replace(/"/g,'&quot;')}" style="${inp}"><textarea id="et-txt-${id}" rows="3" style="${inp};font-family:inherit;resize:none">${(t.texto||'').replace(/</g,'&lt;')}</textarea><div style="display:flex;gap:8px"><button class="fa-btn" style="background:var(--rojo);color:#fff;border-color:var(--rojo)" onclick="guardarTema('${id}')">Guardar</button><button class="fa-btn" onclick="document.getElementById('tp-${id}').innerHTML=renderTemaPanel('${id}');cargarComentarios('${id}')">Cancelar</button></div>`;
+}
+function guardarTema(id){
+  const t=DATA.foro.find(x=>x.id===id); if(!t)return;
+  const titulo=(document.getElementById('et-tit-'+id).value||'').trim();
+  const texto=(document.getElementById('et-txt-'+id).value||'').trim();
+  if(!titulo)return toast('El título no puede ir vacío');
+  db.collection('foro_temas').doc(id).update({titulo,texto}).then(()=>{
+    t.titulo=titulo;t.texto=texto;
+    document.getElementById('foro-list').innerHTML=renderForoList(DATA.foro);
+    _temaAbierto=null; toggleTema(id);
+    toast('Tema actualizado');
+  }).catch(()=>toast('No se pudo editar'));
+}
+function borrarTema(id){
+  if(!confirm('¿Borrar este tema?'))return;
+  db.collection('foro_temas').doc(id).delete().then(()=>{
+    DATA.foro=DATA.foro.filter(x=>x.id!==id); _temaAbierto=null;
+    const list=document.getElementById('foro-list'); if(list)list.innerHTML=renderForoList(DATA.foro);
+    toast('Tema borrado');
+  }).catch(()=>toast('No se pudo borrar'));
 }
 function filterForo(q){q=q.toLowerCase();document.getElementById('foro-list').innerHTML=renderForoList(DATA.foro.filter(t=>(t.titulo+t.texto).toLowerCase().includes(q)));}
 
