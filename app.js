@@ -118,7 +118,7 @@ function saludo(){const h=new Date().getHours();return h<12?'Buenos días':h<19?
 function renderInicio(){
   if(LOADING)return skelInicio();
   const cursos=DATA.cursos.slice(0,2);
-  const noticias=DATA.noticias.slice(0,3);
+  const noticias=DATA.noticias.filter(n=>n.img).slice(0,8);
   const enProg=Object.values(DATA.progresos).filter(p=>p>0&&p<100).length;
   const comp=Object.values(DATA.progresos).filter(p=>p>=100).length;
   return `
@@ -126,34 +126,27 @@ function renderInicio(){
     <div><h2>${saludo()}, ${firstName()}.</h2><p>Tienes acceso completo al catálogo. Retoma donde te quedaste.</p></div>
     <div class="streak"><span class="fl">🔥</span> <b>1</b> día de racha</div>
   </div>
-  <div class="inicio-grid">
-    <div>
-      <div class="webinar-card">
-        <div class="wc-tag">Próximo webinar</div>
-        <div class="wc-title">${DATA.webinars[0]?.titulo||'Próximamente'}</div>
-        <div class="countdown" id="countdown">
-          <div class="cd-unit"><b data-cd="d">00</b><span>Días</span></div>
-          <div class="cd-unit"><b data-cd="h">00</b><span>Hrs</span></div>
-          <div class="cd-unit"><b data-cd="m">00</b><span>Min</span></div>
-          <div class="cd-unit"><b data-cd="s">00</b><span>Seg</span></div>
-        </div>
-        <div class="wc-meta">📅 ${DATA.webinars[0]?DATA.webinars[0].fecha:'Sin webinars programados'}</div>
-      </div>
-      <div class="stats-row">
-        ${stat('En progreso',enProg,'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z')}
-        ${stat('Completados',comp,'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z')}
-        ${stat('Certificados',comp,'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z')}
-      </div>
-      <div class="sec-head"><h3>Continuar aprendiendo</h3><a onclick="go('biblioteca')">Ver todos →</a></div>
-      <div class="course-grid">${cursos.length?cursos.map(courseCard).join(''):emptyMini('Aún no hay cursos. ¡Pronto se liberan!')}</div>
+  <div class="webinar-card">
+    <div class="wc-tag">Próximo webinar</div>
+    <div class="wc-title">${DATA.webinars[0]?.titulo||'Próximamente'}</div>
+    <div class="countdown" id="countdown">
+      <div class="cd-unit"><b data-cd="d">00</b><span>Días</span></div>
+      <div class="cd-unit"><b data-cd="h">00</b><span>Hrs</span></div>
+      <div class="cd-unit"><b data-cd="m">00</b><span>Min</span></div>
+      <div class="cd-unit"><b data-cd="s">00</b><span>Seg</span></div>
     </div>
-    <aside class="news-side">
-      <div class="sec-head"><h3>Noticias</h3><a onclick="go('noticias')">Ver todas →</a></div>
-      <div class="card" style="padding:6px 18px">
-        ${noticias.length?noticias.map(n=>`<div class="news-mini" onclick="window.open('${n.url||'#'}','_blank')">${n.img?`<div class="nt" style="background-image:url('${n.img}')"></div>`:''}<div class="news-src">${n.fuente||'IMDAC'}</div><h5>${n.titulo}</h5><div class="news-date">${n.fecha||''}</div></div>`).join(''):'<div class="empty" style="padding:30px 10px"><b>Sin noticias</b></div>'}
-      </div>
-    </aside>
-  </div>`;
+    <div class="wc-meta">📅 ${DATA.webinars[0]?DATA.webinars[0].fecha:'Sin webinars programados'}</div>
+  </div>
+  <div class="stats-row">
+    ${stat('En progreso',enProg,'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z')}
+    ${stat('Completados',comp,'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z')}
+    ${stat('Certificados',comp,'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z')}
+  </div>
+  <div class="sec-head"><h3>Continuar aprendiendo</h3><a onclick="go('biblioteca')">Ver todos →</a></div>
+  <div class="course-grid">${cursos.length?cursos.map(courseCard).join(''):emptyMini('Aún no hay cursos. ¡Pronto se liberan!')}</div>
+  ${noticias.length?`
+  <div class="sec-head" style="margin-top:26px"><h3>Noticias</h3><a onclick="go('noticias')">Ver todas →</a></div>
+  <div class="news-carousel">${noticias.map(n=>`<div class="news-card" onclick="window.open('${n.url||'#'}','_blank')"><div class="nc-img" style="background-image:url('${n.img}')"></div><div class="nc-body"><div class="nc-src">${n.fuente||'IMDAC'}</div><h5>${n.titulo}</h5><div class="nc-date">${n.fecha||''}</div></div></div>`).join('')}</div>`:''}`;
 }
 function stat(label,val,icon){return `<div class="stat"><div class="si"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg></div><div><b>${val}</b><span>${label}</span></div></div>`;}
 function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t}</b></div>`;}
@@ -1026,7 +1019,7 @@ function fetchAutoNews(){
         img:n.image_url||'', url:n.link||'',
         fecha:n.pubDate?new Date(n.pubDate).toLocaleDateString('es-MX'):'',
         _fechaISO:n.pubDate||'', _auto:true
-      })).filter(newsRelevante).filter(n=>{
+      })).filter(newsRelevante).filter(n=>n.img).filter(n=>{
         const k=(n.titulo||'').toLowerCase().replace(/\s+/g,' ').trim();
         if(!k||vistos[k])return false; vistos[k]=true; return true;
       }).slice(0,25);
@@ -1061,7 +1054,7 @@ async function loadData(){
     ]);
     if(!cur.empty)DATA.cursos=cur.docs.map(d=>({id:d.id,...d.data()}));
     if(!web.empty)DATA.webinars=web.docs.map(d=>({id:d.id,...d.data()}));
-    DATA.noticias = not.empty ? [] : not.docs.map(d=>({id:d.id,...d.data()}));
+    DATA.noticias = not.empty ? [] : not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);
     if(!mat.empty)DATA.material=mat.docs.map(d=>({id:d.id,...d.data()}));
     if(!foro.empty)DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));
     // progreso del usuario
