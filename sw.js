@@ -1,5 +1,5 @@
-/* IMDAC · Club — Service Worker v33 */
-const CACHE='imdac-club-v33';
+/* IMDAC · Club — Service Worker v34 */
+const CACHE='imdac-club-v34';
 const ASSETS=['./','./index.html','./app.js','./cert-font.js','./manifest.json','./assets/logo-imdac.png'];
 
 self.addEventListener('install',e=>{

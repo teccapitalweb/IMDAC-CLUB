@@ -459,7 +459,13 @@ function notiVigente(n){
   if(t===null)return true; // recién creada (timestamp aún resolviéndose) → mostrar
   return (Date.now()-t) < 24*60*60*1000; // 24 horas
 }
-function notisVisibles(){const del=notisDismissed();return (DATA.notificaciones||[]).filter(n=>!del.includes(n.id)&&notiVigente(n));}
+function notisVisibles(){const del=notisDismissed();return (DATA.notificaciones||[]).filter(n=>!del.includes(n.id)&&notiVigente(n)&&notiPermitida(n));}
+const NOTIS_PREF_KEY='imdac_notis_prefs';
+const NOTI_EMOJI_CAT={'📚':'curso','🎥':'webinar','📄':'material','🏷️':'promo','📢':'anuncio'};
+function notisPrefs(){const def={curso:true,webinar:true,material:true,promo:true,anuncio:true};try{return Object.assign(def,JSON.parse(localStorage.getItem(NOTIS_PREF_KEY)||'{}'));}catch(e){return def;}}
+function setNotiPref(cat,on){const p=notisPrefs();p[cat]=on;try{localStorage.setItem(NOTIS_PREF_KEY,JSON.stringify(p));}catch(e){}updateNotisBadge();if(currentSection==='notificaciones')renderSection('notificaciones');toast(on?'Recibirás estos avisos':'No recibirás estos avisos');}
+function notiCategoria(n){return NOTI_EMOJI_CAT[n.emoji]||'anuncio';}
+function notiPermitida(n){return notisPrefs()[notiCategoria(n)]!==false;}
 function notisNoLeidas(){const rd=_notisArr(NOTIS_READ_KEY);return notisVisibles().filter(n=>!rd.includes(n.id)).length;}
 function updateNotisBadge(){
   const n=notisNoLeidas();
@@ -590,12 +596,13 @@ function renderLogros(){
 
 function renderConfig(){
   const dark=document.documentElement.dataset.theme==='dark';
+  const prefs=notisPrefs();
   const notifs=[
-    ['Nuevos cursos','Recibe aviso cuando se suba un nuevo curso'],
-    ['Webinars en vivo','Recordatorio antes de cada sesión'],
-    ['Nuevos PDFs','Aviso cuando se publique nuevo material'],
-    ['Promociones','Ofertas especiales y descuentos del Club'],
-    ['Anuncios generales','Avisos importantes del Club'],
+    ['Nuevos cursos','Recibe aviso cuando se suba un nuevo curso','curso'],
+    ['Webinars en vivo','Recordatorio antes de cada sesión','webinar'],
+    ['Nuevos PDFs','Aviso cuando se publique nuevo material','material'],
+    ['Promociones','Ofertas especiales y descuentos del Club','promo'],
+    ['Anuncios generales','Avisos importantes del Club','anuncio'],
   ];
   const motivos=['Problema con un curso','Problema de pago o suscripción','Problema técnico','Sugerencia o comentario','Otro'];
   return `<h1 class="page-h">Configuración</h1><p class="page-sub">Preferencias de la aplicación y la cuenta.</p>
@@ -609,7 +616,7 @@ function renderConfig(){
   <div class="card cfg-card">
     <h3>Notificaciones</h3>
     ${notifs.map(n=>`<div class="cfg-item"><div class="ci-t"><b>${n[0]}</b><span>${n[1]}</span></div>
-      <label class="toggle"><input type="checkbox" checked onchange="toast('Preferencia actualizada')"><span class="tk"></span></label></div>`).join('')}
+      <label class="toggle"><input type="checkbox" ${prefs[n[2]]!==false?'checked':''} onchange="setNotiPref('${n[2]}',this.checked)"><span class="tk"></span></label></div>`).join('')}
   </div>
 
   <div class="card cfg-card">
