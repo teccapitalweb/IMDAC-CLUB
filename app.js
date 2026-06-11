@@ -580,6 +580,17 @@ function renderSuscripcion(){
   </div>`;
 }
 
+/* tracking ligero para logros (por dispositivo) */
+function _statArr(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
+function registrarVisita(){
+  const hoy=new Date().toISOString().slice(0,10);
+  const dias=_statArr('imdac_dias');
+  if(!dias.includes(hoy)){dias.push(hoy);try{localStorage.setItem('imdac_dias',JSON.stringify(dias.slice(-400)));}catch(e){}}
+}
+function registrarCertDescargado(cursoId){
+  const arr=_statArr('imdac_certs');
+  if(!arr.includes(cursoId)){arr.push(cursoId);try{localStorage.setItem('imdac_certs',JSON.stringify(arr));}catch(e){}}
+}
 function calcLogros(){
   const uid=CURRENT_USER&&CURRENT_USER.uid;
   const progs=Object.values(DATA.progresos||{});
@@ -588,19 +599,35 @@ function calcLogros(){
   const clasesTot=Object.values(DATA.clasesHechas||{}).reduce((a,arr)=>a+(arr?arr.length:0),0);
   const misTemas=(DATA.foro||[]).filter(t=>t.autorUid===uid);
   const likesRecibidos=misTemas.reduce((a,t)=>a+(t.likes||0),0);
-  const diLike=(DATA.foro||[]).some(t=>(t.likedBy||[]).includes(uid));
+  const likesDados=(DATA.foro||[]).filter(t=>(t.likedBy||[]).includes(uid)).length;
+  const diLike=likesDados>0;
+  const catsCompletas=new Set(DATA.cursos.filter(c=>(DATA.progresos[c.id]||0)>=100).map(c=>c.categoria||'General')).size;
+  const certsDesc=_statArr('imdac_certs').length;
+  const diasVisita=_statArr('imdac_dias').length;
   return [
     {n:'Primer paso',d:'Inicia tu primer curso',ic:'🎯',v:iniciados,m:1},
     {n:'Manos a la obra',d:'Completa tu primera clase',ic:'🧱',v:clasesTot,m:1},
-    {n:'Cimientos firmes',d:'Completa tu primer curso',ic:'🏠',v:completos,m:1},
+    {n:'Pico y pala',d:'Completa 10 clases',ic:'🔨',v:clasesTot,m:10},
     {n:'Media jornada',d:'Completa 25 clases',ic:'⏱️',v:clasesTot,m:25},
+    {n:'Jornada completa',d:'Completa 50 clases',ic:'🚧',v:clasesTot,m:50},
+    {n:'Cimientos firmes',d:'Completa tu primer curso',ic:'🏠',v:completos,m:1},
     {n:'Constructor',d:'Completa 3 cursos',ic:'🏗️',v:completos,m:3},
     {n:'Supervisor',d:'Completa 5 cursos · mitad del catálogo',ic:'📐',v:completos,m:5},
     {n:'Residente de obra',d:'Completa 7 cursos',ic:'🦺',v:completos,m:7},
     {n:'Maestro de obra',d:'Completa los 10 cursos del catálogo',ic:'👷',v:completos,m:10},
+    {n:'Multidisciplinario',d:'Completa cursos de 3 categorías distintas',ic:'🗂️',v:catsCompletas,m:3},
+    {n:'Coleccionista',d:'Descarga tu primer certificado',ic:'📜',v:certsDesc,m:1},
+    {n:'Galería de títulos',d:'Descarga 5 certificados',ic:'🖼️',v:certsDesc,m:5},
     {n:'Voz del gremio',d:'Publica tu primer tema en el foro',ic:'💬',v:misTemas.length,m:1},
+    {n:'Cronista',d:'Publica 3 temas en el foro',ic:'✍️',v:misTemas.length,m:3},
+    {n:'Líder de opinión',d:'Publica 5 temas en el foro',ic:'📣',v:misTemas.length,m:5},
     {n:'Buen colega',d:'Reacciona a un tema del foro',ic:'❤️',v:diLike?1:0,m:1},
+    {n:'Mano amiga',d:'Reacciona a 5 temas del foro',ic:'🤝',v:likesDados,m:5},
+    {n:'Corazón de oro',d:'Reacciona a 15 temas del foro',ic:'💞',v:likesDados,m:15},
     {n:'Influencer',d:'Recibe 10 reacciones en tus temas',ic:'⭐',v:likesRecibidos,m:10},
+    {n:'Voz respetada',d:'Recibe 25 reacciones en tus temas',ic:'🌟',v:likesRecibidos,m:25},
+    {n:'Constante',d:'Visita el club 7 días distintos',ic:'📅',v:diasVisita,m:7},
+    {n:'Racha de fuego',d:'Visita el club 30 días distintos',ic:'🔥',v:diasVisita,m:30},
     {n:'Leyenda IMDAC',d:'Catálogo completo + 25 reacciones recibidas',ic:'🏆',v:(completos>=10&&likesRecibidos>=25)?1:0,m:1},
   ].map(l=>({...l,ok:l.v>=l.m}));
 }
@@ -975,6 +1002,7 @@ function getLogoDataURL(cb){
 }
 function generarCertificado(cursoId){
   const c=DATA.cursos.find(x=>x.id===cursoId);if(!c)return;
+  registrarCertDescargado(cursoId);
   const curso=c.titulo;
   const fecha=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
   const totalCl=c.listaClases?c.listaClases.length:(c.clases||0);
@@ -1335,6 +1363,7 @@ async function onLogged(){
   go('inicio');
   cargarNoticiasAuto();
   escucharNotis();
+  registrarVisita();
 }
 function renderMantenimiento(){
   if(document.getElementById('maint-overlay'))return;
