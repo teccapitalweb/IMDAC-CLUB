@@ -996,6 +996,58 @@ function demoLogin(email,name){
 }
 
 /* ====== 10. CARGA DE DATOS ====== */
+// --- Noticias automáticas del sector (NewsData.io) ---
+const NEWSDATA_API_KEY='pub_fae0d8c9c54f40f59f1b5a5f9bced05e';
+const NEWSDATA_CACHE_KEY='imdac_news_cache_v1';
+const NEWSDATA_CACHE_HORAS=6;
+const NEWS_WHITE=['arquitect','construcc','constructor','obra civil','obra públic','obra public',' obra ','edific','ingenier','urban','concreto','cemento','acero estructural','estructur','vivienda','inmobili','infraestructura',' bim','autocad',' cad','remodelac','demolic','cimentac','albañil','albanil','plano','licitac','contratista','rascaciel','puente','carreter','sustentab','sostenib','catastro','reglamento de construc','perito','desarrollo urbano','proyecto ejecutivo','metros cuadrados','material de construc','acabados','prefabricad','cimbra','varilla','sismorresist','antisísmic','antisismic'];
+const NEWS_BLACK=['futbol','fútbol','liga mx',' nba',' nfl','champions','elecciones','candidat','narco','homicid','feminicid','covid','vacuna','iglesia','vaticano','papa francisco','horóscopo','horoscopo','farándula','farandula','realeza'];
+function newsRelevante(n){
+  const t=((n.titulo||'')+' '+(n.resumen||'')).toLowerCase();
+  if(NEWS_WHITE.some(w=>t.indexOf(w)!==-1))return true;
+  if(NEWS_BLACK.some(w=>t.indexOf(w)!==-1))return false;
+  return true;
+}
+function fetchAutoNews(){
+  return new Promise(resolve=>{
+    if(!NEWSDATA_API_KEY||NEWSDATA_API_KEY.indexOf('REEMPLAZAR')!==-1){resolve([]);return;}
+    try{
+      const raw=localStorage.getItem(NEWSDATA_CACHE_KEY);
+      if(raw){const c=JSON.parse(raw);const h=(Date.now()-c.timestamp)/3600000;if(h<NEWSDATA_CACHE_HORAS&&c.noticias&&c.noticias.length){resolve(c.noticias);return;}}
+    }catch(e){}
+    const query=encodeURIComponent('arquitectura OR construcción OR obra civil OR ingeniería');
+    const url='https://newsdata.io/api/1/news?apikey='+NEWSDATA_API_KEY+'&q='+query+'&language=es';
+    fetch(url).then(r=>r.json()).then(data=>{
+      if(!data||!Array.isArray(data.results)){resolve([]);return;}
+      const vistos={};
+      const noticias=data.results.map(n=>({
+        titulo:n.title||'', resumen:n.description||n.content||'',
+        fuente:n.source_id||n.source_name||'NewsData',
+        img:n.image_url||'', url:n.link||'',
+        fecha:n.pubDate?new Date(n.pubDate).toLocaleDateString('es-MX'):'',
+        _fechaISO:n.pubDate||'', _auto:true
+      })).filter(newsRelevante).filter(n=>{
+        const k=(n.titulo||'').toLowerCase().replace(/\s+/g,' ').trim();
+        if(!k||vistos[k])return false; vistos[k]=true; return true;
+      }).slice(0,25);
+      try{localStorage.setItem(NEWSDATA_CACHE_KEY,JSON.stringify({timestamp:Date.now(),noticias}));}catch(e){}
+      resolve(noticias);
+    }).catch(()=>{
+      try{const raw=localStorage.getItem(NEWSDATA_CACHE_KEY);if(raw){const c=JSON.parse(raw);resolve(c.noticias||[]);}else resolve([]);}catch(e){resolve([]);}
+    });
+  });
+}
+function cargarNoticiasAuto(){
+  fetchAutoNews().then(autos=>{
+    if(!autos||!autos.length)return;
+    const manuales=(DATA.noticias||[]).filter(n=>!n._auto);
+    const vistos={}; const todas=[];
+    manuales.forEach(n=>{const k=(n.titulo||'').toLowerCase().replace(/\s+/g,' ').trim();if(k)vistos[k]=true;todas.push(n);});
+    autos.forEach(n=>{const k=(n.titulo||'').toLowerCase().replace(/\s+/g,' ').trim();if(!k||vistos[k])return;vistos[k]=true;todas.push(n);});
+    DATA.noticias=todas;
+    if(currentSection==='inicio'||currentSection==='noticias')renderSection(currentSection);
+  }).catch(()=>{});
+}
 async function loadData(){
   // Datos demo de arranque (se reemplazan con Firestore cuando esté configurado)
   DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
@@ -1009,7 +1061,7 @@ async function loadData(){
     ]);
     if(!cur.empty)DATA.cursos=cur.docs.map(d=>({id:d.id,...d.data()}));
     if(!web.empty)DATA.webinars=web.docs.map(d=>({id:d.id,...d.data()}));
-    if(!not.empty)DATA.noticias=not.docs.map(d=>({id:d.id,...d.data()}));
+    DATA.noticias = not.empty ? [] : not.docs.map(d=>({id:d.id,...d.data()}));
     if(!mat.empty)DATA.material=mat.docs.map(d=>({id:d.id,...d.data()}));
     if(!foro.empty)DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));
     // progreso del usuario
@@ -1074,6 +1126,7 @@ async function onLogged(){
   await loadData();
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
   go('inicio');
+  cargarNoticiasAuto();
 }
 function renderMantenimiento(){
   if(document.getElementById('maint-overlay'))return;
