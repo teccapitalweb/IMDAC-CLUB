@@ -90,6 +90,7 @@ function go(sec){
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
   if(window.innerWidth<=900) toggleSidebar(false);
   renderSection(sec);
+  if(sec==='notificaciones')marcarNotisLeidas();
   document.getElementById('content').scrollTop=0;
   window.scrollTo(0,0);
 }
@@ -461,10 +462,13 @@ function notiVigente(n){
 function notisVisibles(){const del=notisDismissed();return (DATA.notificaciones||[]).filter(n=>!del.includes(n.id)&&notiVigente(n));}
 function notisNoLeidas(){const rd=_notisArr(NOTIS_READ_KEY);return notisVisibles().filter(n=>!rd.includes(n.id)).length;}
 function updateNotisBadge(){
-  const item=document.querySelector('.sb-item[data-sec="notificaciones"]'); if(!item)return;
-  let dot=item.querySelector('.nav-dot'); const n=notisNoLeidas();
-  if(n>0){ if(!dot){dot=document.createElement('span');dot.className='nav-dot';item.appendChild(dot);} dot.textContent=n>9?'9+':n; }
-  else if(dot){dot.remove();}
+  const n=notisNoLeidas();
+  const item=document.querySelector('.sb-item[data-sec="notificaciones"]');
+  if(item){let dot=item.querySelector('.nav-dot');
+    if(n>0){if(!dot){dot=document.createElement('span');dot.className='nav-dot';item.appendChild(dot);}dot.textContent=n>9?'9+':n;}
+    else if(dot){dot.remove();}}
+  const bd=document.getElementById('bell-dot');
+  if(bd){if(n>0){bd.style.display='flex';bd.textContent=n>9?'9+':n;}else{bd.style.display='none';}}
 }
 function escucharNotis(){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
@@ -483,12 +487,14 @@ function eliminarTodasNotis(){
   const del=notisDismissed(); notisVisibles().forEach(n=>{if(!del.includes(n.id))del.push(n.id);});
   _notisSet(NOTIS_DEL_KEY,del); renderSection('notificaciones'); updateNotisBadge();
 }
+function marcarNotisLeidas(){
+  const rd=_notisArr(NOTIS_READ_KEY); let ch=false;
+  notisVisibles().forEach(n=>{if(!rd.includes(n.id)){rd.push(n.id);ch=true;}});
+  if(ch)_notisSet(NOTIS_READ_KEY,rd);
+  updateNotisBadge();
+}
 function renderNotificaciones(){
   const vis=notisVisibles();
-  // marcar como leídas al entrar (quita el puntito)
-  const rd=_notisArr(NOTIS_READ_KEY); let ch=false;
-  vis.forEach(n=>{if(!rd.includes(n.id)){rd.push(n.id);ch=true;}});
-  if(ch)_notisSet(NOTIS_READ_KEY,rd);
   setTimeout(updateNotisBadge,0);
   const lista=vis.length?vis.map(n=>`<div class="noti-item"><div class="noti-ic">${n.emoji||'📢'}</div><div class="noti-body"><h4>${(n.titulo||'').replace(/</g,'&lt;')}</h4><p>${(n.mensaje||'').replace(/</g,'&lt;')}</p><span class="noti-date">${n.fecha||''}</span></div><button class="noti-del" onclick="eliminarNoti('${n.id}')" title="Eliminar">🗑️</button></div>`).join(''):emptyState('notificaciones','Todo al día','No tienes notificaciones nuevas. Te avisaremos cuando haya novedades.');
   return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div><h1 class="page-h">Notificaciones</h1><p class="page-sub">Mantente al día con novedades y recordatorios.</p></div>${vis.length?`<button class="filter" onclick="eliminarTodasNotis()">Eliminar todas</button>`:''}</div>
