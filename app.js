@@ -1284,21 +1284,25 @@ function cargarNoticiasAuto(){
   }).catch(()=>{});
 }
 async function loadData(){
-  // Datos demo de arranque (se reemplazan con Firestore cuando esté configurado)
-  DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
-  DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos; DATA.clasesHechas={};
-  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){await sleep(650);LOADING=false;return;}
+  // Modo real: arranca vacío y solo se llena con Firestore. El demo aplica únicamente sin sesión real.
+  DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
+  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={};
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){
+    DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
+    DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos;
+    await sleep(650);LOADING=false;return;
+  }
   try{
     const [cur,web,not,mat,foro]=await Promise.all([
       db.collection('cursos').get(), db.collection('webinars').get(),
       db.collection('noticias').orderBy('fecha','desc').limit(20).get(),
       db.collection('material').get(), db.collection('foro_temas').orderBy('fecha','desc').limit(30).get()
     ]);
-    if(!cur.empty)DATA.cursos=cur.docs.map(d=>({id:d.id,...d.data()}));
-    if(!web.empty)DATA.webinars=web.docs.map(d=>({id:d.id,...d.data()}));
-    DATA.noticias = not.empty ? [] : not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);
-    if(!mat.empty)DATA.material=mat.docs.map(d=>({id:d.id,...d.data()}));
-    if(!foro.empty)DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));
+    DATA.cursos=cur.docs.map(d=>({id:d.id,...d.data()}));
+    DATA.webinars=web.docs.map(d=>({id:d.id,...d.data()}));
+    DATA.noticias=not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);
+    DATA.material=mat.docs.map(d=>({id:d.id,...d.data()}));
+    DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));
     // progreso del usuario
     const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();
     DATA.progresos={}; DATA.clasesHechas={}; prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0; if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});
