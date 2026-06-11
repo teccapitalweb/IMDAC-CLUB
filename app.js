@@ -106,7 +106,27 @@ function renderSection(sec){
   };
   const cr = sec==='inicio'?'':crumbs(navLabel(sec));
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
-  if(sec==='inicio') startCountdown();
+  if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
+}
+let _newsTimer=null;
+function initNewsCarousel(){
+  if(_newsTimer){clearInterval(_newsTimer);_newsTimer=null;}
+  const el=document.querySelector('.news-carousel');
+  if(!el)return;
+  let pausa=false;
+  el.addEventListener('mouseenter',()=>pausa=true);
+  el.addEventListener('mouseleave',()=>pausa=false);
+  el.addEventListener('touchstart',()=>pausa=true,{passive:true});
+  el.addEventListener('touchend',()=>setTimeout(()=>pausa=false,2500),{passive:true});
+  _newsTimer=setInterval(()=>{
+    const c=document.querySelector('.news-carousel');
+    if(!c){clearInterval(_newsTimer);_newsTimer=null;return;}
+    if(pausa)return;
+    const max=c.scrollWidth-c.clientWidth;
+    if(max<=1)return;
+    if(c.scrollLeft>=max-1)c.scrollTo({left:0,behavior:'smooth'});
+    else c.scrollLeft+=1;
+  },40);
 }
 function navLabel(sec){for(const g of NAV)for(const it of g.items)if(it.id===sec)return it.label;return '';}
 function crumbs(cur){return `<div class="crumbs"><a onclick="go('inicio')">Inicio</a><span class="sep">›</span><span class="cur">${cur}</span></div>`;}
