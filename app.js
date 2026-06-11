@@ -166,7 +166,7 @@ function renderInicio(){
   <div class="course-grid">${cursos.length?cursos.map(courseCard).join(''):emptyMini('Aún no hay cursos. ¡Pronto se liberan!')}</div>
   ${noticias.length?`
   <div class="sec-head" style="margin-top:26px"><h3>Noticias</h3><a onclick="go('noticias')">Ver todas →</a></div>
-  <div class="news-carousel">${noticias.map(n=>`<div class="news-card" onclick="window.open('${n.url||'#'}','_blank')"><div class="nc-img" style="background-image:url('${n.img}')"></div><div class="nc-body"><div class="nc-src">${n.fuente||'IMDAC'}</div><h5>${n.titulo}</h5><div class="nc-date">${n.fecha||''}</div></div></div>`).join('')}</div>`:''}`;
+  <div class="news-carousel">${noticias.map(n=>`<div class="news-card" onclick="window.open('${n.url||'#'}','_blank')"><img class="nc-img" src="${n.img}" alt="" loading="lazy" onerror="var p=this.closest('.news-card');if(p)p.remove();"><div class="nc-body"><div class="nc-src">${n.fuente||'IMDAC'}</div><h5>${n.titulo}</h5><div class="nc-date">${n.fecha||''}</div></div></div>`).join('')}</div>`:''}`;
 }
 function stat(label,val,icon){return `<div class="stat"><div class="si"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg></div><div><b>${val}</b><span>${label}</span></div></div>`;}
 function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t}</b></div>`;}
@@ -240,7 +240,7 @@ function renderNoticias(){
   return `<h1 class="page-h">Noticias & actualizaciones</h1><p class="page-sub">Lo último del sector de la arquitectura y la construcción.</p>
   ${DATA.noticias.length?DATA.noticias.map(n=>`
     <div class="news-item" onclick="window.open('${n.url||'#'}','_blank')">
-      ${n.img?`<div class="news-thumb" style="background-image:url('${n.img}')"></div>`:'<div class="news-thumb"></div>'}
+      <img class="news-thumb" src="${n.img||''}" alt="" loading="lazy" onerror="var p=this.closest('.news-item');if(p)p.remove();">
       <div><div class="news-src">${n.fuente||'IMDAC'}</div><h4>${n.titulo}</h4><p>${n.resumen||''}</p><div class="news-date">${n.fecha||''}</div></div>
     </div>`).join(''):emptyState('noticias','Sin noticias por ahora','Pronto publicaremos novedades del sector.')}`;
 }
