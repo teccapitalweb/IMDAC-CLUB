@@ -1511,13 +1511,58 @@ function pintarPlanes(){
   const m=document.getElementById('pp-mensual'); if(m&&_planes.mensual)m.textContent=f(_planes.mensual.monto);
   const a=document.getElementById('pp-anual'); if(a&&_planes.anual)a.textContent=f(_planes.anual.monto);
 }
+/* Llave PUBLICABLE de Stripe (pk_test_...). Con placeholder → fallback a redirect */
+const STRIPE_PK='pk_test_51TMAcSA7If2CqXs95MzeJgFKo6uOwe9VsycHRUcsVRWoy6LjdCcR3gHR8B58a3rEv3PIdH6mNUdClHOyujK6jJ5t00afIrW22P';
+let _stripeJS=null,_checkoutObj=null;
+function loadStripeJS(cb){
+  if(window.Stripe){cb();return;}
+  const s=document.createElement('script');s.src='https://js.stripe.com/v3';s.onload=cb;s.onerror=()=>cb('err');document.head.appendChild(s);
+}
 function irAPagar(plan){
   if(!CURRENT_USER||!FB_OK)return toast('Inicia sesión para continuar');
-  toast('Abriendo pago seguro…');
+  if(STRIPE_PK.indexOf('REEMPLAZAR')!==-1)return irAPagarRedirect(plan);
+  toast('Preparando pago seguro…');
+  loadStripeJS(err=>{
+    if(err)return irAPagarRedirect(plan);
+    fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan,embedded:true})})
+      .then(r=>r.json()).then(async d=>{
+        if(!d.clientSecret)return irAPagarRedirect(plan);
+        if(!_stripeJS)_stripeJS=Stripe(STRIPE_PK);
+        abrirModalPago();
+        try{
+          _checkoutObj=await _stripeJS.initEmbeddedCheckout({clientSecret:d.clientSecret,onComplete:pagoCompletado});
+          _checkoutObj.mount('#stripe-box');
+        }catch(e){cerrarModalPago();irAPagarRedirect(plan);}
+      }).catch(()=>irAPagarRedirect(plan));
+  });
+}
+function irAPagarRedirect(plan){
   fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan})})
     .then(r=>r.json()).then(d=>{if(d.url)location.href=d.url;else toast('No se pudo abrir el pago');})
     .catch(()=>toast('No se pudo abrir el pago, intenta de nuevo'));
+}
+function abrirModalPago(){
+  let m=document.getElementById('pago-modal');
+  if(!m){m=document.createElement('div');m.id='pago-modal';m.className='pago-modal';document.body.appendChild(m);}
+  m.innerHTML=`<div class="pago-box"><button class="pago-x" onclick="cerrarModalPago()">✕</button><div id="stripe-box"><div style="padding:60px;text-align:center;color:var(--muted)">Cargando pago seguro…</div></div></div>`;
+  m.style.display='flex';
+}
+function cerrarModalPago(){
+  const m=document.getElementById('pago-modal'); if(m)m.style.display='none';
+  if(_checkoutObj){try{_checkoutObj.destroy();}catch(e){} _checkoutObj=null;}
+}
+function pagoCompletado(){
+  cerrarModalPago();
+  toast('Pago recibido, activando tu membresía…');
+  let intentos=0;
+  const re=setInterval(async()=>{
+    intentos++;
+    try{const mi=await db.collection('miembros').doc(CURRENT_USER.uid).get();window._miMiembro=mi.exists?mi.data():{};}catch(e){}
+    if(_tieneAcceso()){clearInterval(re);go('inicio');cargarNoticiasAuto();escucharNotis();registrarVisita();toast('¡Membresía activa, bienvenido!');}
+    else if(intentos>=10){clearInterval(re);toast('Tu pago está en proceso, recarga en un momento');}
+  },2000);
 }
 function abrirPortal(){
   if(!CANDADO_ON())return toast('Gestión de pago vía Stripe (pendiente activar)');
