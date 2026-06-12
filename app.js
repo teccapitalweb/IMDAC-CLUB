@@ -583,23 +583,30 @@ function renderSuscripcion(){
   const m=window._miMiembro||{};
   const estado=m.estado||'Activo';
   const esRegalo=!m.stripeSubscriptionId&&m.vigenciaHasta;
+  const porCancelar=!!m.cancelaAlFinal&&estado==='Activo';
   const plan=esRegalo?'Acceso de cortesía':(m.plan?('IMDAC '+m.plan):'IMDAC Mensual');
   const renuevaReal=esRegalo?(m.vigenciaHasta||'—'):(m.renovacion||renueva);
   const precioTxt=m.plan==='Anual'?'':(`$${IMDAC.precio||499} <span>MXN / mes</span>`);
+  const badge=porCancelar
+    ?`<span class="sub-status" style="background:#fff3e0;color:#b86b00">Finaliza el ${renuevaReal}</span>`
+    :`<span class="sub-status" style="${estado!=='Activo'?'background:#fde8e8;color:#c0392b':''}">${estado==='Activo'?'Activa':estado}</span>`;
   return `<h1 class="page-h">Mi Suscripción</h1><p class="page-sub">Detalles de tu plan y beneficios activos.</p>
   <div class="sub-card">
-    <div class="sub-top"><span class="sub-badge">✦ Premium</span><span class="sub-status" style="${estado!=='Activo'?'background:#fde8e8;color:#c0392b':''}">${estado==='Activo'?'Activa':estado}</span></div>
+    <div class="sub-top"><span class="sub-badge">✦ Premium</span>${badge}</div>
     <div class="sub-plan">${plan}</div>
     ${precioTxt?`<div class="sub-price">${precioTxt}</div>`:''}
     <div class="sub-divider"></div>
     <div class="sub-meta2">
       <div><div class="ml">Miembro desde</div><div class="mv">${alta}</div></div>
-      <div><div class="ml">${esRegalo?'Acceso hasta':'Próxima renovación'}</div><div class="mv">${renuevaReal}</div></div>
+      <div><div class="ml">${esRegalo?'Acceso hasta':(porCancelar?'Acceso hasta':'Próxima renovación')}</div><div class="mv">${renuevaReal}</div></div>
       <div><div class="ml">Método de pago</div><div class="mv">${esRegalo?'Cortesía IMDAC':'Stripe'}</div></div>
     </div>
+    ${porCancelar?`<p style="color:#b86b00;font-size:.88rem;margin-top:12px">Tu suscripción está cancelada: no se te cobrará de nuevo y conservas el acceso hasta el ${renuevaReal}.</p>`:''}
     <div class="sub-actions">
-      <button class="btn-manage" onclick="abrirPortal()">Gestionar suscripción</button>
-      <button class="btn-cancel" onclick="if(confirm('Para cancelar tu suscripción te llevaremos al portal seguro de pagos. ¿Continuar?'))abrirPortal()">Cancelar</button>
+      ${esRegalo?'' : porCancelar
+        ?`<button class="btn-manage" onclick="reactivarSub()">Reactivar suscripción</button>`
+        :`<button class="btn-manage" onclick="abrirPortal()">Gestionar suscripción</button>
+          <button class="btn-cancel" onclick="cancelarSub()">Cancelar</button>`}
     </div>
   </div>
   <h3 class="plan-section-title">Lo que incluye tu plan</h3>
@@ -1562,6 +1569,30 @@ function irAPagarRedirect(plan){
     body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan})})
     .then(r=>r.json()).then(d=>{if(d.url)location.href=d.url;else toast('No se pudo abrir el pago');})
     .catch(()=>toast('No se pudo abrir el pago, intenta de nuevo'));
+}
+function cancelarSub(){
+  if(!confirm('¿Cancelar tu suscripción? No se te volverá a cobrar y conservas tu acceso hasta el final del periodo que ya pagaste.'))return;
+  toast('Cancelando…');
+  fetch(WEBHOOK_URL+'/cancelar',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({uid:CURRENT_USER.uid})})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok)return toast(d.error||'No se pudo cancelar');
+      window._miMiembro.cancelaAlFinal=true;
+      if(d.fin)window._miMiembro.renovacion=d.fin;
+      renderSection('suscripcion');
+      toast('Suscripción cancelada — conservas tu acceso hasta el '+(d.fin||'final del periodo'));
+    }).catch(()=>toast('No se pudo cancelar, intenta de nuevo'));
+}
+function reactivarSub(){
+  toast('Reactivando…');
+  fetch(WEBHOOK_URL+'/reactivar',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({uid:CURRENT_USER.uid})})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok)return toast(d.error||'No se pudo reactivar');
+      window._miMiembro.cancelaAlFinal=false;
+      renderSection('suscripcion');
+      toast('¡Suscripción reactivada! Tu plan continúa normal');
+    }).catch(()=>toast('No se pudo reactivar, intenta de nuevo'));
 }
 function abrirPortal(){
   if(!CANDADO_ON())return toast('Gestión de pago vía Stripe (pendiente activar)');
