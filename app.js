@@ -1347,7 +1347,7 @@ function cargarNoticiasAuto(){
 /* ====== STRIPE (candado de membresía) ======
    Pega aquí la URL de Railway cuando el webhook esté desplegado.
    Mientras diga REEMPLAZAR, el candado está APAGADO (acceso libre). */
-const WEBHOOK_URL='REEMPLAZAR_URL_RAILWAY'; // ej: https://webhook-imdac-production.up.railway.app
+const WEBHOOK_URL='https://imdac-club-webhook-production.up.railway.app'; // candado ENCENDIDO
 const CANDADO_ON=()=>WEBHOOK_URL.indexOf('REEMPLAZAR')===-1;
 window._miMiembro={};
 function _tieneAcceso(){
