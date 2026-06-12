@@ -3,6 +3,20 @@
    Instituto Mexicano de Arquitectura y Construcción
    Stack: Firebase Auth + Firestore · GitHub Pages
    ============================================================ */
+/* Si esta página se abrió como POPUP de pago y Stripe regresó aquí, mostrar confirmación y cerrarse */
+(function(){
+  try{
+    if(window.opener && window.name==='imdac_pago'){
+      const q=location.search;
+      const ok=q.indexOf('pago=ok')!==-1, cancel=q.indexOf('pago=cancelado')!==-1;
+      if(ok||cancel){
+        document.documentElement.innerHTML='<body style="margin:0;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:96vh;background:#fafafa;color:#333"><div style="font-size:3rem">'+(ok?'✅':'↩️')+'</div><h2 style="font-family:inherit">'+(ok?'¡Pago exitoso!':'Pago cancelado')+'</h2><p style="color:#777">Esta ventana se cerrará sola…</p></body>';
+        setTimeout(function(){window.close();},1800);
+        throw new Error('__popup_pago__'); // detiene el resto del script en el popup
+      }
+    }
+  }catch(e){if(e.message==='__popup_pago__')throw e;}
+})();
 
 /* ====== 1. CONFIG FIREBASE — REEMPLAZAR CON LA CUENTA DE IMDAC ====== */
 const firebaseConfig = {
@@ -1511,59 +1525,43 @@ function pintarPlanes(){
   const m=document.getElementById('pp-mensual'); if(m&&_planes.mensual)m.textContent=f(_planes.mensual.monto);
   const a=document.getElementById('pp-anual'); if(a&&_planes.anual)a.textContent=f(_planes.anual.monto);
 }
-/* Llave PUBLICABLE de Stripe (pk_test_...). Con placeholder → fallback a redirect */
-const STRIPE_PK='pk_test_51TMAcSA7If2CqXs95MzeJgFKo6uOwe9VsycHRUcsVRWoy6LjdCcR3gHR8B58a3rEv3PIdH6mNUdClHOyujK6jJ5t00afIrW22P';
-let _stripeJS=null,_checkoutObj=null;
-function loadStripeJS(cb){
-  if(window.Stripe){cb();return;}
-  const s=document.createElement('script');s.src='https://js.stripe.com/v3';s.onload=cb;s.onerror=()=>cb('err');document.head.appendChild(s);
-}
+/* ====== PAGO EN POPUP (ventana emergente con Stripe Checkout) ====== */
 function irAPagar(plan){
   if(!CURRENT_USER||!FB_OK)return toast('Inicia sesión para continuar');
-  if(STRIPE_PK.indexOf('REEMPLAZAR')!==-1){console.warn('[pago] sin PK → redirect');return irAPagarRedirect(plan);}
-  toast('Preparando pago seguro…');
-  loadStripeJS(err=>{
-    if(err){console.warn('[pago] no cargó js.stripe.com (¿bloqueador de anuncios?) → redirect');return irAPagarRedirect(plan);}
-    fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan,embedded:true})})
-      .then(r=>r.json()).then(async d=>{
-        if(!d.clientSecret){console.warn('[pago] el webhook no regresó clientSecret → redirect',d);return irAPagarRedirect(plan);}
-        if(!_stripeJS)_stripeJS=Stripe(STRIPE_PK);
-        abrirModalPago();
-        try{
-          _checkoutObj=await _stripeJS.initEmbeddedCheckout({clientSecret:d.clientSecret,onComplete:pagoCompletado});
-          _checkoutObj.mount('#stripe-box');
-          console.log('[pago] modal embebido montado ✓');
-        }catch(e){console.error('[pago] falló el modal → redirect:',e.message||e);cerrarModalPago();irAPagarRedirect(plan);}
-      }).catch(e=>{console.error('[pago] error pidiendo checkout → redirect:',e.message||e);irAPagarRedirect(plan);});
-  });
+  // abrir la ventana DE INMEDIATO (dentro del clic, así el navegador no la bloquea)
+  const w=480,h=780,x=Math.max(0,(screen.width-w)/2),y=Math.max(0,(screen.height-h)/2);
+  const pop=window.open('','imdac_pago',`width=${w},height=${h},left=${x},top=${y}`);
+  if(!pop){console.warn('[pago] popup bloqueado → redirect');return irAPagarRedirect(plan);}
+  try{pop.document.write('<title>Pago seguro · IMDAC</title><body style="margin:0;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:96vh;color:#555;background:#fafafa">Cargando pago seguro…</body>');}catch(e){}
+  fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan})})
+    .then(r=>r.json()).then(d=>{
+      if(!d.url){try{pop.close();}catch(e){} toast('No se pudo abrir el pago');return;}
+      pop.location=d.url;
+      vigilarPago(pop);
+    }).catch(()=>{try{pop.close();}catch(e){} toast('No se pudo abrir el pago, intenta de nuevo');});
+}
+function vigilarPago(pop){
+  toast('Completa tu pago en la ventana emergente');
+  let intentos=0,cerradoHace=0;
+  const re=setInterval(async()=>{
+    intentos++;
+    try{const mi=await db.collection('miembros').doc(CURRENT_USER.uid).get();window._miMiembro=mi.exists?mi.data():{};}catch(e){}
+    if(_tieneAcceso()){
+      clearInterval(re);
+      try{if(!pop.closed)pop.close();}catch(e){}
+      go('inicio');cargarNoticiasAuto();escucharNotis();registrarVisita();
+      toast('¡Membresía activa, bienvenido!');return;
+    }
+    if(pop.closed){cerradoHace++;if(cerradoHace>=3){clearInterval(re);}} // cerró sin pagar: 2 chequeos extra por si pagó y cerró rápido
+    if(intentos>=240)clearInterval(re); // tope ~8 min
+  },2000);
 }
 function irAPagarRedirect(plan){
   fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan})})
     .then(r=>r.json()).then(d=>{if(d.url)location.href=d.url;else toast('No se pudo abrir el pago');})
     .catch(()=>toast('No se pudo abrir el pago, intenta de nuevo'));
-}
-function abrirModalPago(){
-  let m=document.getElementById('pago-modal');
-  if(!m){m=document.createElement('div');m.id='pago-modal';m.className='pago-modal';document.body.appendChild(m);}
-  m.innerHTML=`<div class="pago-box"><button class="pago-x" onclick="cerrarModalPago()">✕</button><div id="stripe-box"><div style="padding:60px;text-align:center;color:var(--muted)">Cargando pago seguro…</div></div></div>`;
-  m.style.display='flex';
-}
-function cerrarModalPago(){
-  const m=document.getElementById('pago-modal'); if(m)m.style.display='none';
-  if(_checkoutObj){try{_checkoutObj.destroy();}catch(e){} _checkoutObj=null;}
-}
-function pagoCompletado(){
-  cerrarModalPago();
-  toast('Pago recibido, activando tu membresía…');
-  let intentos=0;
-  const re=setInterval(async()=>{
-    intentos++;
-    try{const mi=await db.collection('miembros').doc(CURRENT_USER.uid).get();window._miMiembro=mi.exists?mi.data():{};}catch(e){}
-    if(_tieneAcceso()){clearInterval(re);go('inicio');cargarNoticiasAuto();escucharNotis();registrarVisita();toast('¡Membresía activa, bienvenido!');}
-    else if(intentos>=10){clearInterval(re);toast('Tu pago está en proceso, recarga en un momento');}
-  },2000);
 }
 function abrirPortal(){
   if(!CANDADO_ON())return toast('Gestión de pago vía Stripe (pendiente activar)');
