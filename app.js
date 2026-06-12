@@ -108,6 +108,7 @@ function renderSection(sec){
   const cr = sec==='inicio'?'':crumbs(navLabel(sec));
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
+  if(sec==='perfil') cargarPerfilDatos();
 }
 let _newsRAF=null;
 function initNewsCarousel(){
@@ -529,11 +530,21 @@ function renderPerfil(){
     <button class="btn-primary" style="width:auto;padding:13px 30px;margin-top:16px" onclick="saveProfile()">Guardar cambios</button>
   </div>`;
 }
+function cargarPerfilDatos(){
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  db.collection('miembros').doc(CURRENT_USER.uid).get().then(s=>{
+    if(!s.exists)return; const m=s.data();
+    const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;};
+    set('pf-name',m.nombre); set('pf-last',m.apellido); set('pf-phone',m.telefono);
+    set('pf-city',m.ciudad); set('pf-prof',m.profesion); set('pf-bio',m.bio);
+  }).catch(()=>{});
+}
 function saveProfile(){
-  const name=document.getElementById('pf-name').value;
+  const nombre=val('pf-name').trim(), apellido=val('pf-last').trim();
+  const display=(nombre+' '+apellido).trim();
   if(FB_OK&&CURRENT_USER){
-    CURRENT_USER.updateProfile({displayName:name}).then(()=>{
-      db.collection('miembros').doc(CURRENT_USER.uid).set({nombre:name,telefono:val('pf-phone'),ciudad:val('pf-city'),profesion:val('pf-prof'),bio:val('pf-bio')},{merge:true});
+    CURRENT_USER.updateProfile({displayName:display||nombre}).then(()=>{
+      db.collection('miembros').doc(CURRENT_USER.uid).set({nombre,apellido,telefono:val('pf-phone'),ciudad:val('pf-city'),profesion:val('pf-prof'),bio:val('pf-bio')},{merge:true});
       toast('Perfil actualizado');refreshUserUI();
     }).catch(()=>toast('Error al guardar'));
   } else toast('Perfil actualizado (demo)');
