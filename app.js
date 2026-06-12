@@ -736,9 +736,43 @@ function installPWA(){
   else toast('Para instalar: usa el menú del navegador → "Agregar a pantalla de inicio".');
 }
 
-function renderTerminos(){return legalPage('Términos y Condiciones','Al usar el Club de Miembros IMDAC aceptas las siguientes condiciones de uso. El contenido es para fines educativos y profesionales en arquitectura y construcción. La membresía es personal e intransferible. IMDAC se reserva el derecho de actualizar cursos, herramientas y precios. El uso indebido del contenido o su redistribución sin autorización puede resultar en la cancelación de la cuenta.');}
-function renderPrivacidad(){return legalPage('Política de Privacidad','IMDAC protege tus datos personales conforme a la legislación mexicana aplicable. Recopilamos únicamente la información necesaria para operar tu membresía: nombre, correo, datos de contacto y profesionales. No vendemos ni compartimos tus datos con terceros sin tu consentimiento. Puedes solicitar la modificación o eliminación de tus datos en cualquier momento contactando a soporte.');}
-function legalPage(t,body){return `<h1 class="page-h">${t}</h1><div class="card" style="padding:34px;max-width:760px;line-height:1.8;color:var(--muted)"><p>${body}</p><p style="margin-top:16px;font-size:.84rem">Última actualización: mayo 2026 · Instituto Mexicano de Arquitectura y Construcción.</p></div>`;}
+const LEGAL={
+  terminos:{t:'Términos y Condiciones',b:`
+    <h4>1. Aceptación</h4><p>Al registrarte y usar el Club de Miembros IMDAC (Instituto Mexicano de Arquitectura y Construcción) aceptas estos Términos y Condiciones en su totalidad. Si no estás de acuerdo, no utilices la plataforma.</p>
+    <h4>2. Objeto del servicio</h4><p>El Club ofrece contenido educativo y profesional en arquitectura y construcción: cursos grabados, webinars, material descargable, herramientas de obra, foro de comunidad y certificados de finalización. El contenido tiene fines formativos y de actualización profesional; no sustituye la responsiva de un perito o profesional certificado.</p>
+    <h4>3. Membresía y pagos</h4><p>La membresía es personal e intransferible. El acceso se mantiene mientras la suscripción esté activa y al corriente de pago. Los precios pueden actualizarse; cualquier cambio se notificará dentro de la plataforma antes de aplicarse a tu siguiente periodo.</p>
+    <h4>4. Liberación de contenido</h4><p>Algunos cursos se liberan de forma programada conforme a tu antigüedad como miembro. IMDAC puede agregar, actualizar o retirar cursos, webinars y materiales para mantener el catálogo vigente.</p>
+    <h4>5. Propiedad intelectual</h4><p>Todo el contenido (videos, documentos, plantillas, marca y diseño) es propiedad de IMDAC o de sus licenciantes. Queda prohibida su reproducción, descarga no autorizada, redistribución o reventa. El uso indebido puede resultar en la cancelación de la cuenta sin reembolso, además de las acciones legales que correspondan.</p>
+    <h4>6. Conducta en la comunidad</h4><p>En el foro y espacios de comunidad debes mantener un trato respetuoso y profesional. No se permite spam, contenido ofensivo, publicidad no autorizada ni suplantación de identidad. IMDAC puede moderar, editar o eliminar contenido y suspender cuentas que incumplan estas normas.</p>
+    <h4>7. Certificados</h4><p>Los certificados emitidos acreditan la finalización del curso correspondiente dentro del Club. No constituyen título profesional, cédula ni certificación oficial ante autoridades, salvo que se indique expresamente lo contrario.</p>
+    <h4>8. Disponibilidad</h4><p>IMDAC procura mantener la plataforma disponible de forma continua, pero no garantiza la ausencia de interrupciones por mantenimiento, fallas técnicas o causas de fuerza mayor.</p>
+    <h4>9. Modificaciones</h4><p>IMDAC puede actualizar estos términos en cualquier momento. La versión vigente estará siempre disponible en la plataforma; el uso continuado implica su aceptación.</p>
+    <h4>10. Contacto</h4><p>Para dudas sobre estos términos, contáctanos por los canales de soporte disponibles dentro de la plataforma.</p>`},
+  privacidad:{t:'Política de Privacidad',b:`
+    <h4>1. Responsable</h4><p>IMDAC (Instituto Mexicano de Arquitectura y Construcción) es responsable del tratamiento de tus datos personales conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.</p>
+    <h4>2. Datos que recopilamos</h4><p>Únicamente la información necesaria para operar tu membresía: nombre, correo electrónico, datos de contacto y, en su caso, información profesional que decidas proporcionar. Los pagos se procesan a través de proveedores especializados; IMDAC no almacena los datos completos de tu tarjeta.</p>
+    <h4>3. Finalidades</h4><p>Usamos tus datos para: crear y administrar tu cuenta, darte acceso al contenido, emitir certificados a tu nombre, enviarte avisos del Club, brindarte soporte y mejorar la plataforma.</p>
+    <h4>4. Servicios de terceros</h4><p>La plataforma utiliza servicios tecnológicos de terceros para autenticación, base de datos y procesamiento de pagos (como Google Firebase y Stripe), que tratan datos conforme a sus propias políticas y estándares de seguridad. No vendemos ni compartimos tus datos con terceros para fines distintos a la operación del Club sin tu consentimiento.</p>
+    <h4>5. Almacenamiento local</h4><p>La aplicación guarda en tu dispositivo preferencias y estados de uso (por ejemplo, tema oscuro, notificaciones leídas y avance local) para mejorar tu experiencia. Puedes borrarlos limpiando los datos del navegador.</p>
+    <h4>6. Derechos ARCO</h4><p>Puedes solicitar el acceso, rectificación, cancelación u oposición del tratamiento de tus datos en cualquier momento, contactando a soporte desde la plataforma. Atenderemos tu solicitud en los plazos que marca la ley.</p>
+    <h4>7. Conservación</h4><p>Conservamos tus datos mientras tu cuenta esté activa y por el tiempo necesario para cumplir obligaciones legales. Al eliminarse tu cuenta, los datos se suprimen o anonimizan conforme a la normativa aplicable.</p>
+    <h4>8. Cambios a esta política</h4><p>Cualquier actualización se publicará en la plataforma. El uso continuado del Club implica la aceptación de la versión vigente.</p>`}
+};
+function mostrarLegal(tipo){
+  const L=LEGAL[tipo]; if(!L)return;
+  let ovl=document.getElementById('legal-ovl');
+  if(!ovl){ovl=document.createElement('div');ovl.id='legal-ovl';ovl.className='legal-ovl';document.body.appendChild(ovl);}
+  ovl.innerHTML=`<div class="legal-wrap">
+    <button class="legal-back" onclick="cerrarLegal()">← Volver al registro</button>
+    <h1 class="page-h">${L.t}</h1>
+    <div class="card legal-body">${L.b}<p style="margin-top:20px;font-size:.84rem;color:var(--muted)">Última actualización: mayo 2026 · Instituto Mexicano de Arquitectura y Construcción.</p></div>
+    <button class="btn-primary legal-ok" onclick="cerrarLegal()">Entendido, volver</button>
+  </div>`;
+  ovl.style.display='block'; ovl.scrollTop=0;
+}
+function cerrarLegal(){const o=document.getElementById('legal-ovl');if(o)o.style.display='none';}
+function renderTerminos(){return `<h1 class="page-h">${LEGAL.terminos.t}</h1><div class="card legal-body" style="max-width:760px">${LEGAL.terminos.b}<p style="margin-top:20px;font-size:.84rem;color:var(--muted)">Última actualización: mayo 2026 · Instituto Mexicano de Arquitectura y Construcción.</p></div>`;}
+function renderPrivacidad(){return `<h1 class="page-h">${LEGAL.privacidad.t}</h1><div class="card legal-body" style="max-width:760px">${LEGAL.privacidad.b}<p style="margin-top:20px;font-size:.84rem;color:var(--muted)">Última actualización: mayo 2026 · Instituto Mexicano de Arquitectura y Construcción.</p></div>`;}
 
 function emptyState(sec,title,desc){
   return `<div class="card"><div class="empty"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div><b>${title}</b><span>${desc}</span></div></div>`;
