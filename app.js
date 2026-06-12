@@ -86,6 +86,8 @@ function renderSidebar(){
 /* ====== 4. ROUTER ====== */
 let currentSection="inicio";
 function go(sec){
+  // Candado de membresía: sin acceso, cualquier navegación regresa a los planes
+  if(CANDADO_ON()&&!LOADING&&FB_OK&&CURRENT_USER&&CURRENT_USER.uid!=='demo'&&!_tieneAcceso()){renderPaywall();return;}
   currentSection=sec;
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
   if(window.innerWidth<=900) toggleSidebar(false);
