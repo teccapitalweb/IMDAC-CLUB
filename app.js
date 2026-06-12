@@ -1520,21 +1520,22 @@ function loadStripeJS(cb){
 }
 function irAPagar(plan){
   if(!CURRENT_USER||!FB_OK)return toast('Inicia sesión para continuar');
-  if(STRIPE_PK.indexOf('REEMPLAZAR')!==-1)return irAPagarRedirect(plan);
+  if(STRIPE_PK.indexOf('REEMPLAZAR')!==-1){console.warn('[pago] sin PK → redirect');return irAPagarRedirect(plan);}
   toast('Preparando pago seguro…');
   loadStripeJS(err=>{
-    if(err)return irAPagarRedirect(plan);
+    if(err){console.warn('[pago] no cargó js.stripe.com (¿bloqueador de anuncios?) → redirect');return irAPagarRedirect(plan);}
     fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan,embedded:true})})
       .then(r=>r.json()).then(async d=>{
-        if(!d.clientSecret)return irAPagarRedirect(plan);
+        if(!d.clientSecret){console.warn('[pago] el webhook no regresó clientSecret → redirect',d);return irAPagarRedirect(plan);}
         if(!_stripeJS)_stripeJS=Stripe(STRIPE_PK);
         abrirModalPago();
         try{
           _checkoutObj=await _stripeJS.initEmbeddedCheckout({clientSecret:d.clientSecret,onComplete:pagoCompletado});
           _checkoutObj.mount('#stripe-box');
-        }catch(e){cerrarModalPago();irAPagarRedirect(plan);}
-      }).catch(()=>irAPagarRedirect(plan));
+          console.log('[pago] modal embebido montado ✓');
+        }catch(e){console.error('[pago] falló el modal → redirect:',e.message||e);cerrarModalPago();irAPagarRedirect(plan);}
+      }).catch(e=>{console.error('[pago] error pidiendo checkout → redirect:',e.message||e);irAPagarRedirect(plan);});
   });
 }
 function irAPagarRedirect(plan){
