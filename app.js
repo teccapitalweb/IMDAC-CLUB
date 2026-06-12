@@ -564,20 +564,26 @@ function renderSuscripcion(){
     const d=new Date(CURRENT_USER.metadata.creationTime);alta=d.toLocaleDateString('es-MX');
     const r=new Date(d);r.setMonth(r.getMonth()+1);renueva=r.toLocaleDateString('es-MX');
   }
+  const m=window._miMiembro||{};
+  const estado=m.estado||'Activo';
+  const esRegalo=!m.stripeSubscriptionId&&m.vigenciaHasta;
+  const plan=esRegalo?'Acceso de cortesía':(m.plan?('IMDAC '+m.plan):'IMDAC Mensual');
+  const renuevaReal=esRegalo?(m.vigenciaHasta||'—'):(m.renovacion||renueva);
+  const precioTxt=m.plan==='Anual'?'':(`$${IMDAC.precio||499} <span>MXN / mes</span>`);
   return `<h1 class="page-h">Mi Suscripción</h1><p class="page-sub">Detalles de tu plan y beneficios activos.</p>
   <div class="sub-card">
-    <div class="sub-top"><span class="sub-badge">✦ Premium</span><span class="sub-status">Activa</span></div>
-    <div class="sub-plan">IMDAC Mensual</div>
-    <div class="sub-price">$${IMDAC.precio||499} <span>MXN / mes</span></div>
+    <div class="sub-top"><span class="sub-badge">✦ Premium</span><span class="sub-status" style="${estado!=='Activo'?'background:#fde8e8;color:#c0392b':''}">${estado==='Activo'?'Activa':estado}</span></div>
+    <div class="sub-plan">${plan}</div>
+    ${precioTxt?`<div class="sub-price">${precioTxt}</div>`:''}
     <div class="sub-divider"></div>
     <div class="sub-meta2">
       <div><div class="ml">Miembro desde</div><div class="mv">${alta}</div></div>
-      <div><div class="ml">Próxima renovación</div><div class="mv">${renueva}</div></div>
-      <div><div class="ml">Método de pago</div><div class="mv">Stripe</div></div>
+      <div><div class="ml">${esRegalo?'Acceso hasta':'Próxima renovación'}</div><div class="mv">${renuevaReal}</div></div>
+      <div><div class="ml">Método de pago</div><div class="mv">${esRegalo?'Cortesía IMDAC':'Stripe'}</div></div>
     </div>
     <div class="sub-actions">
-      <button class="btn-manage" onclick="toast('Gestión de pago vía Stripe (pendiente integrar)')">Gestionar suscripción</button>
-      <button class="btn-cancel" onclick="if(confirm('¿Seguro que deseas cancelar tu suscripción? Perderás el acceso al catálogo al terminar el periodo.'))toast('Cancelación enviada (pendiente integrar Stripe)')">Cancelar</button>
+      <button class="btn-manage" onclick="abrirPortal()">Gestionar suscripción</button>
+      <button class="btn-cancel" onclick="if(confirm('Para cancelar tu suscripción te llevaremos al portal seguro de pagos. ¿Continuar?'))abrirPortal()">Cancelar</button>
     </div>
   </div>
   <h3 class="plan-section-title">Lo que incluye tu plan</h3>
@@ -1338,6 +1344,19 @@ function cargarNoticiasAuto(){
     if(currentSection==='inicio'||currentSection==='noticias')renderSection(currentSection);
   }).catch(()=>{});
 }
+/* ====== STRIPE (candado de membresía) ======
+   Pega aquí la URL de Railway cuando el webhook esté desplegado.
+   Mientras diga REEMPLAZAR, el candado está APAGADO (acceso libre). */
+const WEBHOOK_URL='REEMPLAZAR_URL_RAILWAY'; // ej: https://webhook-imdac-production.up.railway.app
+const CANDADO_ON=()=>WEBHOOK_URL.indexOf('REEMPLAZAR')===-1;
+window._miMiembro={};
+function _tieneAcceso(){
+  if(window._imdacAdmin)return true;
+  const m=window._miMiembro||{};
+  if((m.estado||'')==='Activo')return true;
+  if(m.vigenciaHasta){const v=new Date(m.vigenciaHasta+'T23:59:59');if(v>=new Date())return true;}
+  return false;
+}
 async function loadData(){
   // Modo real: arranca vacío y solo se llena con Firestore. El demo aplica únicamente sin sesión real.
   DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
@@ -1365,6 +1384,8 @@ async function loadData(){
     // ¿es admin? (para saltar drip)
     const adm=await db.collection('admins').doc(CURRENT_USER.uid).get();
     window._imdacAdmin=adm.exists;
+    // estado de membresía del socio (Stripe / regalos)
+    try{const mi=await db.collection('miembros').doc(CURRENT_USER.uid).get();window._miMiembro=mi.exists?mi.data():{};}catch(e){window._miMiembro={};}
     // configuración global (sincronizada con el Admin)
     const cfg=await db.collection('config').doc('app').get();
     if(cfg.exists){const cd=cfg.data();
@@ -1420,10 +1441,89 @@ async function onLogged(){
   LOADING=true; go('inicio');
   await loadData();
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
+  if(CANDADO_ON() && !_tieneAcceso()){
+    const q=new URLSearchParams(location.search);
+    if(q.get('pago')==='ok'){
+      // el webhook puede tardar unos segundos en activar: reintenta
+      toast('Pago recibido, activando tu membresía…');
+      let intentos=0;
+      const re=setInterval(async()=>{
+        intentos++;
+        try{const mi=await db.collection('miembros').doc(CURRENT_USER.uid).get();window._miMiembro=mi.exists?mi.data():{};}catch(e){}
+        if(_tieneAcceso()){clearInterval(re);history.replaceState(null,'',location.pathname);go('inicio');cargarNoticiasAuto();escucharNotis();registrarVisita();toast('¡Membresía activa, bienvenido!');}
+        else if(intentos>=10){clearInterval(re);renderPaywall();toast('Tu pago está en proceso, recarga en un momento');}
+      },2000);
+      return;
+    }
+    renderPaywall();return;
+  }
+  const q=new URLSearchParams(location.search);
+  if(q.get('pago')==='ok'){history.replaceState(null,'',location.pathname);toast('¡Pago confirmado, gracias!');}
   go('inicio');
   cargarNoticiasAuto();
   escucharNotis();
   registrarVisita();
+}
+/* ====== PAYWALL (activa tu membresía) ====== */
+let _planes=null;
+function renderPaywall(){
+  document.getElementById('content').innerHTML=`<div class="section active" style="max-width:860px;margin:0 auto">
+    <div style="text-align:center;margin:30px 0 26px">
+      <h1 class="page-h">Activa tu membresía</h1>
+      <p class="page-sub">Elige tu plan y desbloquea todo el contenido del Club IMDAC.</p>
+    </div>
+    <div class="plan-grid">
+      <div class="plan-card">
+        <div class="plan-name">Mensual</div>
+        <div class="plan-price" id="pp-mensual">$—</div>
+        <div class="plan-per">MXN / mes</div>
+        <ul class="plan-feats"><li>10 cursos con certificado</li><li>Webinars en vivo</li><li>Material PDF y herramientas</li><li>Foro y canal privado</li><li>20% de descuento adicional</li></ul>
+        <button class="btn-primary" onclick="irAPagar('mensual')">Elegir Mensual</button>
+        <div class="plan-note">Cancela cuando quieras</div>
+      </div>
+      <div class="plan-card destacado">
+        <div class="plan-tag">Mejor precio</div>
+        <div class="plan-name">Anual</div>
+        <div class="plan-price" id="pp-anual">$—</div>
+        <div class="plan-per">MXN / año</div>
+        <ul class="plan-feats"><li>Todo lo del plan mensual</li><li>Un solo pago al año</li><li>Ahorra vs plan mensual</li></ul>
+        <button class="btn-primary" onclick="irAPagar('anual')">Elegir Anual</button>
+        <div class="plan-note">12 meses de acceso</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:24px;color:var(--muted);font-size:.9rem">
+      ¿Ya pagaste? <a href="#" style="color:var(--rojo);font-weight:700" onclick="location.reload();return false">Recarga aquí</a> ·
+      ¿Dudas? <a style="color:var(--rojo);font-weight:700" href="https://wa.me/${IMDAC.whatsapp}?text=Hola%2C%20tengo%20dudas%20para%20activar%20mi%20membres%C3%ADa%20IMDAC" target="_blank">Escríbenos por WhatsApp</a><br>
+      <a href="#" style="color:var(--muted);font-size:.85rem" onclick="doLogout();return false">Cerrar sesión</a>
+    </div>
+  </div>`;
+  cargarPlanes();
+}
+function cargarPlanes(){
+  if(_planes){pintarPlanes();return;}
+  fetch(WEBHOOK_URL+'/planes').then(r=>r.json()).then(p=>{_planes=p;pintarPlanes();}).catch(()=>{});
+}
+function pintarPlanes(){
+  if(!_planes)return;
+  const f=n=>'$'+Number(n).toLocaleString('es-MX');
+  const m=document.getElementById('pp-mensual'); if(m&&_planes.mensual)m.textContent=f(_planes.mensual.monto);
+  const a=document.getElementById('pp-anual'); if(a&&_planes.anual)a.textContent=f(_planes.anual.monto);
+}
+function irAPagar(plan){
+  if(!CURRENT_USER||!FB_OK)return toast('Inicia sesión para continuar');
+  toast('Abriendo pago seguro…');
+  fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan})})
+    .then(r=>r.json()).then(d=>{if(d.url)location.href=d.url;else toast('No se pudo abrir el pago');})
+    .catch(()=>toast('No se pudo abrir el pago, intenta de nuevo'));
+}
+function abrirPortal(){
+  if(!CANDADO_ON())return toast('Gestión de pago vía Stripe (pendiente activar)');
+  toast('Abriendo portal de pagos…');
+  fetch(WEBHOOK_URL+'/portal',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({uid:CURRENT_USER.uid})})
+    .then(r=>r.json()).then(d=>{if(d.url)location.href=d.url;else toast('Aún no tienes una suscripción de pago');})
+    .catch(()=>toast('No se pudo abrir el portal'));
 }
 function renderMantenimiento(){
   if(document.getElementById('maint-overlay'))return;

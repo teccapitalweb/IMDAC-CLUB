@@ -336,6 +336,17 @@ body.logged #app{display:block}
 .legal-body p{color:var(--muted);font-size:.93rem}
 .legal-ok{margin-top:22px;width:100%;padding:14px;border:none;border-radius:12px;background:var(--rojo);color:#fff;font-weight:700;font-size:1rem;cursor:pointer;font-family:var(--font-display)}
 @media(max-width:480px){.legal-body{padding:22px 18px}}
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;max-width:680px;margin:0 auto}
+.plan-card{position:relative;background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:28px 26px;text-align:center;display:flex;flex-direction:column;gap:6px}
+.plan-card.destacado{border-color:var(--rojo);box-shadow:0 10px 30px rgba(255,44,44,.12)}
+.plan-tag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--rojo);color:#fff;font-size:.72rem;font-weight:700;padding:4px 14px;border-radius:50px;letter-spacing:.4px}
+.plan-name{font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.plan-price{font-family:var(--font-display);font-weight:800;font-size:2.4rem;line-height:1}
+.plan-per{color:var(--muted);font-size:.85rem;margin-bottom:8px}
+.plan-feats{list-style:none;text-align:left;margin:6px 0 16px;flex:1}
+.plan-feats li{padding:7px 0;border-bottom:1px solid var(--line);font-size:.9rem;color:var(--text)}
+.plan-feats li:before{content:'✓ ';color:var(--rojo);font-weight:800}
+.plan-note{color:var(--muted);font-size:.78rem;margin-top:8px}
 .coment-acts{display:flex;gap:10px;flex-shrink:0}
 .coment-acts button{background:none;border:none;cursor:pointer;color:var(--muted);font-size:.78rem;font-weight:600;padding:0}
 .coment-acts button:hover{color:var(--rojo)}
