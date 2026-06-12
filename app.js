@@ -840,7 +840,7 @@ function renderCalculadora(){
       <div class="field"><label>Largo (m)</label><input id="cc-largo" type="number" value="0" oninput="calcConcreto()"></div>
       <div class="field"><label>Ancho (m)</label><input id="cc-ancho" type="number" value="0" oninput="calcConcreto()"></div>
       <div class="field"><label>Espesor (cm)</label><input id="cc-esp" type="number" value="10" oninput="calcConcreto()"></div>
-      <div class="field"><label>Resistencia f'c</label><input id="cc-fc" value="200 kg/cm²" disabled></div>
+      <div class="field"><label>Resistencia f'c</label><select id="cc-fc" class="cfg-select" onchange="calcConcreto()"><option value="150">150 kg/cm²</option><option value="200" selected>200 kg/cm²</option><option value="250">250 kg/cm²</option><option value="300">300 kg/cm²</option></select></div>
     </div>
     <div class="calc-result"><b id="cc-vol">0.00 m³</b><span>Volumen de concreto · ≈ <span id="cc-sacos">0</span> sacos de cemento · <span id="cc-arena">0</span> m³ arena · <span id="cc-grava">0</span> m³ grava</span></div>
   </div>
@@ -866,7 +866,7 @@ function exportCalcPDF(){
     const sec=(t)=>{doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(255,44,44);doc.text(t,16,y);y+=8;doc.setTextColor(20,20,20);};
     const row=(l,v)=>{doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(110,110,110);doc.text(l,18,y);doc.setFont('helvetica','bold');doc.setTextColor(20,20,20);doc.text(String(v),120,y);y+=7;};
     sec('Concreto (losa / firme)');
-    row('Dimensiones',`${val('cc-largo')||0} x ${val('cc-ancho')||0} m, esp. ${val('cc-esp')||0} cm`);
+    row('Dimensiones',`${val('cc-largo')||0} x ${val('cc-ancho')||0} m, esp. ${val('cc-esp')||0} cm, f'c=${val('cc-fc')||200}`);
     row('Volumen de concreto',document.getElementById('cc-vol')?.textContent||'0 m³');
     row('Sacos de cemento (aprox.)',document.getElementById('cc-sacos')?.textContent||'0');
     row('Arena',`${document.getElementById('cc-arena')?.textContent||'0'} m³`);
@@ -883,8 +883,9 @@ function exportCalcPDF(){
 function calcConcreto(){
   const l=+val('cc-largo'),a=+val('cc-ancho'),e=+val('cc-esp')/100;
   const vol=l*a*e;
+  const sacosM3={150:6,200:7,250:8,300:9}[val('cc-fc')||'200']||7;
   document.getElementById('cc-vol').textContent=vol.toFixed(2)+' m³';
-  document.getElementById('cc-sacos').textContent=Math.ceil(vol*7);     // ~7 sacos/m³ (f'c=200)
+  document.getElementById('cc-sacos').textContent=Math.ceil(vol*sacosM3);
   document.getElementById('cc-arena').textContent=(vol*0.51).toFixed(2);
   document.getElementById('cc-grava').textContent=(vol*0.68).toFixed(2);
 }
@@ -895,7 +896,7 @@ function calcBlock(){
 }
 
 function renderPrecios(){
-  const conceptos=[
+  const base=[
     ['Excavación a mano en material tipo II','m³','$185.00'],
     ['Plantilla de concreto f\'c=100','m²','$95.00'],
     ['Cadena de cimentación 15×20 armada','ml','$420.00'],
@@ -904,22 +905,31 @@ function renderPrecios(){
     ['Aplanado fino en muro','m²','$165.00'],
     ['Piso de cerámica 30×30 colocado','m²','$310.00'],
   ];
+  const conceptos=(DATA.precios&&DATA.precios.length)?DATA.precios.map(p=>[p.concepto,p.unidad,p.precio]):base;
+  const nota=(DATA.precios&&DATA.precios.length)?'* Catálogo administrado por IMDAC. Precios de referencia: ajusta según región, proveedor y fecha.':'* Precios de referencia general. Ajusta según región, proveedor y fecha.';
   return `<h1 class="page-h">Catálogo de Precios Unitarios</h1><p class="page-sub">Referencia base de conceptos de obra (precios estimados, actualízalos a tu zona).</p>
   <div class="card" style="overflow:hidden">
     <table class="norm"><thead><tr><th>Concepto</th><th>Unidad</th><th>P.U. estimado</th></tr></thead>
     <tbody>${conceptos.map(c=>`<tr><td>${c[0]}</td><td>${c[1]}</td><td style="font-family:var(--font-display);font-weight:700;color:var(--rojo)">${c[2]}</td></tr>`).join('')}</tbody></table>
   </div>
-  <p style="color:var(--muted);font-size:.82rem;margin-top:14px">* Precios de referencia general. Ajusta según región, proveedor y fecha. El catálogo completo y editable se gestiona desde el panel Admin.</p>`;
+  <p style="color:var(--muted);font-size:.82rem;margin-top:14px">${nota}</p>`;
 }
 
 function renderNormativas(){
   const normas=[
     ['NTC Diseño Estructuras de Concreto','Estructuras','Reglamento de Construcciones CDMX'],
     ['NTC Diseño por Sismo','Estructuras','Diseño sísmico de edificaciones'],
+    ['NTC Diseño y Construcción de Cimentaciones','Estructuras','Estudios de mecánica de suelos y cimentación'],
+    ['NTC Mampostería','Estructuras','Diseño de estructuras de mampostería'],
+    ['NTC Estructuras de Acero','Estructuras','Diseño de estructuras metálicas'],
     ['NOM-001-SEDE Instalaciones Eléctricas','Instalaciones','Utilización de energía eléctrica'],
     ['NOM-008-CNA Agua potable','Instalaciones','Sistemas hidráulicos'],
+    ['NOM-031-STPS-2011','Seguridad','Condiciones de seguridad en obras de construcción'],
+    ['NOM-017-STPS-2008','Seguridad','Equipo de protección personal en el trabajo'],
+    ['NOM-026-STPS-2008','Seguridad','Señalización de seguridad e higiene'],
     ['NOM-020-ENER Eficiencia energética','Sustentabilidad','Envolvente de edificios'],
     ['Ley de Obra Pública','Gestión','Contratación de obra pública'],
+    ['Reglamento de Construcciones local','Gestión','Licencias, DRO y trámites municipales'],
   ];
   return `<h1 class="page-h">Guía de Normativas</h1><p class="page-sub">Referencia rápida de normas y reglamentos aplicables a la construcción en México.</p>
   <div class="card" style="overflow:hidden">
@@ -1348,6 +1358,7 @@ async function loadData(){
     DATA.noticias=not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);
     DATA.material=mat.docs.map(d=>({id:d.id,...d.data()}));
     DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));
+    try{const pre=await db.collection('precios').get();DATA.precios=pre.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.precios=[];}
     // progreso del usuario
     const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();
     DATA.progresos={}; DATA.clasesHechas={}; prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0; if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});
