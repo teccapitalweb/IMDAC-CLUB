@@ -482,7 +482,7 @@ const NOTI_EMOJI_CAT={'📚':'curso','🎥':'webinar','📄':'material','🏷️
 function notisPrefs(){const def={curso:true,webinar:true,material:true,promo:true,anuncio:true};try{return Object.assign(def,JSON.parse(localStorage.getItem(NOTIS_PREF_KEY)||'{}'));}catch(e){return def;}}
 function setNotiPref(cat,on){const p=notisPrefs();p[cat]=on;try{localStorage.setItem(NOTIS_PREF_KEY,JSON.stringify(p));}catch(e){}updateNotisBadge();if(currentSection==='notificaciones')renderSection('notificaciones');toast(on?'Recibirás estos avisos':'No recibirás estos avisos');}
 function notiCategoria(n){return NOTI_EMOJI_CAT[n.emoji]||'anuncio';}
-function notiPermitida(n){return notisPrefs()[notiCategoria(n)]!==false;}
+function notiPermitida(n){if(n.paraUid)return true;return notisPrefs()[notiCategoria(n)]!==false;}
 function notisNoLeidas(){const rd=_notisArr(NOTIS_READ_KEY);return notisVisibles().filter(n=>!rd.includes(n.id)).length;}
 function updateNotisBadge(){
   const n=notisNoLeidas();
@@ -496,7 +496,9 @@ function updateNotisBadge(){
 function escucharNotis(){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
   db.collection('notificaciones').onSnapshot(snap=>{
+    const uid=CURRENT_USER&&CURRENT_USER.uid;
     DATA.notificaciones=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(n=>!n.paraUid||n.paraUid===uid)
       .sort((a,b)=>((b.creado&&b.creado.toMillis?b.creado.toMillis():0)-(a.creado&&a.creado.toMillis?a.creado.toMillis():0)));
     updateNotisBadge();
     if(currentSection==='notificaciones')renderSection('notificaciones');
