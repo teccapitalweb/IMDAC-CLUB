@@ -1060,11 +1060,36 @@ function claseRow(cl,i,disp,cursoId,hecha){
     <div class="play" onclick="playClase('${cursoId}',${i})" style="cursor:pointer">${playIcon}</div>
   </div>`;
 }
+/* Convierte link de Drive a formato embebible (/preview) */
+function driveEmbed(url){
+  if(!url) return '';
+  url=String(url).trim();
+  let m=url.match(/\/file\/d\/([A-Za-z0-9_-]+)/) || url.match(/[?&]id=([A-Za-z0-9_-]+)/) || url.match(/\/d\/([A-Za-z0-9_-]+)/);
+  if(m) return 'https://drive.google.com/file/d/'+m[1]+'/preview';
+  // YouTube
+  let y=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]+)/);
+  if(y) return 'https://www.youtube.com/embed/'+y[1];
+  return url; // otro: se intenta tal cual
+}
 function playClase(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const cl=(c.listaClases||[])[i];
-  if(cl&&cl.videoUrl)window.open(cl.videoUrl,'_blank');
-  else toast('Reproductor conectado a Google Drive · Clase '+(i+1));
+  if(!cl||!cl.videoUrl){toast('Esta clase aún no tiene video cargado');return;}
+  abrirVideoModal(driveEmbed(cl.videoUrl), cl.titulo||('Clase '+(i+1)));
+}
+function abrirVideoModal(src,titulo){
+  let m=document.getElementById('video-modal');
+  if(!m){m=document.createElement('div');m.id='video-modal';m.className='video-modal';document.body.appendChild(m);}
+  m.innerHTML=`<div class="video-box">
+    <div class="video-head"><span>${titulo||'Clase'}</span><button class="video-x" onclick="cerrarVideoModal()">✕</button></div>
+    <div class="video-frame"><iframe src="${src}" allow="autoplay; encrypted-media" allowfullscreen frameborder="0"></iframe></div>
+  </div>`;
+  m.style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function cerrarVideoModal(){
+  const m=document.getElementById('video-modal'); if(m){m.style.display='none';m.innerHTML='';}
+  document.body.style.overflow='';
 }
 function toggleClaseHecha(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
