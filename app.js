@@ -254,10 +254,21 @@ function renderMaterial(){
   if(LOADING)return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+skelGrid(4);
   if(!DATA.material.length) return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+emptyState('material','Próximamente','Estamos preparando material descargable para ti. Pronto encontrarás guías, normas y plantillas aquí.');
   return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>
-  <div class="course-grid">${DATA.material.map(m=>`
-    <div class="course" onclick="window.open('${m.url}','_blank')">
+  <div class="course-grid">${DATA.material.map(m=>{
+    let lock=null;
+    if(m.cursoId){
+      const c=DATA.cursos.find(x=>x.id===m.cursoId);
+      if(c){const ds=dripStatus(c); if(ds.locked)lock=ds.dias;}
+    }
+    if(lock!==null){
+      return `<div class="course locked" style="position:relative;opacity:.7;cursor:not-allowed">
+        <div class="course-body" style="padding:24px"><h4>🔒 ${m.titulo}</h4><p style="color:var(--muted);font-size:.86rem;margin-top:6px">${m.desc||''}</p><div class="course-meta" style="margin-top:14px"><span class="tag gray" style="background:#eee;color:#888;padding:3px 10px;border-radius:6px;font-size:.78rem">Disponible en ${lock} ${lock===1?'día':'días'}</span></div></div>
+      </div>`;
+    }
+    return `<div class="course" onclick="window.open('${m.url}','_blank')">
       <div class="course-body" style="padding:24px"><h4>📄 ${m.titulo}</h4><p style="color:var(--muted);font-size:.86rem;margin-top:6px">${m.desc||''}</p><div class="course-meta" style="margin-top:14px"><span class="badge-norm">Descargar PDF</span></div></div>
-    </div>`).join('')}</div>`;
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function renderNoticias(){
