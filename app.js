@@ -605,8 +605,7 @@ function renderSuscripcion(){
     <div class="sub-actions">
       ${esRegalo?'' : porCancelar
         ?`<button class="btn-manage" onclick="reactivarSub()">Reactivar suscripción</button>`
-        :`<button class="btn-manage" onclick="abrirPortal()">Gestionar suscripción</button>
-          <button class="btn-cancel" onclick="cancelarSub()">Cancelar</button>`}
+        :`<button class="btn-cancel" onclick="cancelarSub()">Cancelar suscripción</button>`}
     </div>
   </div>
   <h3 class="plan-section-title">Lo que incluye tu plan</h3>
