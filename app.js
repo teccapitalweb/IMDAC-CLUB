@@ -201,7 +201,7 @@ function courseCard(c){
   const prog=DATA.progresos[c.id]||0;
   const locked=drip.locked;
   return `<div class="course" onclick="${locked?`toast('Disponible en ${drip.dias} días')`:`openCurso('${c.id}')`}">
-    <div class="course-img" style="background-image:url('${c.img||''}')">
+    <div class="course-img" style="background-image:url('${driveImg(c.img)}')">
       <span class="course-cat">${c.categoria||'General'}</span>
       ${locked?`<div class="course-lock"><div class="lk"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div></div>`:''}
     </div>
@@ -217,6 +217,23 @@ function courseCard(c){
 }
 
 /* Drip helper: compara fecha de alta del usuario vs dripDias del curso */
+/* Convierte un link de Google Drive a imagen directa visible.
+   Acepta: .../file/d/ID/view , open?id=ID , uc?id=ID , o un ID suelto.
+   Si no es de Drive, devuelve la URL tal cual. */
+function driveImg(url){
+  if(!url) return '';
+  url=String(url).trim();
+  if(url.indexOf('drive.google.com')===-1 && url.indexOf('docs.google.com')===-1){
+    // ¿es solo un ID de Drive? (33+ caracteres alfanuméricos sin / ni .)
+    if(/^[A-Za-z0-9_-]{20,}$/.test(url)) return 'https://drive.google.com/thumbnail?id='+url+'&sz=w1000';
+    return url;
+  }
+  let id='';
+  let m=url.match(/\/file\/d\/([A-Za-z0-9_-]+)/) || url.match(/[?&]id=([A-Za-z0-9_-]+)/) || url.match(/\/d\/([A-Za-z0-9_-]+)/);
+  if(m) id=m[1];
+  if(!id) return url;
+  return 'https://drive.google.com/thumbnail?id='+id+'&sz=w1000';
+}
 function dripStatus(c){
   if(window._imdacAdmin) return {locked:false,dias:0};
   const dd=c.dripDias||0;
@@ -245,7 +262,7 @@ function renderWebinar(){
   return `<h1 class="page-h">Webinars</h1><p class="page-sub">Sesiones en vivo y grabaciones para miembros.</p>
   <div class="course-grid">${DATA.webinars.map(w=>`
     <div class="course" onclick="${w.grabacion?`window.open('${w.grabacion}','_blank')`:`toast('Próximamente disponible')`}">
-      <div class="course-img" style="background-image:url('${w.img||''}')"><span class="course-cat">${w.grabacion?'Grabación':'En vivo'}</span></div>
+      <div class="course-img" style="background-image:url('${driveImg(w.img)}')"><span class="course-cat">${w.grabacion?'Grabación':'En vivo'}</span></div>
       <div class="course-body"><h4>${w.titulo}</h4><div class="course-meta"><span>📅 ${w.fecha||'Por definir'}</span></div></div>
     </div>`).join('')}</div>`;
 }
@@ -276,7 +293,7 @@ function renderNoticias(){
   return `<h1 class="page-h">Noticias & actualizaciones</h1><p class="page-sub">Lo último del sector de la arquitectura y la construcción.</p>
   ${DATA.noticias.length?DATA.noticias.map(n=>`
     <div class="news-item" onclick="window.open('${n.url||'#'}','_blank')">
-      <img class="news-thumb" src="${n.img||''}" alt="" loading="lazy" onerror="var p=this.closest('.news-item');if(p)p.remove();">
+      <img class="news-thumb" src="${driveImg(n.img)}" alt="" loading="lazy" onerror="var p=this.closest('.news-item');if(p)p.remove();">
       <div><div class="news-src">${n.fuente||'IMDAC'}</div><h4>${n.titulo}</h4><p>${n.resumen||''}</p><div class="news-date">${n.fecha||''}</div></div>
     </div>`).join(''):emptyState('noticias','Sin noticias por ahora','Pronto publicaremos novedades del sector.')}`;
 }
@@ -1007,7 +1024,7 @@ function renderCursoDetalle(id){
   <div class="crumbs"><a onclick="go('inicio')">Inicio</a><span class="sep">›</span><a onclick="go('biblioteca')">Biblioteca</a><span class="sep">›</span><span class="cur">${c.titulo}</span></div>
   <button class="cd-back" onclick="go('biblioteca')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Volver a la biblioteca</button>
   <div class="cd-hero">
-    <div class="cd-hero-img" style="background-image:url('${c.img||''}')"></div>
+    <div class="cd-hero-img" style="background-image:url('${driveImg(c.img)}')"></div>
     <div class="cd-hero-body">
       <div class="cat">${c.categoria||'General'}</div>
       <h2>${c.titulo}</h2>
