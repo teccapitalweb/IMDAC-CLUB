@@ -567,6 +567,44 @@ table.norm tr:hover td{background:var(--base)}
   .welcome{padding:16px}
   .cd-hero-body h2{font-size:1.5rem}
 }
+
+/* ===== Bloque de venta en el hero del login (IMDAC) ===== */
+.login-hero{overflow-y:auto !important;justify-content:flex-start !important;gap:0;scrollbar-width:thin;scrollbar-color:rgba(255,44,44,.4) transparent}
+.login-hero::-webkit-scrollbar{width:6px}.login-hero::-webkit-scrollbar-thumb{background:rgba(255,44,44,.4);border-radius:3px}
+.lh-title{margin-top:14px !important}
+.imd-sell{margin-top:22px}
+.imd-cine{position:relative;margin:0 0 16px;overflow:hidden;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 7%,#000 93%,transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 7%,#000 93%,transparent 100%)}
+.imd-track{display:flex;gap:12px;width:max-content;animation:imdscroll 40s linear infinite}
+.imd-track:hover{animation-play-state:paused}
+@keyframes imdscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.imd-flyer{flex:0 0 auto;width:150px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.imd-flyer img{width:100%;height:100%;display:block;aspect-ratio:1/1;object-fit:cover}
+.imd-h{font-family:var(--font-display);font-weight:700;font-size:1.2rem;margin:16px 0 10px;color:#fff}
+.imd-h span{color:var(--rojo)}
+.imd-benes{list-style:none;display:flex;flex-direction:column;gap:9px;margin:0;padding:0}
+.imd-bene{display:flex;gap:10px;align-items:flex-start;font-size:.92rem;color:#d6d6da;line-height:1.4}
+.imd-bene .ck{width:22px;height:22px;border-radius:50%;flex:none;background:var(--rojo);display:flex;align-items:center;justify-content:center;margin-top:1px}
+.imd-bene b{color:#fff}
+.imd-planes{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+.imd-plan{position:relative;display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px 16px}
+.imd-plan--year{background:linear-gradient(135deg,rgba(255,44,44,.16),rgba(255,255,255,.04));border-color:rgba(255,44,44,.5)}
+.imd-price{font-family:var(--font-display);font-weight:800;font-size:1.5rem;line-height:1;white-space:nowrap;color:#fff}
+.imd-meta{font-size:.8rem;color:#b3b3ba;line-height:1.35}.imd-meta b{color:#fff}
+.imd-badge{position:absolute;top:-9px;right:14px;background:var(--rojo);color:#fff;font-family:var(--font-display);font-weight:800;font-size:.62rem;letter-spacing:.5px;padding:3px 10px;border-radius:100px}
+.imd-strike{text-decoration:line-through;opacity:.55}
+.imd-refs{display:flex;flex-direction:column;gap:11px;margin-bottom:6px}
+.imd-ref{display:flex;gap:10px;align-items:flex-start}
+.imd-av{width:38px;height:38px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:.8rem;color:#fff;background:var(--rojo)}
+.imd-bub{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:5px 13px 13px 13px;padding:10px 13px;flex:1}
+.imd-bub .nm{font-weight:700;font-size:.85rem;color:#fff}
+.imd-bub .rl{font-size:.72rem;color:var(--rojo);margin-left:3px}
+.imd-bub p{font-size:.82rem;color:#d6d6da;line-height:1.45;margin-top:3px}
+.imd-bub .act{font-size:.68rem;color:#9a9aa2;margin-top:6px}
+@media(max-width:900px){
+  #login{grid-template-columns:1fr !important;overflow-y:auto}
+  .login-hero{display:flex !important;overflow:visible !important;padding:34px 22px 26px}
+  .imd-flyer{width:140px}
+}
 </style>
 </head>
 <body>
@@ -582,13 +620,13 @@ table.norm tr:hover td{background:var(--base)}
       <h1 class="lh-title">Construye tu<br><em>conocimiento</em>.</h1>
       <p class="lh-sub">Educación continua en arquitectura y construcción. Cursos, webinars y herramientas profesionales en un solo lugar.</p>
     </div>
-    <div class="lh-foot">Instituto Mexicano de Arquitectura y Construcción</div>
+    <div class="imd-sell"><div class="imd-cine"><div class="imd-track" id="imdTrack"></div></div><div class="imd-h">Todo esto por <span>menos de $7 al día</span>:</div><ul class="imd-benes"><li class="imd-bene"><span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b>Biblioteca completa</b> de cursos: diseño, obra, estimaciones, supervisión y más</span></li><li class="imd-bene"><span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b>Clases en vivo</b> con especialistas en arquitectura y construcción</span></li><li class="imd-bene"><span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b>Material descargable premium</b> listo para aplicar en tus proyectos</span></li><li class="imd-bene"><span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b>Certificados con folio oficial</b> verificables</span></li><li class="imd-bene"><span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span><b>Asesoría personalizada</b> y canal VIP · sin permanencia</span></li></ul><div class="imd-planes"><div class="imd-plan"><div class="imd-price">$199</div><div class="imd-meta"><b>MXN al mes</b> · menos de $7 al día<br>Cancela cuando quieras</div></div><div class="imd-plan imd-plan--year"><span class="imd-badge">MEJOR PRECIO</span><div class="imd-price">$1,799</div><div class="imd-meta"><b>MXN al año</b> · <span class="imd-strike">$2,388</span> <b>$150/mes</b><br>12 meses de acceso</div></div></div><div class="imd-h">Referencias</div><div class="imd-refs"><div class="imd-ref"><div class="imd-av">LH</div><div class="imd-bub"><span class="nm">Arq. Laura Hernández</span><span class="rl">· Diseño de interiores</span><p>Los cursos de interiorismo me dieron herramientas que apliqué de inmediato en mis proyectos. El certificado con folio lo presenté sin problema.</p><div class="act">👍 16 · Me gusta · Responder · 2 sem</div></div></div><div class="imd-ref"><div class="imd-av">JS</div><div class="imd-bub"><span class="nm">Ing. Jorge Sánchez</span><span class="rl">· Supervisión de obra</span><p>Las clases en vivo de estimaciones y supervisión me ordenaron el control de obra. Ya ofrezco más servicios a mis clientes.</p><div class="act">👍 12 · Me gusta · Responder · 1 mes</div></div></div><div class="imd-ref"><div class="imd-av">MG</div><div class="imd-bub"><span class="nm">Arq. Marcela Gil</span><span class="rl">· Gerencia de proyectos</span><p>El material descargable y la asesoría valen oro. Recomendado para todo profesional de la construcción que va en serio.</p><div class="act">👍 9 · Me gusta · Responder · 3 sem</div></div></div></div></div><div class="lh-foot">Instituto Mexicano de Arquitectura y Construcción</div>
   </div>
   <div class="login-form">
     <div class="lf-inner">
       <div class="lf-tabs">
-        <button id="tab-login" class="active" onclick="switchTab('login')">Iniciar sesión</button>
-        <button id="tab-register" onclick="switchTab('register')">Crear cuenta</button>
+        <button id="tab-login" onclick="switchTab('login')">Iniciar sesión</button>
+        <button id="tab-register" class="active" onclick="switchTab('register')">Crear cuenta</button>
       </div>
       <div class="lf-err" id="auth-err"></div>
 
@@ -692,5 +730,19 @@ table.norm tr:hover td{background:var(--base)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="cert-font.js"></script>
 <script src="app.js"></script>
+<!-- Carrusel de cursos (cinta continua) + registro por defecto -->
+<script>
+(function(){
+  var track=document.getElementById('imdTrack');
+  if(track){
+    var html='';
+    for(var i=1;i<=16;i++){var n=(i<10?'0':'')+i;html+='<div class="imd-flyer"><img src="assets/cursos/curso-'+n+'.jpg" alt="Curso '+i+'" loading="lazy"></div>';}
+    track.innerHTML=html+html;
+  }
+  window.addEventListener('load',function(){
+    try{ if(typeof switchTab==='function' && location.search.indexOf('login')===-1) switchTab('register'); }catch(e){}
+  });
+})();
+</script>
 </body>
 </html>
