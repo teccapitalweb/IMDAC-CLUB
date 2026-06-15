@@ -1076,14 +1076,52 @@ function playClase(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const cl=(c.listaClases||[])[i];
   if(!cl||!cl.videoUrl){toast('Esta clase aún no tiene video cargado');return;}
-  abrirVideoModal(driveEmbed(cl.videoUrl), cl.titulo||('Clase '+(i+1)));
+  abrirVideoModal(driveEmbed(cl.videoUrl), cl.titulo||('Clase '+(i+1)), cursoId, i);
 }
-function abrirVideoModal(src,titulo){
+function marcarHechaSilencio(cursoId,i){
+  const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return false;
+  const total=(c.listaClases&&c.listaClases.length)||c.clases||0; if(!total)return false;
+  const set=new Set(DATA.clasesHechas[cursoId]||[]);
+  const yaCompleto=set.size>=total;
+  set.add(i);
+  const arr=[...set].filter(x=>x<total).sort((a,b)=>a-b);
+  DATA.clasesHechas[cursoId]=arr;
+  const prog=Math.round(arr.length/total*100);
+  DATA.progresos[cursoId]=prog;
+  guardarProgreso(cursoId,prog,arr);
+  return (arr.length>=total&&!yaCompleto); // true si justo se completó el curso
+}
+function siguienteClase(cursoId,i){
+  const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
+  const total=(c.listaClases&&c.listaClases.length)||c.clases||0;
+  const seCompleto=marcarHechaSilencio(cursoId,i);
+  const next=i+1;
+  if(next<total && (c.listaClases||[])[next] && (c.listaClases[next].videoUrl)){
+    // cargar la siguiente clase en el mismo modal
+    const cl=c.listaClases[next];
+    abrirVideoModal(driveEmbed(cl.videoUrl), cl.titulo||('Clase '+(next+1)), cursoId, next);
+  }else{
+    // era la última (o la siguiente no tiene video): cerrar y refrescar el detalle
+    cerrarVideoModal();
+    if(_cursoActivo===cursoId)openCurso(cursoId);
+    if(seCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
+    else toast('Clase completada ✓');
+  }
+}
+function abrirVideoModal(src,titulo,cursoId,i){
   let m=document.getElementById('video-modal');
   if(!m){m=document.createElement('div');m.id='video-modal';m.className='video-modal';document.body.appendChild(m);}
+  let btn='';
+  if(cursoId!=null&&i!=null){
+    const c=DATA.cursos.find(x=>x.id===cursoId);
+    const total=c?((c.listaClases&&c.listaClases.length)||c.clases||0):0;
+    const esUltima=(i+1)>=total;
+    btn=`<button class="video-next" onclick="siguienteClase('${cursoId}',${i})">${esUltima?'Finalizar curso':'Siguiente clase'}</button>`;
+  }
   m.innerHTML=`<div class="video-box">
     <div class="video-head"><span>${titulo||'Clase'}</span><button class="video-x" onclick="cerrarVideoModal()">✕</button></div>
     <div class="video-frame"><iframe src="${src}" allow="autoplay; encrypted-media" allowfullscreen frameborder="0"></iframe></div>
+    ${btn?`<div class="video-foot">${btn}</div>`:''}
   </div>`;
   m.style.display='flex';
   document.body.style.overflow='hidden';
