@@ -160,9 +160,19 @@ function crumbs(cur){return `<div class="crumbs"><a onclick="go('inicio')">Inici
 function firstName(){const n=CURRENT_USER?.displayName||CURRENT_USER?.email||'Miembro';return n.split(' ')[0].split('@')[0];}
 function saludo(){const h=new Date().getHours();return h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';}
 
+/* Ordena: disponibles primero (en progreso arriba), luego bloqueados por menos días */
+function ordenarCursos(arr){
+  return arr.slice().sort((a,b)=>{
+    const da=dripStatus(a), db=dripStatus(b);
+    if(da.locked!==db.locked) return da.locked?1:-1; // disponibles primero
+    if(da.locked) return (da.dias||0)-(db.dias||0);   // bloqueados: los que faltan menos, primero
+    const pa=DATA.progresos[a.id]||0, pb=DATA.progresos[b.id]||0;
+    return pb-pa; // disponibles: más avanzado primero
+  });
+}
 function renderInicio(){
   if(LOADING)return skelInicio();
-  const cursos=DATA.cursos.slice(0,2);
+  const cursos=ordenarCursos(DATA.cursos).slice(0,2);
   const noticias=DATA.noticias.filter(n=>n.img).slice(0,8);
   const enProg=Object.values(DATA.progresos).filter(p=>p>0&&p<100).length;
   const comp=Object.values(DATA.progresos).filter(p=>p>=100).length;
@@ -247,7 +257,8 @@ function dripStatus(c){
 let CATS=["Todos","Estructuras","Instalaciones","Costos y Presupuestos","Topografía","Diseño CAD","Normatividad","Sustentabilidad","Gestión de Obra"];
 function renderBiblioteca(){
   if(LOADING)return `<h1 class="page-h">Biblioteca de cursos</h1><p class="page-sub">Cargando catálogo...</p>${skelGrid(8)}`;
-  const list=activeFilter==="Todos"?DATA.cursos:DATA.cursos.filter(c=>c.categoria===activeFilter);
+  const base=activeFilter==="Todos"?DATA.cursos:DATA.cursos.filter(c=>c.categoria===activeFilter);
+  const list=ordenarCursos(base);
   return `
   <h1 class="page-h">Biblioteca de cursos</h1>
   <p class="page-sub">Todo nuestro catálogo de cursos grabados, disponibles 24/7.</p>
