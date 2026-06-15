@@ -1096,14 +1096,14 @@ function siguienteClase(cursoId,i){
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0;
   const seCompleto=marcarHechaSilencio(cursoId,i);
   const next=i+1;
-  if(next<total && (c.listaClases||[])[next] && (c.listaClases[next].videoUrl)){
-    // cargar la siguiente clase en el mismo modal
+  const hayNext = next<total && (c.listaClases||[])[next] && (c.listaClases[next].videoUrl);
+  // refrescar el detalle de fondo (barra + bolitas)
+  if(_cursoActivo===cursoId)openCurso(cursoId);
+  if(hayNext){
     const cl=c.listaClases[next];
     abrirVideoModal(driveEmbed(cl.videoUrl), cl.titulo||('Clase '+(next+1)), cursoId, next);
   }else{
-    // era la última (o la siguiente no tiene video): cerrar y refrescar el detalle
     cerrarVideoModal();
-    if(_cursoActivo===cursoId)openCurso(cursoId);
     if(seCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
     else toast('Clase completada ✓');
   }
