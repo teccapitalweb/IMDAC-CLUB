@@ -1216,8 +1216,8 @@ function generarCertificado(cursoId){
   }else render(fallback);
 }
 function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg,logoImg}){
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  const W=297,H=210;
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'letter'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(); // ~279.4 x 215.9 (Carta)
   // centrado real con tracking (jsPDF ignora charSpace al centrar -> corre a la izq)
   const trackC=(text,y,gap,xc)=>{const cxp=(xc===undefined)?W/2:xc;const ws=Array.from(text).map(c=>doc.getTextWidth(c));const tot=ws.reduce((a,b)=>a+b,0)+gap*(text.length-1);let x=cxp-tot/2;for(let i=0;i<text.length;i++){doc.text(text[i],x,y);x+=ws[i]+gap;}};
   // paleta IMDAC
@@ -1228,7 +1228,7 @@ function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg,logoImg}){
   // fondo blanco
   doc.setFillColor(255,255,255);doc.rect(0,0,W,H,'F');
   // ===== marca de agua: skyline IMDAC al pie =====
-  const base=197, bx0=20, bx1=W-20;
+  const base=H-13, bx0=20, bx1=W-20;
   const edif=[7,12,9,16,11,20,10,14,8,13,9,17,12,9,15,11,8,14,10,16,9,12,8,15,11,9,13,10,16,12,8,14];
   doc.setFillColor(humo[0],humo[1],humo[2]);
   let bx=bx0, bw=(bx1-bx0)/edif.length;
@@ -1279,7 +1279,7 @@ function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg,logoImg}){
   // QR
   if(qrImg){try{doc.addImage(qrImg,'PNG',qx,qy,qs,qs);}catch(e){doc.setFontSize(6);doc.setTextColor(gris[0],gris[1],gris[2]);doc.text('QR',cx,qy+qs/2,{align:'center'});}}
   // ===== firmas =====
-  const sy=164;
+  const sy=169;
   const drawFirma=(b64,arf,cxs)=>{if(!b64||!arf)return;const boxW=56,boxH=24;let w=boxW,h=boxW/arf;if(h>boxH){h=boxH;w=boxH*arf;}try{doc.addImage(b64,'PNG',cxs-w/2,sy-2-h,w,h);}catch(e){}};
   drawFirma(window.FIRMA1_B64,window.FIRMA1_AR,71);
   drawFirma(window.FIRMA2_B64,window.FIRMA2_AR,W-71);
@@ -1293,8 +1293,8 @@ function buildCertPDF({nombre,curso,fecha,folio,horasTxt,qrImg,logoImg}){
   doc.text('IPCI Latinoamericano',W-71,sy+9.5,{align:'center'});
   // ===== folio + fecha =====
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90,90,96);
-  doc.text('ID del certificado: '+folio,W/2,182,{align:'center'});
-  doc.text('Fecha de emisión: '+fecha,W/2,188,{align:'center'});
+  doc.text('ID del certificado: '+folio,W/2,186,{align:'center'});
+  doc.text('Fecha de emisión: '+fecha,W/2,192,{align:'center'});
   doc.save('certificado-imdac-'+folio+'.pdf');
   toast('Certificado generado');
 }
