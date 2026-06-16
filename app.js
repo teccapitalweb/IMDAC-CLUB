@@ -172,7 +172,7 @@ function ordenarCursos(arr){
 }
 function renderInicio(){
   if(LOADING)return skelInicio();
-  const cursos=ordenarCursos(DATA.cursos).slice(0,2);
+  const cursos=ordenarCursos(DATA.cursos).slice(0,4);
   const noticias=DATA.noticias.filter(n=>n.img).slice(0,8);
   const enProg=Object.values(DATA.progresos).filter(p=>p>0&&p<100).length;
   const comp=Object.values(DATA.progresos).filter(p=>p>=100).length;
