@@ -414,6 +414,12 @@ body.logged #app{display:block}
 .install-banner .ib-ic{width:48px;height:48px;border-radius:12px;background:var(--rojo);color:#fff;display:grid;place-items:center;flex-shrink:0;font-size:1.3rem}
 .install-banner b{font-family:var(--font-display);color:var(--rojo)}
 .install-banner span{display:block;color:var(--muted);font-size:.86rem;margin-top:2px}
+.install-banner .btn-outline{flex-shrink:0;white-space:nowrap}
+@media(max-width:560px){
+  .install-banner{flex-direction:column;text-align:center;gap:12px;padding:22px 18px}
+  .install-banner>div[style*="flex:1"]{width:100%}
+  .install-banner .btn-outline{width:100%}
+}
 .btn-outline{padding:10px 20px;border:1.5px solid var(--line);border-radius:10px;font-weight:600;font-size:.9rem;background:var(--surface);transition:.16s;white-space:nowrap}
 .btn-outline:hover{border-color:var(--gris-300)}
 .btn-outline.danger{border-color:#ffd5d5;color:var(--rojo)}
