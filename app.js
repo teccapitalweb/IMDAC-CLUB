@@ -278,11 +278,27 @@ function renderWebinar(){
     </div>`).join('')}</div>`;
 }
 
+function ordenarMaterial(arr){
+  const diasBloqueo=m=>{
+    if(!m.cursoId)return -1; // disponible desde el inicio
+    const c=DATA.cursos.find(x=>x.id===m.cursoId);
+    if(!c)return -1;
+    const ds=dripStatus(c);
+    return ds.locked?(ds.dias||0):-1; // -1 = disponible
+  };
+  return arr.slice().sort((a,b)=>{
+    const da=diasBloqueo(a), db=diasBloqueo(b);
+    const la=da>=0, lb=db>=0;            // bloqueado?
+    if(la!==lb)return la?1:-1;           // disponibles primero
+    if(la)return da-db;                  // bloqueados: menos días primero
+    return 0;
+  });
+}
 function renderMaterial(){
   if(LOADING)return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+skelGrid(4);
   if(!DATA.material.length) return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+emptyState('material','Próximamente','Estamos preparando material descargable para ti. Pronto encontrarás guías, normas y plantillas aquí.');
   return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>
-  <div class="course-grid">${DATA.material.map(m=>{
+  <div class="course-grid">${ordenarMaterial(DATA.material).map(m=>{
     let lock=null;
     if(m.cursoId){
       const c=DATA.cursos.find(x=>x.id===m.cursoId);
