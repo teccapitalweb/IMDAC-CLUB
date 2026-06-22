@@ -74,6 +74,11 @@ img{max-width:100%;display:block}
 .lhb-ic{font-size:20px;line-height:1.2;flex-shrink:0}
 .lh-benefits b{display:block;font-size:14.5px;font-weight:700;color:#fff}
 .lh-benefits span{display:block;font-size:12.5px;color:rgba(255,255,255,.62);line-height:1.45;margin-top:1px}
+.lh-fly{margin-top:24px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.lh-fly-track{display:flex;gap:12px;width:max-content;animation:flyscroll 40s linear infinite}
+.lh-fly:hover .lh-fly-track{animation-play-state:paused}
+.lh-fly-track img{width:130px;height:130px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.12);flex-shrink:0}
+@keyframes flyscroll{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 6px))}}
 .lh-skyline{position:absolute;bottom:0;left:0;right:0;height:42%;z-index:0;opacity:.13;
   background:repeating-linear-gradient(90deg,#fff 0 2px,transparent 2px 46px);
   -webkit-mask:linear-gradient(180deg,transparent,#000);mask:linear-gradient(180deg,transparent,#000)}
@@ -610,10 +615,21 @@ table.norm tr:hover td{background:var(--base)}
         <li><span class="lhb-ic">🏗️</span><div><b>10 cursos con certificado</b><span>Arquitectura y construcción, con clases en video.</span></div></li>
         <li><span class="lhb-ic">🎥</span><div><b>Webinars en vivo</b><span>Sesiones con expertos y grabaciones disponibles.</span></div></li>
         <li><span class="lhb-ic">🧰</span><div><b>Herramientas de obra</b><span>Calculadoras, precios unitarios y normativas.</span></div></li>
-        <li><span class="lhb-ic">📄</span><div><b>Material descargable</b><span>Guías, planos tipo y documentos en PDF.</span></div></li>
-        <li><span class="lhb-ic">💬</span><div><b>Comunidad y foro</b><span>Conecta con otros profesionales del sector.</span></div></li>
         <li><span class="lhb-ic">🏷️</span><div><b>20% de descuento</b><span>En cursos y certificaciones adicionales.</span></div></li>
       </ul>
+      <div class="lh-fly">
+        <div class="lh-fly-track" id="lhFlyTrack">
+          <img src="assets/flyers/f1.jpg" alt="Curso IMDAC" loading="lazy">
+          <img src="assets/flyers/f2.jpg" alt="Curso IMDAC" loading="lazy">
+          <img src="assets/flyers/f3.jpg" alt="Curso IMDAC" loading="lazy">
+          <img src="assets/flyers/f4.jpg" alt="Curso IMDAC" loading="lazy">
+          <img src="assets/flyers/f5.jpg" alt="Curso IMDAC" loading="lazy">
+          <img src="assets/flyers/f6.jpg" alt="Curso IMDAC" loading="lazy">
+          <img src="assets/flyers/f7.jpg" alt="Curso IMDAC" loading="lazy">
+          <img src="assets/flyers/f8.jpg" alt="Curso IMDAC" loading="lazy">
+          <img src="assets/flyers/f9.jpg" alt="Curso IMDAC" loading="lazy">
+        </div>
+      </div>
     </div>
     <div class="lh-foot">Instituto Mexicano de Arquitectura y Construcción</div>
   </div>
@@ -725,5 +741,16 @@ table.norm tr:hover td{background:var(--base)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="cert-font.js"></script>
 <script src="app.js"></script>
+<script>
+/* Carrusel de flyers del login: duplica las imágenes para loop infinito fluido */
+(function(){
+  function initFly(){
+    var t=document.getElementById('lhFlyTrack');
+    if(t && !t.dataset.dup){t.innerHTML+=t.innerHTML;t.dataset.dup='1';}
+  }
+  if(document.readyState!=='loading')initFly();
+  else document.addEventListener('DOMContentLoaded',initFly);
+})();
+</script>
 </body>
 </html>
