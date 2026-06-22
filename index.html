@@ -69,6 +69,11 @@ img{max-width:100%;display:block}
   radial-gradient(circle at 80% 10%,rgba(255,44,44,.35),transparent 45%),
   radial-gradient(circle at 10% 90%,rgba(255,44,44,.18),transparent 40%);z-index:0}
 .login-hero>*{position:relative;z-index:1}
+.lh-benefits{list-style:none;margin:26px 0 0;padding:0;display:flex;flex-direction:column;gap:15px}
+.lh-benefits li{display:flex;align-items:flex-start;gap:13px}
+.lhb-ic{font-size:20px;line-height:1.2;flex-shrink:0}
+.lh-benefits b{display:block;font-size:14.5px;font-weight:700;color:#fff}
+.lh-benefits span{display:block;font-size:12.5px;color:rgba(255,255,255,.62);line-height:1.45;margin-top:1px}
 .lh-skyline{position:absolute;bottom:0;left:0;right:0;height:42%;z-index:0;opacity:.13;
   background:repeating-linear-gradient(90deg,#fff 0 2px,transparent 2px 46px);
   -webkit-mask:linear-gradient(180deg,transparent,#000);mask:linear-gradient(180deg,transparent,#000)}
@@ -550,8 +555,12 @@ table.norm tr:hover td{background:var(--base)}
 /* RESPONSIVE */
 @media(max-width:1080px){.inicio-grid{grid-template-columns:1fr}.news-side{display:none}}
 @media(max-width:900px){
-  #login{grid-template-columns:1fr}
-  .login-hero{display:none}
+  #login{grid-template-columns:1fr;overflow-y:auto;display:block}
+  .login-hero{padding:36px 26px 30px}
+  .login-hero .lh-skyline{display:none}
+  .lh-title{font-size:2rem}
+  .lh-benefits{gap:12px;margin-top:20px}
+  .login-hero .lh-foot{display:none}
   .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%)}
   .sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
   .tb-menu{display:grid}
@@ -597,6 +606,14 @@ table.norm tr:hover td{background:var(--base)}
     <div>
       <h1 class="lh-title">Construye tu<br><em>conocimiento</em>.</h1>
       <p class="lh-sub">Educación continua en arquitectura y construcción. Cursos, webinars y herramientas profesionales en un solo lugar.</p>
+      <ul class="lh-benefits">
+        <li><span class="lhb-ic">🏗️</span><div><b>10 cursos con certificado</b><span>Arquitectura y construcción, con clases en video.</span></div></li>
+        <li><span class="lhb-ic">🎥</span><div><b>Webinars en vivo</b><span>Sesiones con expertos y grabaciones disponibles.</span></div></li>
+        <li><span class="lhb-ic">🧰</span><div><b>Herramientas de obra</b><span>Calculadoras, precios unitarios y normativas.</span></div></li>
+        <li><span class="lhb-ic">📄</span><div><b>Material descargable</b><span>Guías, planos tipo y documentos en PDF.</span></div></li>
+        <li><span class="lhb-ic">💬</span><div><b>Comunidad y foro</b><span>Conecta con otros profesionales del sector.</span></div></li>
+        <li><span class="lhb-ic">🏷️</span><div><b>20% de descuento</b><span>En cursos y certificaciones adicionales.</span></div></li>
+      </ul>
     </div>
     <div class="lh-foot">Instituto Mexicano de Arquitectura y Construcción</div>
   </div>
