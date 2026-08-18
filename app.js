@@ -96,18 +96,62 @@ function renderSidebar(){
           ${it.label}
         </div>`).join('')}
     </div>`).join('');
+  renderMobNav();
+}
+
+/* Barra inferior (móvil). Cuatro destinos reales más "Más", que abre el drawer
+   con las 17 secciones: cuatro huecos no dan para los cuatro grupos del menú.
+   Los iconos salen de NAV para no tener dos copias que se desincronicen. */
+const MOB_NAV=['inicio','biblioteca','webinar','material'];
+const MOB_LABEL={inicio:'Inicio',biblioteca:'Biblioteca',webinar:'Webinars',material:'Material'};
+function navItem(sec){for(const g of NAV)for(const it of g.items)if(it.id===sec)return it;return null;}
+function renderMobNav(){
+  const el=document.getElementById('mob-nav');
+  if(!el)return;
+  const item=it=>{
+    const lb=MOB_LABEL[it.id]||it.label;
+    return `<button class="mob-item" data-sec="${it.id}" onclick="go('${it.id}')" aria-label="${lb}">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${it.icon}"/></svg>
+      <span>${lb}</span></button>`;
+  };
+  el.innerHTML=MOB_NAV.map(id=>{const it=navItem(id);return it?item(it):'';}).join('')+
+    `<button class="mob-item" id="mob-more" onclick="toggleSidebar(true)"
+       aria-label="Ver todas las secciones" aria-controls="sidebar" aria-expanded="false">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <span>Más</span></button>`;
 }
 
 /* ====== 4. ROUTER ====== */
 let currentSection="inicio";
 const MEMBER_ONLY_SECTIONS=new Set(['foro','descuento','canal','notificaciones','logros']);
+/* Sin historial, el boton atras de Android sale de la app desde cualquier
+   seccion: con la barra inferior eso es un callejon sin salida. El hash tambien
+   hace que los accesos directos del manifest lleguen a su seccion. */
+let _desdeHash=false;
+function hashActual(){
+  try{ return decodeURIComponent(String(location.hash||'').replace(/^#/,'')); }
+  catch(e){ return ''; }
+}
+function seccionInicial(){
+  const h=hashActual();
+  return (h && navItem(h)) ? h : 'inicio';
+}
+window.addEventListener('hashchange',()=>{
+  const sec=hashActual();
+  if(!sec || sec===currentSection || !navItem(sec)) return;
+  _desdeHash=true;
+  try{ go(sec); } finally { _desdeHash=false; }
+});
+
 function go(sec){
   if(!LOADING&&MEMBER_ONLY_SECTIONS.has(sec)&&!_tieneAcceso()){
     renderPaywall('Esta sección es exclusiva para miembros. Puedes seguir explorando cursos, temarios y materiales.');
     return;
   }
   currentSection=sec;
+  if(!_desdeHash && hashActual()!==sec){ try{location.hash=sec;}catch(e){} }
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
+  document.querySelectorAll('.mob-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
   if(window.innerWidth<=900) toggleSidebar(false);
   renderSection(sec);
   if(sec==='notificaciones')marcarNotisLeidas();
@@ -157,7 +201,7 @@ function initNewsCarousel(){
   }
   _newsRAF=requestAnimationFrame(step);
 }
-function navLabel(sec){for(const g of NAV)for(const it of g.items)if(it.id===sec)return it.label;return '';}
+function navLabel(sec){const it=navItem(sec);return it?it.label:'';}
 function crumbs(cur){return `<div class="crumbs"><a onclick="go('inicio')">Inicio</a><span class="sep">›</span><span class="cur">${cur}</span></div>`;}
 
 /* ====== 5. SECCIONES ====== */
@@ -1614,6 +1658,20 @@ function toggleSidebar(open){
   const sb=document.getElementById('sidebar'),bd=document.getElementById('sb-backdrop');
   if(open===undefined)open=!sb.classList.contains('open');
   sb.classList.toggle('open',open);bd.classList.toggle('open',open);
+  // Sin esto la pagina de detras se arrastra al deslizar sobre el drawer.
+  document.body.classList.toggle('nav-open',open);
+  document.querySelectorAll('[aria-controls="sidebar"]').forEach(b=>b.setAttribute('aria-expanded',String(open)));
+}
+
+/* Mostrar u ocultar la contrasena: en movil no se puede revisar lo tecleado. */
+function togglePw(id,btn){
+  const inp=document.getElementById(id);
+  if(!inp)return;
+  const ver=inp.type==='password';
+  inp.type=ver?'text':'password';
+  btn.setAttribute('aria-pressed',String(ver));
+  btn.setAttribute('aria-label',ver?'Ocultar contraseña':'Mostrar contraseña');
+  inp.focus({preventScroll:true});
 }
 function toggleTheme(){
   const cur=document.documentElement.dataset.theme==='dark'?'light':'dark';
@@ -1644,7 +1702,7 @@ async function onLogged(){
   await loadData();
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
   const q=new URLSearchParams(location.search);
-  go('inicio');
+  go(seccionInicial());
   if(q.get('pago')==='ok'){
     toast('Pago recibido, activando tu membresía…');
     let intentos=0;

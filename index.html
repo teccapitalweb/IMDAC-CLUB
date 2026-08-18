@@ -2,13 +2,20 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover, interactive-widget=resizes-content">
 <title>IMDAC · Club de Miembros</title>
 <meta name="description" content="Instituto Mexicano de Arquitectura y Construcción — Club de educación continua.">
 <link rel="icon" href="assets/logo-imdac.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#FF2C2C">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FF2C2C" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IMDAC">
+<meta name="format-detection" content="telephone=no">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ====================== IMDAC · SISTEMA DE DISEÑO ====================== */
@@ -597,6 +604,136 @@ table.norm tr:hover td{background:var(--base)}
   .welcome{padding:16px}
   .cd-hero-body h2{font-size:1.5rem}
 }
+/* ====================== MÓVIL ======================
+   Añadido 2026-08-18. Mismo patrón que club-fisioteck: barra inferior fija,
+   safe-areas para notch y barra de gestos, y dvh en lugar de vh. */
+:root{--mobile-header-h:58px;--mobile-nav-h:64px}
+
+/* 100vh mide de más mientras la barra de URL está visible: el pie queda cortado. */
+@supports(height:100dvh){
+  #app,.shell{min-height:100dvh}
+  .sidebar{height:100dvh}
+  .modal{max-height:min(90vh,calc(100dvh - 32px))}
+}
+
+/* Ningún destello azul al tocar. */
+a,button,input,select,textarea,.sb-item,.filter,.mob-item{-webkit-tap-highlight-color:transparent}
+
+/* Mostrar/ocultar contraseña. */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:50px}
+.pw-eye{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:42px;height:42px;
+  display:flex;align-items:center;justify-content:center;color:var(--muted);background:none;border-radius:10px}
+.pw-eye svg{width:19px;height:19px}
+.pw-eye[aria-pressed="true"]{color:var(--rojo)}
+
+/* Barra inferior: solo existe en móvil. */
+.mob-nav{display:none}
+.mob-item{position:relative;min-width:0;min-height:52px;padding:7px 2px 6px;border-radius:15px;
+  color:var(--gris-500);background:none;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;font-size:.63rem;font-weight:700;line-height:1;transition:color .16s,background .16s}
+.mob-item svg{width:21px;height:21px;stroke-width:1.9}
+.mob-item.active{color:var(--rojo);background:var(--rojo-50)}
+.mob-item.active::before{content:"";position:absolute;top:3px;width:16px;height:3px;border-radius:0 0 4px 4px;background:var(--rojo)}
+
+/* En pantalla táctil el :hover se queda pegado tras el toque. */
+@media(hover:none){
+  .btn-primary:hover{transform:none;box-shadow:none}
+  .btn-google:hover{background:var(--surface);border-color:var(--line)}
+  .btn-outline:hover{border-color:var(--line)}
+  .tb-btn:hover{color:var(--gris-500);border-color:var(--line)}
+  .sb-item:hover{background:none;color:var(--gris-500)}
+  .sb-item.active:hover{background:var(--rojo-50);color:var(--rojo)}
+}
+
+@media(max-width:900px){
+  /* Safari en iPhone hace zoom al enfocar un campo de menos de 16px. */
+  input,select,textarea,.field input{font-size:16px}
+
+  /* El drawer abierto no debe arrastrar la página de detrás. */
+  body.nav-open{overflow:hidden}
+  .sidebar{width:min(86vw,300px);overscroll-behavior:contain;
+    padding-top:max(14px,env(safe-area-inset-top));
+    padding-bottom:max(14px,env(safe-area-inset-bottom))}
+
+  /* Notch arriba, isla de gestos abajo, esquinas en horizontal. */
+  .topbar{padding-top:calc(14px + env(safe-area-inset-top));
+    padding-left:max(18px,env(safe-area-inset-left));
+    padding-right:max(18px,env(safe-area-inset-right))}
+  .content{padding-left:max(18px,env(safe-area-inset-left));
+    padding-right:max(18px,env(safe-area-inset-right));
+    padding-bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom) + 30px)}
+  .login-hero{padding:max(30px,calc(env(safe-area-inset-top) + 22px)) 24px 28px}
+  .login-form{padding:26px 20px max(26px,calc(env(safe-area-inset-bottom) + 20px))}
+  .modal-bg{padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom))}
+  .toast{bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom) + 20px)}
+
+  /* 44px es el mínimo que se acierta con el pulgar. */
+  .tb-btn{width:44px;height:44px}
+  .sb-item{min-height:46px}
+  .lf-tabs button{min-height:44px}
+  .lf-link{min-height:44px;display:inline-flex;align-items:center}
+  .filter{min-height:40px;display:inline-flex;align-items:center}
+
+  /* El velo del drawer (150 de origen) quedaba por debajo de la barra: la barra
+     se veia iluminada sobre la pagina atenuada. */
+  .sb-backdrop{z-index:190}
+  .sidebar{z-index:200}
+
+  /* Barra inferior flotante. */
+  .mob-nav{display:grid;position:fixed;z-index:180;left:10px;right:10px;
+    bottom:max(8px,env(safe-area-inset-bottom));
+    grid-template-columns:repeat(5,minmax(0,1fr));align-items:center;padding:5px;
+    border:1px solid var(--line);border-radius:21px;
+    background:color-mix(in srgb,var(--surface) 92%,transparent);
+    box-shadow:0 14px 42px rgba(13,13,13,.18);
+    backdrop-filter:blur(18px) saturate(165%);-webkit-backdrop-filter:blur(18px) saturate(165%)}
+}
+
+/* Pantallas estrechas: el rótulo de la barra estorba más que ayuda. */
+@media(max-width:360px){
+  .mob-item{font-size:.58rem}
+  .mob-item svg{width:20px;height:20px}
+}
+
+/* En horizontal sobra alto: la barra se pega abajo sin flotar. */
+@media(max-width:900px) and (orientation:landscape) and (max-height:460px){
+  :root{--mobile-nav-h:54px}
+  .mob-nav{left:0;right:0;bottom:0;border-radius:0;border-left:none;border-right:none;
+    padding-bottom:max(4px,env(safe-area-inset-bottom))}
+  .mob-item span{display:none}
+  .mob-item{min-height:44px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;scroll-behavior:auto !important}
+}
+/* El formulario primero en móvil: con el hero delante había que recorrer
+   título, cuatro ventajas y el carrusel antes de poder escribir el correo. */
+.lf-brand-m{display:none}
+@media(max-width:900px){
+  #login{display:flex;flex-direction:column}
+  /* Sin esto el formulario se queda con scroll propio y el hero le come el boton. */
+  .login-form{order:1;align-items:flex-start;overflow:visible;flex:0 0 auto}
+  .login-hero{order:2;flex:0 0 auto;justify-content:flex-start;
+    padding:30px 24px max(30px,calc(env(safe-area-inset-bottom) + 24px))}
+  .login-hero .lh-brand{display:none}
+  .lh-title{font-size:1.65rem}
+  .lh-sub{font-size:.92rem}
+
+  .lf-brand-m{display:flex;align-items:center;gap:11px;margin-bottom:22px}
+  .lf-brand-m img{width:42px;height:42px;border-radius:11px;flex-shrink:0}
+  .lf-brand-m b{font-family:var(--font-display);font-size:1.15rem;letter-spacing:-.01em;display:block}
+  .lf-brand-m b span{color:var(--rojo)}
+  .lf-brand-m .lfb-s{display:block;font-size:.74rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+}
+/* La cabecera movil se quedaba en cuatro iconos sueltos, sin decir donde estas. */
+.tb-brand-m{display:none;align-items:center;gap:9px;min-width:0}
+.tb-brand-m img{width:28px;height:28px;border-radius:8px;flex-shrink:0}
+.tb-brand-m b{font-family:var(--font-display);font-size:1.02rem;letter-spacing:-.01em;white-space:nowrap}
+.tb-brand-m b span{color:var(--rojo)}
+@media(max-width:900px){ .tb-brand-m{display:flex} }
 </style>
 </head>
 <body>
@@ -635,7 +772,11 @@ table.norm tr:hover td{background:var(--base)}
   </div>
   <div class="login-form">
     <div class="lf-inner">
-      <div class="lf-tabs">
+      <div class="lf-brand-m">
+          <img src="assets/logo-imdac.png" alt="">
+          <div><b>IM<span>DAC</span></b><span class="lfb-s">Club de Miembros</span></div>
+        </div>
+        <div class="lf-tabs">
         <button id="tab-login" class="active" onclick="switchTab('login')">Iniciar sesión</button>
         <button id="tab-register" onclick="switchTab('register')">Crear cuenta</button>
       </div>
@@ -645,12 +786,28 @@ table.norm tr:hover td{background:var(--base)}
       <div id="pane-login">
         <h2 class="lf-h">Bienvenido de vuelta</h2>
         <p class="lf-p">Accede a tu Club de miembros IMDAC.</p>
-        <div class="field"><label>Correo</label><input type="email" id="li-email" placeholder="tu@correo.com"></div>
-        <div class="field"><label>Contraseña</label><input type="password" id="li-pass" placeholder="••••••••"></div>
-        <button class="btn-primary" onclick="doLogin()">Entrar</button>
-        <button class="lf-link" onclick="doReset()">¿Olvidaste tu contraseña?</button>
+        <form onsubmit="doLogin();return false" novalidate>
+          <div class="field">
+            <label for="li-email">Correo</label>
+            <input type="email" id="li-email" name="email" placeholder="tu@correo.com"
+                   autocomplete="username" inputmode="email" enterkeyhint="next"
+                   autocapitalize="none" autocorrect="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="li-pass">Contraseña</label>
+            <div class="pw-wrap">
+              <input type="password" id="li-pass" name="password" placeholder="••••••••"
+                     autocomplete="current-password" enterkeyhint="go" autocapitalize="none"
+                     autocorrect="off" spellcheck="false">
+              <button type="button" class="pw-eye" onclick="togglePw('li-pass',this)"
+                      aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">Entrar</button>
+        </form>
+        <button type="button" class="lf-link" onclick="doReset()">¿Olvidaste tu contraseña?</button>
         <div class="lf-or">o continúa con</div>
-        <button class="btn-google" onclick="doGoogle()">
+        <button type="button" class="btn-google" onclick="doGoogle()">
           <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
           Google
         </button>
@@ -660,13 +817,33 @@ table.norm tr:hover td{background:var(--base)}
       <div id="pane-register" style="display:none">
         <h2 class="lf-h">Crea tu cuenta</h2>
         <p class="lf-p">Únete al Club de profesionales IMDAC.</p>
-        <div class="field"><label>Nombre completo</label><input type="text" id="rg-name" placeholder="Tu nombre"></div>
-        <div class="field"><label>Correo</label><input type="email" id="rg-email" placeholder="tu@correo.com"></div>
-        <div class="field"><label>Contraseña</label><input type="password" id="rg-pass" placeholder="Mínimo 6 caracteres"></div>
+        <form onsubmit="doRegister();return false" novalidate>
+          <div class="field">
+            <label for="rg-name">Nombre completo</label>
+            <input type="text" id="rg-name" name="name" placeholder="Tu nombre"
+                   autocomplete="name" enterkeyhint="next" autocapitalize="words" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="rg-email">Correo</label>
+            <input type="email" id="rg-email" name="email" placeholder="tu@correo.com"
+                   autocomplete="email" inputmode="email" enterkeyhint="next"
+                   autocapitalize="none" autocorrect="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="rg-pass">Contraseña</label>
+            <div class="pw-wrap">
+              <input type="password" id="rg-pass" name="new-password" placeholder="Mínimo 6 caracteres"
+                     autocomplete="new-password" enterkeyhint="go" autocapitalize="none"
+                     autocorrect="off" spellcheck="false" minlength="6">
+              <button type="button" class="pw-eye" onclick="togglePw('rg-pass',this)"
+                      aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+          </div>
         <label class="lf-terms"><input type="checkbox" id="rg-terms"><span>Acepto los <a href="#" style="color:var(--rojo)" onclick="mostrarLegal('terminos');return false">Términos</a> y la <a href="#" style="color:var(--rojo)" onclick="mostrarLegal('privacidad');return false">Política de Privacidad</a> de IMDAC.</span></label>
-        <button class="btn-primary" onclick="doRegister()">Crear cuenta</button>
+          <button type="submit" class="btn-primary">Crear cuenta</button>
+        </form>
         <div class="lf-or">o regístrate con</div>
-        <button class="btn-google" onclick="doGoogle()">
+        <button type="button" class="btn-google" onclick="doGoogle()">
           <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
           Google
         </button>
@@ -701,6 +878,7 @@ table.norm tr:hover td{background:var(--base)}
       <button class="tb-btn tb-menu" onclick="toggleSidebar(true)">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
+      <div class="tb-brand-m"><img src="assets/logo-imdac.png" alt=""><b>IM<span>DAC</span></b></div>
       <div class="tb-spacer"></div>
       <button class="tb-btn" onclick="toggleTheme()" id="theme-btn" title="Modo oscuro">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
@@ -714,6 +892,7 @@ table.norm tr:hover td{background:var(--base)}
       </button>
     </div>
     <div class="content" id="content"></div>
+    <nav class="mob-nav" id="mob-nav" aria-label="Navegacion principal"></nav>
   </div>
 </div></div>
 
