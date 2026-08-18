@@ -1096,7 +1096,7 @@ function renderPrecios(){
   const conceptos=(DATA.precios&&DATA.precios.length)?DATA.precios.map(p=>[p.concepto,p.unidad,p.precio]):base;
   const nota=(DATA.precios&&DATA.precios.length)?'* Catálogo administrado por IMDAC. Precios de referencia: ajusta según región, proveedor y fecha.':'* Precios de referencia general. Ajusta según región, proveedor y fecha.';
   return `<h1 class="page-h">Catálogo de Precios Unitarios</h1><p class="page-sub">Referencia base de conceptos de obra (precios estimados, actualízalos a tu zona).</p>
-  <div class="card" style="overflow:hidden">
+  <div class="card tbl-card">
     <table class="norm"><thead><tr><th>Concepto</th><th>Unidad</th><th>P.U. estimado</th></tr></thead>
     <tbody>${conceptos.map(c=>`<tr><td>${c[0]}</td><td>${c[1]}</td><td style="font-family:var(--font-display);font-weight:700;color:var(--rojo)">${c[2]}</td></tr>`).join('')}</tbody></table>
   </div>
@@ -1120,7 +1120,7 @@ function renderNormativas(){
     ['Reglamento de Construcciones local','Gestión','Licencias, DRO y trámites municipales'],
   ];
   return `<h1 class="page-h">Guía de Normativas</h1><p class="page-sub">Referencia rápida de normas y reglamentos aplicables a la construcción en México.</p>
-  <div class="card" style="overflow:hidden">
+  <div class="card tbl-card">
     <table class="norm"><thead><tr><th>Norma / Reglamento</th><th>Área</th><th>Descripción</th></tr></thead>
     <tbody>${normas.map(n=>`<tr><td style="font-weight:600">${n[0]}</td><td><span class="badge-norm">${n[1]}</span></td><td style="color:var(--muted)">${n[2]}</td></tr>`).join('')}</tbody></table>
   </div>

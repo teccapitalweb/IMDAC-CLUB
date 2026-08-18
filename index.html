@@ -734,6 +734,15 @@ a,button,input,select,textarea,.sb-item,.filter,.mob-item{-webkit-tap-highlight-
 .tb-brand-m b{font-family:var(--font-display);font-size:1.02rem;letter-spacing:-.01em;white-space:nowrap}
 .tb-brand-m b span{color:var(--rojo)}
 @media(max-width:900px){ .tb-brand-m{display:flex} }
+/* Las dos tablas de 3 columnas (Precios Unitarios, Normativas) vivian en una
+   tarjeta con overflow:hidden. En 360px la de Normativas mide 427px, asi que la
+   ultima columna quedaba cortada y sin forma de llegar a ella. */
+.tbl-card{overflow:hidden}
+@media(max-width:900px){
+  .tbl-card{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  table.norm{font-size:.85rem;min-width:420px}
+  table.norm th,table.norm td{padding:11px 12px}
+}
 </style>
 </head>
 <body>
