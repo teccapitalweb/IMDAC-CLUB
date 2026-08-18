@@ -1506,45 +1506,19 @@ function demoLogin(email,name){
 }
 
 /* ====== 10. CARGA DE DATOS ====== */
-// --- Noticias automáticas del sector (NewsData.io) ---
-const NEWSDATA_API_KEY='pub_fae0d8c9c54f40f59f1b5a5f9bced05e';
+// --- Noticias automáticas del sector (vía backend) ---
+// La clave de NewsData.io ya no vive aquí: este repositorio es público. El backend
+// consulta, filtra y normaliza; aquí sólo se pinta lo que llega.
 const NEWSDATA_CACHE_KEY='imdac_news_cache_v1';
-const NEWSDATA_CACHE_HORAS=6;
-const NEWS_WHITE=['arquitect','construcc','constructor','obra civil','obra públic','obra public',' obra ','edific','ingenier','urban','concreto','cemento','acero estructural','estructur','vivienda','inmobili','infraestructura',' bim','autocad',' cad','remodelac','demolic','cimentac','albañil','albanil','plano','licitac','contratista','rascaciel','puente','carreter','sustentab','sostenib','catastro','reglamento de construc','perito','desarrollo urbano','proyecto ejecutivo','metros cuadrados','material de construc','acabados','prefabricad','cimbra','varilla','sismorresist','antisísmic','antisismic'];
-const NEWS_BLACK=['futbol','fútbol','liga mx',' nba',' nfl','champions','elecciones','candidat','narco','homicid','feminicid','covid','vacuna','iglesia','vaticano','papa francisco','horóscopo','horoscopo','farándula','farandula','realeza'];
-function newsRelevante(n){
-  const t=((n.titulo||'')+' '+(n.resumen||'')).toLowerCase();
-  if(NEWS_WHITE.some(w=>t.indexOf(w)!==-1))return true;
-  if(NEWS_BLACK.some(w=>t.indexOf(w)!==-1))return false;
-  return true;
-}
 function fetchAutoNews(){
-  return new Promise(resolve=>{
-    if(!NEWSDATA_API_KEY||NEWSDATA_API_KEY.indexOf('REEMPLAZAR')!==-1){resolve([]);return;}
-    try{
-      const raw=localStorage.getItem(NEWSDATA_CACHE_KEY);
-      if(raw){const c=JSON.parse(raw);const h=(Date.now()-c.timestamp)/3600000;if(h<NEWSDATA_CACHE_HORAS&&c.noticias&&c.noticias.length){resolve(c.noticias);return;}}
-    }catch(e){}
-    const query=encodeURIComponent('arquitectura OR construcción OR obra civil OR ingeniería');
-    const url='https://newsdata.io/api/1/news?apikey='+NEWSDATA_API_KEY+'&q='+query+'&language=es';
-    fetch(url).then(r=>r.json()).then(data=>{
-      if(!data||!Array.isArray(data.results)){resolve([]);return;}
-      const vistos={};
-      const noticias=data.results.map(n=>({
-        titulo:n.title||'', resumen:n.description||n.content||'',
-        fuente:n.source_id||n.source_name||'NewsData',
-        img:n.image_url||'', url:n.link||'',
-        fecha:n.pubDate?new Date(n.pubDate).toLocaleDateString('es-MX'):'',
-        _fechaISO:n.pubDate||'', _auto:true
-      })).filter(newsRelevante).filter(n=>n.img).filter(n=>{
-        const k=(n.titulo||'').toLowerCase().replace(/\s+/g,' ').trim();
-        if(!k||vistos[k])return false; vistos[k]=true; return true;
-      }).slice(0,25);
-      try{localStorage.setItem(NEWSDATA_CACHE_KEY,JSON.stringify({timestamp:Date.now(),noticias}));}catch(e){}
-      resolve(noticias);
-    }).catch(()=>{
-      try{const raw=localStorage.getItem(NEWSDATA_CACHE_KEY);if(raw){const c=JSON.parse(raw);resolve(c.noticias||[]);}else resolve([]);}catch(e){resolve([]);}
-    });
+  return apiFetch('/api/news').then(data=>{
+    const noticias=(data&&Array.isArray(data.noticias))?data.noticias:[];
+    if(noticias.length){try{localStorage.setItem(NEWSDATA_CACHE_KEY,JSON.stringify({timestamp:Date.now(),noticias}));}catch(e){}}
+    return noticias;
+  }).catch(()=>{
+    // Respaldo ante un fallo puntual: lo último que se pintó en este navegador.
+    try{const raw=localStorage.getItem(NEWSDATA_CACHE_KEY);if(raw){const c=JSON.parse(raw);return c.noticias||[];}}catch(e){}
+    return [];
   });
 }
 function cargarNoticiasAuto(){
