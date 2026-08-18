@@ -51,6 +51,7 @@ try{
 /* ====== 2. ESTADO ====== */
 let CURRENT_USER=null;
 let LOADING=true;
+let BUNNY_READY=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{}};
 let activeFilter="Todos";
@@ -99,9 +100,12 @@ function renderSidebar(){
 
 /* ====== 4. ROUTER ====== */
 let currentSection="inicio";
+const MEMBER_ONLY_SECTIONS=new Set(['foro','descuento','canal','notificaciones','logros']);
 function go(sec){
-  // Candado de membresía: sin acceso, cualquier navegación regresa a los planes
-  if(CANDADO_ON()&&!LOADING&&FB_OK&&CURRENT_USER&&CURRENT_USER.uid!=='demo'&&!_tieneAcceso()){renderPaywall();return;}
+  if(!LOADING&&MEMBER_ONLY_SECTIONS.has(sec)&&!_tieneAcceso()){
+    renderPaywall('Esta sección es exclusiva para miembros. Puedes seguir explorando cursos, temarios y materiales.');
+    return;
+  }
   currentSection=sec;
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
   if(window.innerWidth<=900) toggleSidebar(false);
@@ -162,6 +166,7 @@ function saludo(){const h=new Date().getHours();return h<12?'Buenos días':h<19?
 
 /* Ordena: disponibles primero (en progreso arriba), luego bloqueados por menos días */
 function ordenarCursos(arr){
+  if(!_tieneAcceso())return arr.slice().sort((a,b)=>(Number(a.order||0)-Number(b.order||0))||String(a.titulo||'').localeCompare(String(b.titulo||''),'es'));
   return arr.slice().sort((a,b)=>{
     const da=dripStatus(a), db=dripStatus(b);
     if(da.locked!==db.locked) return da.locked?1:-1; // disponibles primero
@@ -178,7 +183,7 @@ function renderInicio(){
   const comp=Object.values(DATA.progresos).filter(p=>p>=100).length;
   return `
   <div class="welcome">
-    <div><h2>${saludo()}, ${firstName()}.</h2><p>Tienes acceso completo al catálogo. Retoma donde te quedaste.</p></div>
+    <div><h2>${saludo()}, ${firstName()}.</h2><p>${_tieneAcceso()?'Tienes acceso completo. Retoma donde te quedaste.':'Explora todo el catálogo y mira gratis la primera clase de cada curso.'}</p></div>
     <div class="streak"><span class="fl">🔥</span> <b>1</b> día de racha</div>
   </div>
   <div class="webinar-card">
@@ -207,21 +212,19 @@ function stat(label,val,icon){return `<div class="stat"><div class="si"><svg fil
 function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t}</b></div>`;}
 
 function courseCard(c){
-  const drip=dripStatus(c);
   const prog=DATA.progresos[c.id]||0;
-  const locked=drip.locked;
-  return `<div class="course" onclick="${locked?`toast('Disponible en ${drip.dias} días')`:`openCurso('${c.id}')`}">
+  const member=_tieneAcceso();
+  return `<div class="course" onclick="openCurso('${c.id}')">
     <div class="course-img" style="background-image:url('${driveImg(c.img)}')">
       <span class="course-cat">${c.categoria||'General'}</span>
-      ${locked?`<div class="course-lock"><div class="lk"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div></div>`:''}
     </div>
     <div class="course-body">
       <h4>${c.titulo}</h4>
       <div class="course-meta">
         <span>${c.clases||0} clases · ${c.nivel||'Intermedio'}</span>
-        ${locked?`<span class="drip"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>En ${drip.dias} días</span>`:''}
+        ${!member?'<span class="drip" style="color:#18794e">Primera clase gratis</span>':''}
       </div>
-      ${!locked?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
+      ${member?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
     </div>
   </div>`;
 }
@@ -273,13 +276,13 @@ function webinarEstado(w){
   const ini=w.fechaISO?new Date(w.fechaISO).getTime():0;
   const finVivo=ini+2*60*60*1000; // ventana "en vivo": 2h desde el inicio
   if(!ini){ // sin fecha definida
-    if(w.grabacion)return {estado:'grabacion',etiqueta:'Grabación',cls:'wb-gray'};
+    if(w.hasRecording)return {estado:'grabacion',etiqueta:'Grabación',cls:'wb-gray'};
     return {estado:'prox',etiqueta:'Próximamente',cls:'wb-amber'};
   }
   if(ahora<ini) return {estado:'prox',etiqueta:'Próximamente',cls:'wb-amber'};
   if(ahora>=ini && ahora<=finVivo) return {estado:'vivo',etiqueta:'EN VIVO',cls:'wb-live'};
   // ya pasó
-  if(w.grabacion) return {estado:'grabacion',etiqueta:'Grabación',cls:'wb-gray'};
+  if(w.hasRecording) return {estado:'grabacion',etiqueta:'Grabación',cls:'wb-gray'};
   return {estado:'fin',etiqueta:'Finalizado',cls:'wb-gray'};
 }
 function calLink(w){
@@ -289,15 +292,20 @@ function calLink(w){
   const fin=new Date(ini.getTime()+60*60*1000);
   const fmt=d=>d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
   const txt=encodeURIComponent('IMDAC · '+(w.titulo||'Webinar'));
-  const det=encodeURIComponent('Webinar del Club IMDAC.'+(w.envivo?(' Únete aquí: '+w.envivo):''));
+  const det=encodeURIComponent('Webinar del Club IMDAC. El enlace de acceso está disponible para miembros dentro del Club.');
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${txt}&dates=${fmt(ini)}/${fmt(fin)}&details=${det}`;
 }
-function abrirWebinar(id){
+async function abrirWebinar(id){
   const w=DATA.webinars.find(x=>x.id===id); if(!w)return;
   const e=webinarEstado(w);
-  if(e.estado==='vivo'){ if(w.envivo)window.open(w.envivo,'_blank'); else toast('El enlace en vivo aún no está disponible'); }
-  else if(e.estado==='grabacion'){ if(w.grabacion)window.open(w.grabacion,'_blank'); else toast('Grabación no disponible'); }
-  else if(e.estado==='prox'){ const l=calLink(w); if(l)window.open(l,'_blank'); else toast('Pronto se habilitará el recordatorio'); }
+  if(!_tieneAcceso())return renderPaywall('Los webinars y sus grabaciones son exclusivos para miembros.');
+  if(e.estado==='prox'){ const l=calLink(w); if(l)window.open(l,'_blank'); else toast('Pronto se habilitará el recordatorio'); return; }
+  if(e.estado==='vivo'||e.estado==='grabacion'){
+    try{
+      const data=await apiFetch('/webinar-acceso',{method:'POST',body:{webinarId:id,type:e.estado==='grabacion'?'recording':'live'}});
+      if(data.url)window.open(data.url,'_blank','noopener');
+    }catch(err){toast(err.message||'Enlace no disponible');}
+  }
   else toast('Este webinar ya finalizó');
 }
 function renderWebinar(){
@@ -348,20 +356,18 @@ function renderMaterial(){
   if(!DATA.material.length) return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+emptyState('material','Próximamente','Estamos preparando material descargable para ti. Pronto encontrarás guías, normas y plantillas aquí.');
   return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>
   <div class="course-grid">${ordenarMaterial(DATA.material).map(m=>{
-    let lock=null;
-    if(m.cursoId){
-      const c=DATA.cursos.find(x=>x.id===m.cursoId);
-      if(c){const ds=dripStatus(c); if(ds.locked)lock=ds.dias;}
-    }
-    if(lock!==null){
-      return `<div class="course locked" style="position:relative;opacity:.7;cursor:not-allowed">
-        <div class="course-body" style="padding:24px"><h4>🔒 ${m.titulo}</h4><p style="color:var(--muted);font-size:.86rem;margin-top:6px">${m.desc||''}</p><div class="course-meta" style="margin-top:14px"><span class="tag gray" style="background:#eee;color:#888;padding:3px 10px;border-radius:6px;font-size:.78rem">Disponible en ${lock} ${lock===1?'día':'días'}</span></div></div>
-      </div>`;
-    }
-    return `<div class="course" onclick="window.open('${m.url}','_blank')">
-      <div class="course-body" style="padding:24px"><h4>📄 ${m.titulo}</h4><p style="color:var(--muted);font-size:.86rem;margin-top:6px">${m.desc||''}</p><div class="course-meta" style="margin-top:14px"><span class="badge-norm">Descargar PDF</span></div></div>
+    return `<div class="course" onclick="abrirMaterial('${m.id}')">
+      <div class="course-body" style="padding:24px"><h4>📄 ${m.titulo}</h4><p style="color:var(--muted);font-size:.86rem;margin-top:6px">${m.desc||''}</p><div class="course-meta" style="margin-top:14px"><span class="badge-norm">${_tieneAcceso()?'Abrir material':'Solo miembros'}</span></div></div>
     </div>`;
   }).join('')}</div>`;
+}
+
+async function abrirMaterial(id){
+  if(!_tieneAcceso())return renderPaywall('Puedes consultar la ficha del material gratis; abrirlo o descargarlo requiere membresía.');
+  try{
+    const data=await apiFetch('/material-acceso',{method:'POST',body:{materialId:id}});
+    if(data.url)window.open(data.url,'_blank','noopener');
+  }catch(err){toast(err.message||'Material no disponible');}
 }
 
 function renderNoticias(){
@@ -941,6 +947,7 @@ function renderFichaObra(){
   </div>`;
 }
 function genFichaPDF(){
+  if(!requiereMembresiaAccion('Generar y descargar fichas de obra requiere membresía.'))return;
   loadJsPDF(()=>{
     const {jsPDF}=window.jspdf; const doc=new jsPDF();
     doc.setFillColor(13,13,13);doc.rect(0,0,210,32,'F');
@@ -990,6 +997,7 @@ function renderCalculadora(){
   <button class="btn-primary" style="width:auto;padding:13px 30px" onclick="exportCalcPDF()">📄 Exportar cálculo a PDF</button>`;
 }
 function exportCalcPDF(){
+  if(!requiereMembresiaAccion('Exportar cálculos a PDF requiere membresía.'))return;
   loadJsPDF(()=>{
     const {jsPDF}=window.jspdf;const doc=new jsPDF();
     doc.setFillColor(13,13,13);doc.rect(0,0,210,32,'F');doc.setFillColor(255,44,44);doc.rect(0,32,210,2.5,'F');
@@ -1015,6 +1023,7 @@ function exportCalcPDF(){
   });
 }
 function calcConcreto(){
+  if(!requiereMembresiaAccion('La calculadora está disponible para miembros.'))return;
   const l=+val('cc-largo'),a=+val('cc-ancho'),e=+val('cc-esp')/100;
   const vol=l*a*e;
   const sacosM3={150:6,200:7,250:8,300:9}[val('cc-fc')||'200']||7;
@@ -1024,6 +1033,7 @@ function calcConcreto(){
   document.getElementById('cc-grava').textContent=(vol*0.68).toFixed(2);
 }
 function calcBlock(){
+  if(!requiereMembresiaAccion('La calculadora está disponible para miembros.'))return;
   const l=+val('bk-largo'),h=+val('bk-alto');
   const piezas=Math.ceil(l*h*12.5*1.05);
   document.getElementById('bk-piezas').textContent=piezas+' piezas';
@@ -1107,15 +1117,15 @@ function renderCursoDetalle(id){
       <p class="desc">${c.desc||'Capacitación profesional enfocada en arquitectura y construcción. Contenido teórico-práctico con criterios aplicables a obra real.'}</p>
       <div class="cd-hero-meta">
         <span><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;display:inline;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m0 16v1m8-9h1M3 12H2m15.364 6.364l.707.707M5.929 5.929l.707.707M18.364 5.636l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg> Nivel: <b>${c.nivel||'Intermedio'}</b></span>
-        ${c.temario?`<a href="#" onclick="abrirVideoModal(driveEmbed('${c.temario}'),'Temario · ${(c.titulo||'').replace(/'/g,'')}');return false;" style="color:var(--rojo);font-weight:700;text-decoration:none;font-size:.9rem;display:inline-flex;align-items:center;gap:5px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Ver temario</a>`:''}
+        ${c.hasSyllabus?`<a href="#" onclick="abrirTemario('${c.id}');return false;" style="color:var(--rojo);font-weight:700;text-decoration:none;font-size:.9rem;display:inline-flex;align-items:center;gap:5px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-.293.707L16.414 21H7a2 2 0 01-2-2V5z"/></svg> Ver temario ${_tieneAcceso()?'':'· Solo miembros'}</a>`:''}
       </div>
       <div class="cd-clases-badge"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>${total} clases</div>
     </div>
   </div>
-  <div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>
-  ${prog>=100?`<div class="cert-banner"><div class="cbi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div><b>¡Curso completado!</b><p>Descarga tu certificado de finalización con folio y QR verificable.</p></div><button onclick="generarCertificado('${id}')">Descargar certificado</button></div>`:''}
+  ${_tieneAcceso()?`<div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>`:'<div class="cd-progress"><span class="lbl">Estás explorando gratis. El progreso se guarda con una membresía activa.</span></div>'}
+  ${_tieneAcceso()&&prog>=100?`<div class="cert-banner"><div class="cbi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div><b>¡Curso completado!</b><p>Descarga tu certificado de finalización con folio y QR verificable.</p></div><button onclick="generarCertificado('${id}')">Descargar certificado</button></div>`:''}
   <div class="cd-list-head"><h3>Lista de clases</h3><span>${hechas.length} de ${total} completadas</span></div>
-  ${clases.map((cl,i)=>claseRow(cl,i,true,id,hechas.includes(i))).join('')}`;
+  ${clases.map((cl,i)=>claseRow(cl,i,cl.isPreview===true||_tieneAcceso(),id,hechas.includes(i))).join('')}`;
 }
 function claseRow(cl,i,disp,cursoId,hecha){
   const playIcon='<svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
@@ -1124,37 +1134,47 @@ function claseRow(cl,i,disp,cursoId,hecha){
   const checkEmpty='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>';
   const lockIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
   if(!disp){
-    return `<div class="clase lock">
+    return `<div class="clase lock" onclick="mostrarMembresiaClase()" style="cursor:pointer">
       <div class="cst">${lockIcon}</div>
-      <div class="cinfo"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">Bloqueada</span>
+      <div class="cinfo"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">Solo miembros</span>
         <div class="dur">${clock}${cl.duracion||'2 Horas'}</div></div>
     </div>`;
   }
+  const preview=cl.isPreview===true;
+  const canTrack=_tieneAcceso();
   return `<div class="clase disp ${hecha?'done':''}">
-    <button class="cst chk ${hecha?'on':''}" onclick="toggleClaseHecha('${cursoId}',${i})" title="${hecha?'Marcar como pendiente':'Marcar como completada'}">${hecha?checkDone:checkEmpty}</button>
-    <div class="cinfo" onclick="playClase('${cursoId}',${i})" style="cursor:pointer"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${hecha?'Completada':'Disponible'}</span>
+    ${canTrack?`<button class="cst chk ${hecha?'on':''}" onclick="toggleClaseHecha('${cursoId}',${i})" title="${hecha?'Marcar como pendiente':'Marcar como completada'}">${hecha?checkDone:checkEmpty}</button>`:`<div class="cst">${playIcon}</div>`}
+    <div class="cinfo" onclick="playClase('${cursoId}',${i})" style="cursor:pointer"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${preview&&!canTrack?'Primera clase gratis':(hecha?'Completada':'Disponible')}</span>
       <div class="dur">${clock}${cl.duracion||'2 Horas'}</div></div>
     <div class="play" onclick="playClase('${cursoId}',${i})" style="cursor:pointer">${playIcon}</div>
   </div>`;
 }
-/* Convierte link de Drive a formato embebible (/preview) */
-function driveEmbed(url){
-  if(!url) return '';
-  url=String(url).trim();
-  let m=url.match(/\/file\/d\/([A-Za-z0-9_-]+)/) || url.match(/[?&]id=([A-Za-z0-9_-]+)/) || url.match(/\/d\/([A-Za-z0-9_-]+)/);
-  if(m) return 'https://drive.google.com/file/d/'+m[1]+'/preview';
-  // YouTube
-  let y=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]+)/);
-  if(y) return 'https://www.youtube.com/embed/'+y[1];
-  return url; // otro: se intenta tal cual
+
+function mostrarMembresiaClase(){renderPaywall('La primera clase es gratuita. Desde la segunda clase se requiere una membresía vigente.');}
+
+async function abrirTemario(courseId){
+  if(!_tieneAcceso())return renderPaywall('Puedes ver el temario del curso; abrir el documento completo requiere membresía.');
+  try{
+    const data=await apiFetch('/temario-acceso',{method:'POST',body:{courseId}});
+    if(data.url)window.open(data.url,'_blank','noopener');
+  }catch(err){toast(err.message||'Temario no disponible');}
 }
-function playClase(cursoId,i){
+async function playClase(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const cl=(c.listaClases||[])[i];
-  if(!cl||!cl.videoUrl){toast('Esta clase aún no tiene video cargado');return;}
-  abrirVideoModal(driveEmbed(cl.videoUrl), cl.titulo||('Clase '+(i+1)), cursoId, i);
+  if(!cl||!cl.hasVideo){toast('Esta clase aún no tiene video cargado');return;}
+  if(cl.isPreview!==true&&!_tieneAcceso())return mostrarMembresiaClase();
+  try{
+    const data=await apiFetch('/reproduccion',{method:'POST',body:{courseId,lessonId:cl.lessonId||cl.id}});
+    abrirVideoModal(data.embedUrl, cl.titulo||('Clase '+(i+1)), cursoId, i);
+  }catch(err){
+    if(err.code==='membership_required')return mostrarMembresiaClase();
+    if(err.code==='video_not_migrated'||err.code==='bunny_not_configured')return toast('Esta clase está pendiente de vincular con Bunny Stream');
+    toast(err.message||'No se pudo reproducir la clase');
+  }
 }
 function marcarHechaSilencio(cursoId,i){
+  if(!_tieneAcceso())return false;
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return false;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0; if(!total)return false;
   const set=new Set(DATA.clasesHechas[cursoId]||[]);
@@ -1170,14 +1190,14 @@ function marcarHechaSilencio(cursoId,i){
 function siguienteClase(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0;
-  const seCompleto=marcarHechaSilencio(cursoId,i);
+  const seCompleto=_tieneAcceso()?marcarHechaSilencio(cursoId,i):false;
   const next=i+1;
-  const hayNext = next<total && (c.listaClases||[])[next] && (c.listaClases[next].videoUrl);
+  const hayNext = next<total && (c.listaClases||[])[next] && (c.listaClases[next].hasVideo);
   // refrescar el detalle de fondo (barra + bolitas)
   if(_cursoActivo===cursoId)openCurso(cursoId);
   if(hayNext){
-    const cl=c.listaClases[next];
-    abrirVideoModal(driveEmbed(cl.videoUrl), cl.titulo||('Clase '+(next+1)), cursoId, next);
+    cerrarVideoModal();
+    playClase(cursoId,next);
   }else{
     cerrarVideoModal();
     if(seCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
@@ -1207,6 +1227,7 @@ function cerrarVideoModal(){
   document.body.style.overflow='';
 }
 function toggleClaseHecha(cursoId,i){
+  if(!_tieneAcceso())return renderPaywall('El progreso y los certificados se habilitan con una membresía vigente.');
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0; if(!total)return;
   const set=new Set(DATA.clasesHechas[cursoId]||[]);
@@ -1221,7 +1242,7 @@ function toggleClaseHecha(cursoId,i){
   if(arr.length>=total&&!yaCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
 }
 function guardarProgreso(cursoId,prog,arr){
-  if(!FB_OK||!window.db||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  if(!_tieneAcceso()||!FB_OK||!window.db||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
   db.collection('progreso').doc(CURRENT_USER.uid+'_'+cursoId)
     .set({uid:CURRENT_USER.uid,cursoId,porcentaje:prog,clases:arr},{merge:true}).catch(()=>{});
 }
@@ -1254,6 +1275,7 @@ function getLogoDataURL(cb){
   }catch(e){cb(null);}
 }
 function generarCertificado(cursoId){
+  if(!_tieneAcceso())return renderPaywall('Los certificados son exclusivos para miembros.');
   const c=DATA.cursos.find(x=>x.id===cursoId);if(!c)return;
   registrarCertDescargado(cursoId);
   const curso=c.titulo;
@@ -1545,12 +1567,35 @@ window._miMiembro={};
 function _tieneAcceso(){
   if(window._imdacAdmin)return true;
   const m=window._miMiembro||{};
+  if(m.hasAccess===true)return true;
   if((m.estado||'')==='Activo')return true;
-  if(m.vigenciaHasta){const v=new Date(m.vigenciaHasta+'T23:59:59');if(v>=new Date())return true;}
+  const fechas=[m.vigenciaHasta,m.cortesiaHasta,m.accesoHasta,m.cancelaAlFinal?m.renovacion:null].filter(Boolean);
+  if(fechas.some(x=>new Date(x+'T23:59:59')>=new Date()))return true;
   return false;
 }
+
+function requiereMembresiaAccion(message){
+  if(_tieneAcceso())return true;
+  renderPaywall(message||'Esta acción requiere una membresía vigente.');
+  return false;
+}
+
+async function apiFetch(path,{method='GET',body}={}){
+  if(!CURRENT_USER||CURRENT_USER.uid==='demo'||typeof CURRENT_USER.getIdToken!=='function')throw new Error('Inicia sesión para continuar');
+  const token=await CURRENT_USER.getIdToken();
+  const response=await fetch(WEBHOOK_URL+path,{
+    method,
+    headers:{'Authorization':'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},
+    body:body?JSON.stringify(body):undefined,
+    cache:'no-store'
+  });
+  let data={};try{data=await response.json();}catch(e){}
+  if(!response.ok){const err=new Error(data.error||'No se pudo completar la solicitud');err.code=data.code||'';err.status=response.status;throw err;}
+  return data;
+}
+
 async function loadData(){
-  // Modo real: arranca vacío y solo se llena con Firestore. El demo aplica únicamente sin sesión real.
+  // El catálogo premium se obtiene saneado desde el backend: las URLs privadas nunca llegan aquí.
   DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
   DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={};
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){
@@ -1559,28 +1604,14 @@ async function loadData(){
     await sleep(650);LOADING=false;return;
   }
   try{
-    const [cur,web,not,mat,foro]=await Promise.all([
-      db.collection('cursos').get(), db.collection('webinars').get(),
-      db.collection('noticias').orderBy('fecha','desc').limit(20).get(),
-      db.collection('material').get(), db.collection('foro_temas').orderBy('fecha','desc').limit(30).get()
-    ]);
-    DATA.cursos=cur.docs.map(d=>({id:d.id,...d.data()}));
-    DATA.webinars=web.docs.map(d=>({id:d.id,...d.data()}));
-    DATA.noticias=not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);
-    DATA.material=mat.docs.map(d=>({id:d.id,...d.data()}));
-    DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));
-    try{const pre=await db.collection('precios').get();DATA.precios=pre.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.precios=[];}
-    // progreso del usuario
-    const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();
-    DATA.progresos={}; DATA.clasesHechas={}; prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0; if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});
-    // ¿es admin? (para saltar drip)
-    const adm=await db.collection('admins').doc(CURRENT_USER.uid).get();
-    window._imdacAdmin=adm.exists;
-    // estado de membresía del socio (Stripe / regalos)
-    try{const mi=await db.collection('miembros').doc(CURRENT_USER.uid).get();window._miMiembro=mi.exists?mi.data():{};}catch(e){window._miMiembro={};}
-    // configuración global (sincronizada con el Admin)
-    const cfg=await db.collection('config').doc('app').get();
-    if(cfg.exists){const cd=cfg.data();
+    const catalog=await apiFetch('/catalogo');
+    DATA.cursos=Array.isArray(catalog.courses)?catalog.courses:[];
+    DATA.webinars=Array.isArray(catalog.webinars)?catalog.webinars:[];
+    DATA.material=Array.isArray(catalog.materials)?catalog.materials:[];
+    window._miMiembro=catalog.membership||{};
+    BUNNY_READY=!!catalog.bunnyReady;
+    try{window._imdacAdmin=(await db.collection('admins').doc(CURRENT_USER.uid).get()).exists;}catch(e){window._imdacAdmin=false;}
+    const cd=catalog.config||{};
       if(Array.isArray(cd.categorias)&&cd.categorias.length)CATS=['Todos',...cd.categorias];
       if(cd.precio)IMDAC.precio=cd.precio;
       if(cd.cupon)IMDAC.cupon=cd.cupon;
@@ -1588,8 +1619,13 @@ async function loadData(){
       if(cd.wa1){IMDAC.soporte.l1=waDigits(cd.wa1);IMDAC.soporte.l1Label=cd.wa1;IMDAC.whatsapp=waDigits(cd.wa1);}
       if(cd.wa2){IMDAC.soporte.l2=waDigits(cd.wa2);IMDAC.soporte.l2Label=cd.wa2;}
       window._mantenimiento=!!cd.mantenimiento;
+    try{const not=await db.collection('noticias').orderBy('fecha','desc').limit(20).get();DATA.noticias=not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);}catch(e){DATA.noticias=[];}
+    try{const pre=await db.collection('precios').get();DATA.precios=pre.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.precios=[];}
+    if(_tieneAcceso()){
+      try{const foro=await db.collection('foro_temas').orderBy('fecha','desc').limit(30).get();DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.foro=[];}
+      try{const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0;if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});}catch(e){}
     }
-  }catch(e){console.warn('Firestore:',e.message);}
+  }catch(e){console.warn('Catálogo:',e.message);toast('No se pudo cargar el catálogo. Intenta recargar.');}
   LOADING=false;
 }
 
@@ -1633,36 +1669,31 @@ async function onLogged(){
   LOADING=true; go('inicio');
   await loadData();
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
-  if(CANDADO_ON() && !_tieneAcceso()){
-    const q=new URLSearchParams(location.search);
-    if(q.get('pago')==='ok'){
-      // el webhook puede tardar unos segundos en activar: reintenta
-      toast('Pago recibido, activando tu membresía…');
-      let intentos=0;
-      const re=setInterval(async()=>{
-        intentos++;
-        try{const mi=await db.collection('miembros').doc(CURRENT_USER.uid).get();window._miMiembro=mi.exists?mi.data():{};}catch(e){}
-        if(_tieneAcceso()){clearInterval(re);history.replaceState(null,'',location.pathname);go('inicio');cargarNoticiasAuto();escucharNotis();registrarVisita();toast('¡Membresía activa, bienvenido!');}
-        else if(intentos>=10){clearInterval(re);renderPaywall();toast('Tu pago está en proceso, recarga en un momento');}
-      },2000);
-      return;
-    }
-    renderPaywall();return;
-  }
   const q=new URLSearchParams(location.search);
-  if(q.get('pago')==='ok'){history.replaceState(null,'',location.pathname);toast('¡Pago confirmado, gracias!');}
   go('inicio');
+  if(q.get('pago')==='ok'){
+    toast('Pago recibido, activando tu membresía…');
+    let intentos=0;
+    const re=setInterval(async()=>{
+      intentos++;
+      try{const data=await apiFetch('/mi-acceso');window._miMiembro=data.membership||{};}catch(e){}
+      if(_tieneAcceso()){
+        clearInterval(re);history.replaceState(null,'',location.pathname);await loadData();go('inicio');
+        toast('¡Membresía activa, bienvenido!');
+      }else if(intentos>=10){clearInterval(re);toast('Tu pago está en proceso; puedes seguir explorando mientras se activa.');}
+    },2000);
+  }
   cargarNoticiasAuto();
-  escucharNotis();
+  if(_tieneAcceso())escucharNotis();
   registrarVisita();
 }
 /* ====== PAYWALL (activa tu membresía) ====== */
 let _planes=null;
-function renderPaywall(){
+function renderPaywall(reason){
   document.getElementById('content').innerHTML=`<div class="section active" style="max-width:860px;margin:0 auto">
     <div style="text-align:center;margin:30px 0 26px">
       <h1 class="page-h">Activa tu membresía</h1>
-      <p class="page-sub">Elige tu plan y desbloquea todo el contenido del Club IMDAC.</p>
+      <p class="page-sub">${reason||'Elige tu plan para desbloquear clases premium y funciones privadas del Club IMDAC.'}</p>
     </div>
     <div class="plan-grid">
       <div class="plan-card">
@@ -1684,6 +1715,7 @@ function renderPaywall(){
       </div>
     </div>
     <div style="text-align:center;margin-top:24px;color:var(--muted);font-size:.9rem">
+      <a href="#" style="color:var(--rojo);font-weight:700" onclick="go('biblioteca');return false">← Seguir explorando cursos</a><br><br>
       ¿Ya pagaste? <a href="#" style="color:var(--rojo);font-weight:700" onclick="location.reload();return false">Recarga aquí</a> ·
       ¿Dudas? <a style="color:var(--rojo);font-weight:700" href="https://wa.me/${IMDAC.whatsapp}?text=Hola%2C%20tengo%20dudas%20para%20activar%20mi%20membres%C3%ADa%20IMDAC" target="_blank">Escríbenos por WhatsApp</a><br>
       <a href="#" style="color:var(--muted);font-size:.85rem" onclick="doLogout();return false">Cerrar sesión</a>
@@ -1709,9 +1741,7 @@ function irAPagar(plan){
   const pop=window.open('','imdac_pago',`width=${w},height=${h},left=${x},top=${y}`);
   if(!pop){console.warn('[pago] popup bloqueado → redirect');return irAPagarRedirect(plan);}
   try{pop.document.write('<title>Pago seguro · IMDAC</title><body style="margin:0;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:96vh;color:#555;background:#fafafa">Cargando pago seguro…</body>');}catch(e){}
-  fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan})})
-    .then(r=>r.json()).then(d=>{
+  apiFetch('/crear-checkout',{method:'POST',body:{plan}}).then(d=>{
       if(!d.url){try{pop.close();}catch(e){} toast('No se pudo abrir el pago');return;}
       pop.location=d.url;
       vigilarPago(pop);
@@ -1722,7 +1752,7 @@ function vigilarPago(pop){
   let intentos=0,cerradoHace=0;
   const re=setInterval(async()=>{
     intentos++;
-    try{const mi=await db.collection('miembros').doc(CURRENT_USER.uid).get();window._miMiembro=mi.exists?mi.data():{};}catch(e){}
+    try{const data=await apiFetch('/mi-acceso');window._miMiembro=data.membership||{};}catch(e){}
     if(_tieneAcceso()){
       clearInterval(re);
       try{if(!pop.closed)pop.close();}catch(e){}
@@ -1734,17 +1764,14 @@ function vigilarPago(pop){
   },2000);
 }
 function irAPagarRedirect(plan){
-  fetch(WEBHOOK_URL+'/crear-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({uid:CURRENT_USER.uid,email:CURRENT_USER.email,plan})})
-    .then(r=>r.json()).then(d=>{if(d.url)location.href=d.url;else toast('No se pudo abrir el pago');})
+  apiFetch('/crear-checkout',{method:'POST',body:{plan}})
+    .then(d=>{if(d.url)location.href=d.url;else toast('No se pudo abrir el pago');})
     .catch(()=>toast('No se pudo abrir el pago, intenta de nuevo'));
 }
 function cancelarSub(){
   if(!confirm('¿Cancelar tu suscripción? No se te volverá a cobrar y conservas tu acceso hasta el final del periodo que ya pagaste.'))return;
   toast('Cancelando…');
-  fetch(WEBHOOK_URL+'/cancelar',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({uid:CURRENT_USER.uid})})
-    .then(r=>r.json()).then(d=>{
+  apiFetch('/cancelar',{method:'POST',body:{}}).then(d=>{
       if(!d.ok)return toast(d.error||'No se pudo cancelar');
       window._miMiembro.cancelaAlFinal=true;
       if(d.fin)window._miMiembro.renovacion=d.fin;
@@ -1754,9 +1781,7 @@ function cancelarSub(){
 }
 function reactivarSub(){
   toast('Reactivando…');
-  fetch(WEBHOOK_URL+'/reactivar',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({uid:CURRENT_USER.uid})})
-    .then(r=>r.json()).then(d=>{
+  apiFetch('/reactivar',{method:'POST',body:{}}).then(d=>{
       if(!d.ok)return toast(d.error||'No se pudo reactivar');
       window._miMiembro.cancelaAlFinal=false;
       renderSection('suscripcion');
@@ -1766,9 +1791,8 @@ function reactivarSub(){
 function abrirPortal(){
   if(!CANDADO_ON())return toast('Gestión de pago vía Stripe (pendiente activar)');
   toast('Abriendo portal de pagos…');
-  fetch(WEBHOOK_URL+'/portal',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({uid:CURRENT_USER.uid})})
-    .then(r=>r.json()).then(d=>{if(d.url)location.href=d.url;else toast('Aún no tienes una suscripción de pago');})
+  apiFetch('/portal',{method:'POST',body:{}})
+    .then(d=>{if(d.url)location.href=d.url;else toast('Aún no tienes una suscripción de pago');})
     .catch(()=>toast('No se pudo abrir el portal'));
 }
 function renderMantenimiento(){
