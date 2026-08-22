@@ -819,6 +819,27 @@ function calcLogros(){
   const catsCompletas=new Set(DATA.cursos.filter(c=>(DATA.progresos[c.id]||0)>=100).map(c=>c.categoria||'General')).size;
   const certsDesc=_statArr('imdac_certs').length;
   const diasVisita=_statArr('imdac_dias').length;
+  /* Metas relativas al catálogo que este socio ve.
+     Estaban fijas en 3/5/7/10 de cuando el catálogo tenía 10 cursos siempre. Al
+     ocultar cursos (estado "Borrador"), /catalogo devuelve menos y esas metas se
+     volvían inalcanzables: la insignia quedaba en pantalla como una promesa que
+     el club ya no puede cumplir. Ahora salen del catálogo recibido.
+     Las fracciones reproducen las metas originales sobre 10 cursos —
+     3/10, 5/10 (la "mitad"), 7/10 y el catálogo entero— así que con el catálogo
+     completo nada cambia respecto a antes.
+     Si el catálogo aún no ha llegado (recarga, modo demo), se usan las de
+     siempre en vez de mostrar metas de 1. */
+  const totalCursos=(DATA.cursos||[]).length;
+  const metaCursos=(fraccion,porDefecto)=>totalCursos?Math.max(1,Math.ceil(totalCursos*fraccion)):porDefecto;
+  const mConstructor=metaCursos(0.3,3);
+  const mSupervisor=metaCursos(0.5,5);
+  const mResidente=metaCursos(0.7,7);
+  const mMaestro=metaCursos(1,10);
+  const cursosTxt=(n)=>`${n} curso${n===1?'':'s'}`;
+  // Las categorías del catálogo visible, por el mismo motivo: si sólo quedaran
+  // dos a la vista, "3 categorías distintas" sería inalcanzable.
+  const totalCats=new Set((DATA.cursos||[]).map(c=>c.categoria||'General')).size;
+  const mCategorias=totalCats?Math.min(3,totalCats):3;
   return [
     {n:'Primer paso',d:'Inicia tu primer curso',ic:'🎯',v:iniciados,m:1},
     {n:'Manos a la obra',d:'Completa tu primera clase',ic:'🧱',v:clasesTot,m:1},
@@ -826,11 +847,11 @@ function calcLogros(){
     {n:'Media jornada',d:'Completa 25 clases',ic:'⏱️',v:clasesTot,m:25},
     {n:'Jornada completa',d:'Completa 50 clases',ic:'🚧',v:clasesTot,m:50},
     {n:'Cimientos firmes',d:'Completa tu primer curso',ic:'🏠',v:completos,m:1},
-    {n:'Constructor',d:'Completa 3 cursos',ic:'🏗️',v:completos,m:3},
-    {n:'Supervisor',d:'Completa 5 cursos · mitad del catálogo',ic:'📐',v:completos,m:5},
-    {n:'Residente de obra',d:'Completa 7 cursos',ic:'🦺',v:completos,m:7},
-    {n:'Maestro de obra',d:'Completa los 10 cursos del catálogo',ic:'👷',v:completos,m:10},
-    {n:'Multidisciplinario',d:'Completa cursos de 3 categorías distintas',ic:'🗂️',v:catsCompletas,m:3},
+    {n:'Constructor',d:`Completa ${cursosTxt(mConstructor)}`,ic:'🏗️',v:completos,m:mConstructor},
+    {n:'Supervisor',d:`Completa ${cursosTxt(mSupervisor)} · mitad del catálogo`,ic:'📐',v:completos,m:mSupervisor},
+    {n:'Residente de obra',d:`Completa ${cursosTxt(mResidente)}`,ic:'🦺',v:completos,m:mResidente},
+    {n:'Maestro de obra',d:`Completa los ${cursosTxt(mMaestro)} del catálogo`,ic:'👷',v:completos,m:mMaestro},
+    {n:'Multidisciplinario',d:`Completa cursos de ${mCategorias} categorías distintas`,ic:'🗂️',v:catsCompletas,m:mCategorias},
     {n:'Coleccionista',d:'Descarga tu primer certificado',ic:'📜',v:certsDesc,m:1},
     {n:'Galería de títulos',d:'Descarga 5 certificados',ic:'🖼️',v:certsDesc,m:5},
     {n:'Voz del gremio',d:'Publica tu primer tema en el foro',ic:'💬',v:misTemas.length,m:1},
@@ -843,7 +864,7 @@ function calcLogros(){
     {n:'Voz respetada',d:'Recibe 25 reacciones en tus temas',ic:'🌟',v:likesRecibidos,m:25},
     {n:'Constante',d:'Visita el club 7 días distintos',ic:'📅',v:diasVisita,m:7},
     {n:'Racha de fuego',d:'Visita el club 30 días distintos',ic:'🔥',v:diasVisita,m:30},
-    {n:'Leyenda IMDAC',d:'Catálogo completo + 25 reacciones recibidas',ic:'🏆',v:(completos>=10&&likesRecibidos>=25)?1:0,m:1},
+    {n:'Leyenda IMDAC',d:'Catálogo completo + 25 reacciones recibidas',ic:'🏆',v:(completos>=mMaestro&&likesRecibidos>=25)?1:0,m:1},
   ].map(l=>({...l,ok:l.v>=l.m}));
 }
 function renderLogros(){
