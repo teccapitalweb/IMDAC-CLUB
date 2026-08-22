@@ -208,16 +208,25 @@ function crumbs(cur){return `<div class="crumbs"><a onclick="go('inicio')">Inici
 function firstName(){const n=CURRENT_USER?.displayName||CURRENT_USER?.email||'Miembro';return n.split(' ')[0].split('@')[0];}
 function saludo(){const h=new Date().getHours();return h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';}
 
-/* Ordena: disponibles primero (en progreso arriba), luego bloqueados por menos días */
+/* Un solo orden, el del campo `order`, igual para todo el mundo.
+
+   Antes habia dos, y el que veia un socio dependia de la edad de su cuenta: se
+   ordenaba por dias que faltaban de goteo, asi que a los 118 dias nada quedaba
+   bloqueado, el comparador devolvia 0 para todos y el catalogo se quedaba en el
+   orden interno de Firestore, que es arbitrario. Tres socios distintos veian
+   tres catalogos distintos y ninguno era el que nadie habia decidido.
+
+   Se quita tambien el "mas avanzado primero": ordenaba por progreso, que es otra
+   forma de que cada socio vea una cosa. Si algun dia se quiere una fila de
+   "continuar donde lo dejaste", va como seccion propia, no reordenando el
+   catalogo entero por debajo.
+
+   El desempate alfabetico solo entra si dos cursos comparten `order`, que con la
+   numeracion de 10 en 10 no deberia pasar. */
 function ordenarCursos(arr){
-  if(!_tieneAcceso())return arr.slice().sort((a,b)=>(Number(a.order||0)-Number(b.order||0))||String(a.titulo||'').localeCompare(String(b.titulo||''),'es'));
-  return arr.slice().sort((a,b)=>{
-    const da=dripStatus(a), db=dripStatus(b);
-    if(da.locked!==db.locked) return da.locked?1:-1; // disponibles primero
-    if(da.locked) return (da.dias||0)-(db.dias||0);   // bloqueados: los que faltan menos, primero
-    const pa=DATA.progresos[a.id]||0, pb=DATA.progresos[b.id]||0;
-    return pb-pa; // disponibles: más avanzado primero
-  });
+  return arr.slice().sort((a,b)=>
+    (Number(a.order||0)-Number(b.order||0))
+    || String(a.titulo||'').localeCompare(String(b.titulo||''),'es'));
 }
 function renderInicio(){
   if(LOADING)return skelInicio();
@@ -227,7 +236,7 @@ function renderInicio(){
   const comp=Object.values(DATA.progresos).filter(p=>p>=100).length;
   return `
   <div class="welcome">
-    <div><h2>${saludo()}, ${firstName()}.</h2><p>${_tieneAcceso()?'Tienes acceso completo. Retoma donde te quedaste.':'Explora todo el catálogo y mira gratis la primera clase de cada curso.'}</p></div>
+    <div><h2>${saludo()}, ${firstName()}.</h2><p>${_tieneAcceso()?'Tienes acceso completo. Retoma donde te quedaste.':(hayClaseGratis()?'Explora todo el catálogo y mira gratis la primera clase del curso de bienvenida.':'Explora todo el catálogo y activa tu membresía para ver las clases.')}</p></div>
     <div class="streak"><span class="fl">🔥</span> <b>1</b> día de racha</div>
   </div>
   <div class="webinar-card">
@@ -255,6 +264,17 @@ function renderInicio(){
 function stat(label,val,icon){return `<div class="stat"><div class="si"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg></div><div><b>${val}</b><span>${label}</span></div></div>`;}
 function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t}</b></div>`;}
 
+/* ¿Este curso regala alguna clase? Se pregunta al catalogo, que ya trae el
+   isPreview calculado por el backend (access.js:lessonIsPreview). Antes la
+   etiqueta "Primera clase gratis" estaba escrita a mano en las diez tarjetas:
+   era cierta cuando se regalaba la primera clase de cada curso, y dejo de serlo
+   en cuanto la clase gratis pasa a ser solo la del curso de entrada. */
+function cursoRegalaClase(c){
+  return (c.listaClases||[]).some(l=>l.isPreview===true);
+}
+function hayClaseGratis(){
+  return (DATA.cursos||[]).some(cursoRegalaClase);
+}
 function courseCard(c){
   const prog=DATA.progresos[c.id]||0;
   const member=_tieneAcceso();
@@ -266,7 +286,7 @@ function courseCard(c){
       <h4>${c.titulo}</h4>
       <div class="course-meta">
         <span>${c.clases||0} clases · ${c.nivel||'Intermedio'}</span>
-        ${!member?'<span class="drip" style="color:#18794e">Primera clase gratis</span>':''}
+        ${!member&&cursoRegalaClase(c)?'<span class="drip" style="color:#18794e">Primera clase gratis</span>':''}
       </div>
       ${member?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
     </div>
