@@ -1209,7 +1209,7 @@ async function playClase(cursoId,i){
   if(!cl||!cl.hasVideo){toast('Esta clase aún no tiene video cargado');return;}
   if(cl.isPreview!==true&&!_tieneAcceso())return mostrarMembresiaClase();
   try{
-    const data=await apiFetch('/reproduccion',{method:'POST',body:{courseId,lessonId:cl.lessonId||cl.id}});
+    const data=await apiFetch('/reproduccion',{method:'POST',body:{courseId:cursoId,lessonId:cl.lessonId||cl.id}});
     abrirVideoModal(data.embedUrl, cl.titulo||('Clase '+(i+1)), cursoId, i);
   }catch(err){
     if(err.code==='membership_required')return mostrarMembresiaClase();
