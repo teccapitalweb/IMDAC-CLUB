@@ -1773,7 +1773,7 @@ function renderPaywall(reason){
         <div class="plan-name">Mensual</div>
         <div class="plan-price" id="pp-mensual">$—</div>
         <div class="plan-per">MXN / mes</div>
-        <ul class="plan-feats"><li>10 cursos con certificado</li><li>Webinars en vivo</li><li>Material PDF y herramientas</li><li>Foro y canal privado</li><li>20% de descuento adicional</li></ul>
+        <ul class="plan-feats"><li>${DATA.cursos.length?`${DATA.cursos.length} curso${DATA.cursos.length===1?'':'s'} con certificado`:'Cursos con certificado'}</li><li>Webinars en vivo</li><li>Material PDF y herramientas</li><li>Foro y canal privado</li><li>20% de descuento adicional</li></ul>
         <button class="btn-primary" onclick="irAPagar('mensual')">Elegir Mensual</button>
         <div class="plan-note">Cancela cuando quieras</div>
       </div>
