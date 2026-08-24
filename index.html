@@ -591,6 +591,11 @@ table.norm tr:hover td{background:var(--base)}
   .cert-banner button{margin-left:0;width:100%}
   .cd-hero-meta{flex-wrap:wrap;gap:10px 18px}
   .cd-hero-body{padding:22px}
+  .cd-progress{padding:16px 18px;gap:12px;flex-wrap:wrap}
+  .cd-progress .lbl{flex:1 1 100%;min-width:0;white-space:normal;overflow-wrap:anywhere}
+  .cd-progress .bar{min-width:0}
+  .clase{gap:12px;padding:14px}
+  .clase .cst,.clase .play{width:44px;height:44px}
   .filters{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
   .filters::-webkit-scrollbar{display:none}
   .filters .filter{flex:0 0 auto;white-space:nowrap}
@@ -669,11 +674,19 @@ a,button,input,select,textarea,.sb-item,.filter,.mob-item{-webkit-tap-highlight-
   .toast{bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom) + 20px)}
 
   /* 44px es el mínimo que se acierta con el pulgar. */
-  .tb-btn{width:44px;height:44px}
+  .tb-btn{width:44px;height:44px;flex:0 0 44px}
   .sb-item{min-height:46px}
   .lf-tabs button{min-height:44px}
   .lf-link{min-height:44px;display:inline-flex;align-items:center}
   .filter{min-height:40px;display:inline-flex;align-items:center}
+  .sec-head a,.cd-back{min-height:44px;display:inline-flex;align-items:center}
+  .crumbs a{min-height:40px;display:inline-flex;align-items:center}
+
+  /* El reproductor conserva el 16:9 sin salirse por notch o barra de gestos. */
+  .video-modal{padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+  .video-box{max-height:calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));display:flex;flex-direction:column}
+  .video-head,.video-foot{flex:0 0 auto}
+  .video-frame{padding-top:0;aspect-ratio:16/9;flex:0 1 auto;min-height:0}
 
   /* El velo del drawer (150 de origen) quedaba por debajo de la barra: la barra
      se veia iluminada sobre la pagina atenuada. */
@@ -692,6 +705,9 @@ a,button,input,select,textarea,.sb-item,.filter,.mob-item{-webkit-tap-highlight-
 
 /* Pantallas estrechas: el rótulo de la barra estorba más que ayuda. */
 @media(max-width:360px){
+  .topbar{gap:8px}
+  .tb-brand-m{flex:0 0 28px}
+  .tb-brand-m b{display:none}
   .mob-item{font-size:.58rem}
   .mob-item svg{width:20px;height:20px}
 }
@@ -703,6 +719,12 @@ a,button,input,select,textarea,.sb-item,.filter,.mob-item{-webkit-tap-highlight-
     padding-bottom:max(4px,env(safe-area-inset-bottom))}
   .mob-item span{display:none}
   .mob-item{min-height:44px}
+  .video-modal{padding:4px max(4px,env(safe-area-inset-right)) 4px max(4px,env(safe-area-inset-left))}
+  .video-box{width:min(100%,calc((100dvh - 108px)*16/9))}
+  .video-frame{flex:0 0 auto}
+  .video-head{padding:7px 12px;font-size:.84rem}
+  .video-foot{padding:5px 12px}
+  .video-next{padding:8px 18px}
 }
 
 @media(prefers-reduced-motion:reduce){
