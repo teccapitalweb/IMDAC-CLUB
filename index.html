@@ -118,6 +118,10 @@ img{max-width:100%;display:block}
 .lf-or{display:flex;align-items:center;gap:14px;margin:20px 0;color:var(--muted);font-size:.82rem}
 .lf-or::before,.lf-or::after{content:"";flex:1;height:1px;background:var(--line)}
 .lf-link{background:none;color:var(--rojo);font-weight:600;font-size:.86rem;margin-top:14px;display:inline-block}
+.pwa-quick{width:100%;min-height:44px;margin-top:18px;display:flex;align-items:center;justify-content:center;gap:9px;color:var(--muted);font-weight:600;font-size:.82rem;border-radius:10px;transition:color .16s,background .16s}
+.pwa-quick:hover{color:var(--rojo);background:var(--rojo-50)}
+.pwa-quick img{width:24px;height:24px;border-radius:7px}
+.pwa-quick[hidden]{display:none}
 .lf-terms{display:flex;gap:10px;align-items:flex-start;margin:4px 0 18px;font-size:.84rem;color:var(--muted);line-height:1.5}
 .lf-terms input{margin-top:3px;accent-color:var(--rojo);width:16px;height:16px;flex-shrink:0}
 .lf-err{background:var(--rojo-50);color:var(--rojo-700);padding:11px 14px;border-radius:10px;font-size:.86rem;margin-bottom:16px;display:none;border:1px solid #ffd5d5}
@@ -435,10 +439,19 @@ body.logged #app{display:block}
 .cfg-note{color:var(--muted);font-size:.82rem;margin-top:8px}
 .install-banner{display:flex;align-items:center;gap:16px;background:linear-gradient(120deg,var(--rojo-50),var(--surface));border:1px solid var(--line);border-radius:var(--radius);padding:18px 22px}
 [data-theme="dark"] .install-banner{background:linear-gradient(120deg,#221416,var(--surface))}
-.install-banner .ib-ic{width:48px;height:48px;border-radius:12px;background:var(--rojo);color:#fff;display:grid;place-items:center;flex-shrink:0;font-size:1.3rem}
+.install-banner .ib-ic{width:48px;height:48px;border-radius:12px;background:#fff;object-fit:cover;padding:3px;border:1px solid var(--line);flex-shrink:0}
 .install-banner b{font-family:var(--font-display);color:var(--rojo)}
 .install-banner span{display:block;color:var(--muted);font-size:.86rem;margin-top:2px}
-.install-banner .btn-outline{flex-shrink:0;white-space:nowrap}
+.install-banner .btn-outline{flex-shrink:0;white-space:nowrap;min-height:44px}
+.install-banner .btn-outline:disabled{opacity:.62;cursor:default}
+.install-guide{position:relative;text-align:center;padding-top:38px}
+.install-guide .modal-x{width:44px;height:44px}
+.install-guide-logo{width:72px;height:72px;border-radius:18px;margin:0 auto 16px;border:1px solid var(--line);box-shadow:var(--shadow);padding:4px;background:#fff}
+.install-steps{list-style:none;text-align:left;margin:22px 0 4px;counter-reset:install-step}
+.install-steps li{counter-increment:install-step;display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);color:var(--muted)}
+.install-steps li:last-child{border-bottom:none}
+.install-steps li>span{flex:1;min-width:0}
+.install-steps li::before{content:counter(install-step);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:var(--rojo);color:#fff;font-weight:700;font-size:.78rem}
 @media(max-width:560px){
   .install-banner{flex-direction:column;text-align:center;gap:12px;padding:22px 18px}
   .install-banner>div[style*="flex:1"]{width:100%}
@@ -879,6 +892,9 @@ a,button,input,select,textarea,.sb-item,.filter,.mob-item{-webkit-tap-highlight-
           Google
         </button>
       </div>
+      <button type="button" class="pwa-quick" data-pwa-entry onclick="installPWA()">
+        <img src="assets/pwa-192.png" alt="" aria-hidden="true"> Instalar Club IMDAC en este dispositivo
+      </button>
     </div>
   </div>
 </div>

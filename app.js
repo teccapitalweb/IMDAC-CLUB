@@ -887,6 +887,8 @@ function renderLogros(){
 
 function renderConfig(){
   const dark=document.documentElement.dataset.theme==='dark';
+  const installed=pwaIsInstalled();
+  const ios=pwaIsIOS();
   const prefs=notisPrefs();
   const notifs=[
     ['Nuevos cursos','Recibe aviso cuando se suba un nuevo curso','curso'],
@@ -911,12 +913,12 @@ function renderConfig(){
   </div>
 
   <div class="card cfg-card">
-    <h3>Instalar aplicación</h3>
-    <p class="cfg-note" style="margin:-8px 0 16px">Instala IMDAC en tu dispositivo para acceso rápido y uso offline. Aparece como app nativa en tu pantalla de inicio.</p>
+    <h3>Aplicación IMDAC</h3>
+    <p class="cfg-note" style="margin:-8px 0 16px">Instalación opcional y ligera: abre el Club desde tu pantalla de inicio, sin buscar el enlace cada vez.</p>
     <div class="install-banner">
-      <div class="ib-ic">📲</div>
-      <div style="flex:1"><b>Instala IMDAC</b><span>Acceso rápido desde tu home screen, funciona offline y se ve como una app nativa.</span></div>
-      <button class="btn-outline" onclick="installPWA()">Instalar ahora</button>
+      <img class="ib-ic" src="assets/pwa-192.png" alt="Logo de la aplicación IMDAC">
+      <div style="flex:1"><b>${installed?'Club IMDAC instalado':'Instala Club IMDAC'}</b><span data-pwa-status>${installed?'Ya puedes abrirlo como aplicación desde tu dispositivo.':(ios?'En iPhone o iPad te mostraremos los pasos para agregarlo a inicio.':'Se instala como aplicación web y conserva el acceso al sitio.')}</span></div>
+      <button class="btn-outline" data-pwa-install onclick="installPWA()" ${installed?'disabled':''}>${installed?'Ya instalada':'Instalar ahora'}</button>
     </div>
   </div>
 
@@ -967,9 +969,48 @@ function changePass(){
   else toast('(Demo) Te enviaríamos un correo de recuperación');
 }
 let _deferredPrompt=null;
-function installPWA(){
-  if(_deferredPrompt){_deferredPrompt.prompt();_deferredPrompt.userChoice.then(()=>{_deferredPrompt=null;});}
-  else toast('Para instalar: usa el menú del navegador → "Agregar a pantalla de inicio".');
+function pwaIsInstalled(){
+  return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+}
+function pwaIsIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+}
+function updatePwaInstallUI(){
+  const installed=pwaIsInstalled();
+  document.querySelectorAll('[data-pwa-entry]').forEach(el=>{el.hidden=installed;});
+  document.querySelectorAll('[data-pwa-install]').forEach(btn=>{
+    btn.disabled=installed;
+    btn.textContent=installed?'Ya instalada':'Instalar ahora';
+  });
+  document.querySelectorAll('[data-pwa-status]').forEach(el=>{
+    if(installed)el.textContent='Ya puedes abrirlo como aplicación desde tu dispositivo.';
+  });
+}
+function showPWAInstructions(){
+  const ios=pwaIsIOS();
+  const modal=document.getElementById('modal');
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body install-guide">
+    <button class="modal-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
+    <img class="install-guide-logo" src="assets/pwa-192.png" alt="Club IMDAC">
+    <h3>Instala Club IMDAC</h3>
+    <p style="color:var(--muted)">${ios?'En iPhone o iPad se agrega desde el menú Compartir.':'Tu navegador permite agregar el Club como aplicación desde su menú.'}</p>
+    <ol class="install-steps">${ios
+      ?'<li><span>Toca el botón <b>Compartir</b> del navegador.</span></li><li><span>Elige <b>Agregar a pantalla de inicio</b>.</span></li><li><span>Confirma tocando <b>Agregar</b>.</span></li>'
+      :'<li><span>Abre el menú de tu navegador.</span></li><li><span>Elige <b>Instalar aplicación</b> o <b>Agregar a pantalla de inicio</b>.</span></li><li><span>Confirma la instalación.</span></li>'}</ol>
+  </div>`;
+  modal.classList.add('open');
+}
+async function installPWA(){
+  if(pwaIsInstalled())return toast('Club IMDAC ya está instalado en este dispositivo.');
+  if(!_deferredPrompt)return showPWAInstructions();
+  const prompt=_deferredPrompt;
+  _deferredPrompt=null;
+  try{
+    await prompt.prompt();
+    const choice=await prompt.userChoice;
+    if(choice?.outcome==='accepted')toast('Instalando Club IMDAC…');
+  }catch(e){showPWAInstructions();}
+  updatePwaInstallUI();
 }
 
 const LEGAL={
@@ -1887,7 +1928,9 @@ window.addEventListener('DOMContentLoaded',()=>{
   try{const t=localStorage.getItem('imdac-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
   // PWA: service worker + prompt de instalación
   if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(()=>{});}catch(e){}}
-  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_deferredPrompt=e;});
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_deferredPrompt=e;updatePwaInstallUI();});
+  window.addEventListener('appinstalled',()=>{_deferredPrompt=null;updatePwaInstallUI();toast('Club IMDAC quedó instalado.');});
+  updatePwaInstallUI();
   // Command palette ⌘K / Ctrl+K
   document.addEventListener('keydown',e=>{
     if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(document.body.classList.contains('logged')){document.getElementById('cmdk-bg').classList.contains('open')?closeCmdK():openCmdK();}}
