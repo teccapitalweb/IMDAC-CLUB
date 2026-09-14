@@ -160,6 +160,7 @@ function go(sec){
 }
 
 function renderSection(sec){
+  if(sec==='suscripcion'&&!_tieneAcceso()){renderSubscriptionPlans();return;}
   const c=document.getElementById('content');
   const R={
     inicio:renderInicio, biblioteca:renderBiblioteca, webinar:renderWebinar,
@@ -226,7 +227,8 @@ function saludo(){const h=new Date().getHours();return h<12?'Buenos días':h<19?
 function ordenarCursos(arr){
   return arr.slice().sort((a,b)=>
     (Number(a.order||0)-Number(b.order||0))
-    || String(a.titulo||'').localeCompare(String(b.titulo||''),'es'));
+    || String(a.titulo||'').localeCompare(String(b.titulo||''),'es')
+    || String(a.id||'').localeCompare(String(b.id||'')));
 }
 function renderInicio(){
   if(LOADING)return skelInicio();
@@ -236,7 +238,7 @@ function renderInicio(){
   const comp=Object.values(DATA.progresos).filter(p=>p>=100).length;
   return `
   <div class="welcome">
-    <div><h2>${saludo()}, ${firstName()}.</h2><p>${_tieneAcceso()?'Tienes acceso completo. Retoma donde te quedaste.':(hayClaseGratis()?'Explora todo el catálogo y mira gratis la primera clase del curso de bienvenida.':'Explora todo el catálogo y activa tu membresía para ver las clases.')}</p></div>
+    <div><h2>${saludo()}, ${firstName()}.</h2><p>${_tieneAcceso()?'Tienes acceso completo. Retoma donde te quedaste.':(hayClaseGratis()?'¡Disfruta tu curso gratis! Todas las clases del primer curso son gratuitas excepto la última, que requiere membresía. Los demás cursos también requieren membresía.':'Explora todo el catálogo y activa tu membresía para ver las clases.')}</p></div>
     <div class="streak"><span class="fl">🔥</span> <b>1</b> día de racha</div>
   </div>
   <div class="webinar-card">
@@ -286,7 +288,7 @@ function courseCard(c){
       <h4>${c.titulo}</h4>
       <div class="course-meta">
         <span>${c.clases||0} clases · ${c.nivel||'Intermedio'}</span>
-        ${!member&&cursoRegalaClase(c)?'<span class="drip" style="color:#18794e">Primera clase gratis</span>':''}
+        ${!member&&cursoRegalaClase(c)?'<span class="drip" style="color:#18794e;white-space:normal;line-height:1.4">Curso gratis · última clase con membresía</span>':''}
       </div>
       ${member?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
     </div>
@@ -1248,8 +1250,9 @@ function renderCursoDetalle(id){
       <div class="cd-clases-badge"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>${total} clases</div>
     </div>
   </div>
-  ${_tieneAcceso()?`<div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>`:'<div class="cd-progress"><span class="lbl">Estás explorando gratis. El progreso se guarda con una membresía activa.</span></div>'}
+  ${(_tieneAcceso()||cursoRegalaClase(c))?`<div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>`:'<div class="cd-progress"><span class="lbl">Este curso requiere membresía.</span></div>'}
   ${_tieneAcceso()&&prog>=100?`<div class="cert-banner"><div class="cbi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div><b>¡Curso completado!</b><p>Descarga tu certificado de finalización con folio y QR verificable.</p></div><button onclick="generarCertificado('${id}')">Descargar certificado</button></div>`:''}
+  ${!_tieneAcceso()&&cursoRegalaClase(c)?`<p class="page-sub" role="status">¡Disfruta tu curso gratis! ${clases.filter(cl=>cl.isPreview===true).length} de ${total} clases disponibles. La última clase, los demás cursos y los certificados requieren membresía. Tu avance gratuito se guarda en este dispositivo.</p>`:''}
   <div class="cd-list-head"><h3>Lista de clases</h3><span>${hechas.length} de ${total} completadas</span></div>
   ${clases.map((cl,i)=>claseRow(cl,i,cl.isPreview===true||_tieneAcceso(),id,hechas.includes(i))).join('')}`;
 }
@@ -1267,16 +1270,16 @@ function claseRow(cl,i,disp,cursoId,hecha){
     </div>`;
   }
   const preview=cl.isPreview===true;
-  const canTrack=_tieneAcceso();
+  const canTrack=_tieneAcceso()||preview;
   return `<div class="clase disp ${hecha?'done':''}">
     ${canTrack?`<button class="cst chk ${hecha?'on':''}" onclick="toggleClaseHecha('${cursoId}',${i})" title="${hecha?'Marcar como pendiente':'Marcar como completada'}">${hecha?checkDone:checkEmpty}</button>`:`<div class="cst">${playIcon}</div>`}
-    <div class="cinfo" onclick="playClase('${cursoId}',${i})" style="cursor:pointer"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${preview&&!canTrack?'Primera clase gratis':(hecha?'Completada':'Disponible')}</span>
+    <div class="cinfo" onclick="playClase('${cursoId}',${i})" style="cursor:pointer"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${hecha?'Completada':(preview&&!_tieneAcceso()?'Incluida en tu curso gratis':'Disponible')}</span>
       <div class="dur">${clock}${cl.duracion||'2 Horas'}</div></div>
     <div class="play" onclick="playClase('${cursoId}',${i})" style="cursor:pointer">${playIcon}</div>
   </div>`;
 }
 
-function mostrarMembresiaClase(){renderPaywall('La primera clase es gratuita. Desde la segunda clase se requiere una membresía vigente.');}
+function mostrarMembresiaClase(){renderPaywall('¡Sigue aprendiendo! La última clase del primer curso y todos los demás cursos requieren membresía. Aquí puedes elegir tu plan y desbloquear los beneficios del Club.');}
 
 async function abrirTemario(courseId){
   if(!_tieneAcceso())return renderPaywall('Puedes ver el temario del curso; abrir el documento completo requiere membresía.');
@@ -1300,7 +1303,7 @@ async function playClase(cursoId,i){
   }
 }
 function marcarHechaSilencio(cursoId,i){
-  if(!_tieneAcceso())return false;
+  if(!puedeGuardarClase(cursoId,i))return false;
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return false;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0; if(!total)return false;
   const set=new Set(DATA.clasesHechas[cursoId]||[]);
@@ -1316,7 +1319,8 @@ function marcarHechaSilencio(cursoId,i){
 function siguienteClase(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0;
-  const seCompleto=_tieneAcceso()?marcarHechaSilencio(cursoId,i):false;
+  const seCompleto=marcarHechaSilencio(cursoId,i);
+  if(!_tieneAcceso())felicitarAvanceGratuito(cursoId);
   const next=i+1;
   const hayNext = next<total && (c.listaClases||[])[next] && (c.listaClases[next].hasVideo);
   // refrescar el detalle de fondo (barra + bolitas)
@@ -1353,7 +1357,7 @@ function cerrarVideoModal(){
   document.body.style.overflow='';
 }
 function toggleClaseHecha(cursoId,i){
-  if(!_tieneAcceso())return renderPaywall('El progreso y los certificados se habilitan con una membresía vigente.');
+  if(!puedeGuardarClase(cursoId,i))return mostrarMembresiaClase();
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0; if(!total)return;
   const set=new Set(DATA.clasesHechas[cursoId]||[]);
@@ -1365,9 +1369,11 @@ function toggleClaseHecha(cursoId,i){
   DATA.progresos[cursoId]=prog;
   guardarProgreso(cursoId,prog,arr);
   if(_cursoActivo===cursoId)openCurso(cursoId);
-  if(arr.length>=total&&!yaCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
+  if(!_tieneAcceso()&&set.has(i))felicitarAvanceGratuito(cursoId);
+  if(_tieneAcceso()&&arr.length>=total&&!yaCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
 }
 function guardarProgreso(cursoId,prog,arr){
+  if(!_tieneAcceso()){guardarAvanceLocalIMDAC(cursoId,arr);return;}
   if(!_tieneAcceso()||!FB_OK||!window.db||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
   db.collection('progreso').doc(CURRENT_USER.uid+'_'+cursoId)
     .set({uid:CURRENT_USER.uid,cursoId,porcentaje:prog,clases:arr},{merge:true}).catch(()=>{});
@@ -1695,6 +1701,7 @@ async function apiFetch(path,{method='GET',body}={}){
 }
 
 async function loadData(){
+  window._imdacCatalogReady=false;
   // El catálogo premium se obtiene saneado desde el backend: las URLs privadas nunca llegan aquí.
   DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
   DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={};
@@ -1705,6 +1712,7 @@ async function loadData(){
   }
   try{
     const catalog=await apiFetch('/catalogo');
+    window._imdacCatalogReady=true;
     DATA.cursos=Array.isArray(catalog.courses)?catalog.courses:[];
     DATA.webinars=Array.isArray(catalog.webinars)?catalog.webinars:[];
     DATA.material=Array.isArray(catalog.materials)?catalog.materials:[];
@@ -1726,6 +1734,7 @@ async function loadData(){
       try{const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0;if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});}catch(e){}
     }
   }catch(e){console.warn('Catálogo:',e.message);toast('No se pudo cargar el catálogo. Intenta recargar.');}
+  restaurarAvanceLocalIMDAC();
   LOADING=false;
 }
 
@@ -1800,10 +1809,17 @@ async function onLogged(){
   cargarNoticiasAuto();
   if(_tieneAcceso())escucharNotis();
   registrarVisita();
+  iniciarRecorridoIMDAC(q.get('pago')!=='ok');
 }
 /* ====== PAYWALL (activa tu membresía) ====== */
 let _planes=null;
+let _motivoSuscripcion='';
 function renderPaywall(reason){
+  _motivoSuscripcion=reason||'';
+  go('suscripcion');
+}
+function renderSubscriptionPlans(){
+  const reason=_motivoSuscripcion;_motivoSuscripcion='';
   document.getElementById('content').innerHTML=`<div class="section active" style="max-width:860px;margin:0 auto">
     <div style="text-align:center;margin:30px 0 26px">
       <h1 class="page-h">Activa tu membresía</h1>
@@ -1946,7 +1962,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     auth.onAuthStateChanged(u=>{
       bootDone();
       if(u){CURRENT_USER=u;onLogged();}
-      else{document.body.classList.remove('logged');document.getElementById('login').classList.remove('hidden');}
+      else{if(window._imdacTour){window._imdacTour.destroy();window._imdacTour=null;}document.body.classList.remove('logged');document.getElementById('login').classList.remove('hidden');}
     });
   }else{
     // Modo demo (Firebase aún sin credenciales reales)
@@ -1976,3 +1992,52 @@ const DEMO={
   ],
   progresos:{c1:35,c2:0}
 };
+
+function puedeGuardarClase(cursoId,index) {
+  const course=DATA.cursos.find(c=>c.id===cursoId);
+  const lesson=course?.listaClases?.[index];
+  return Boolean(lesson && (_tieneAcceso() || lesson.isPreview===true));
+}
+function claveAvanceLocalIMDAC() { return 'imdac-welcome-progress-v1:'+(CURRENT_USER?.uid||'guest'); }
+function guardarAvanceLocalIMDAC(cursoId,arr) {
+  try {
+    const saved=JSON.parse(localStorage.getItem(claveAvanceLocalIMDAC())||'{}');
+    saved[cursoId]=arr.filter(i=>DATA.cursos.find(c=>c.id===cursoId)?.listaClases?.[i]?.isPreview===true);
+    localStorage.setItem(claveAvanceLocalIMDAC(),JSON.stringify(saved));
+  } catch (_) {}
+}
+function restaurarAvanceLocalIMDAC() {
+  try {
+    const saved=JSON.parse(localStorage.getItem(claveAvanceLocalIMDAC())||'{}');
+    for(const c of DATA.cursos) {
+      const local=Array.isArray(saved[c.id])?saved[c.id].filter(i=>Number.isInteger(i)&&c.listaClases?.[i]?.isPreview===true):[];
+      if(!local.length&&!Array.isArray(DATA.clasesHechas[c.id]))continue;
+      const existing=Array.isArray(DATA.clasesHechas[c.id])?DATA.clasesHechas[c.id]:Array.from({length:Math.round((DATA.progresos[c.id]||0)/100*(c.listaClases||[]).length)},(_,i)=>i);
+      DATA.clasesHechas[c.id]=[...new Set([...existing,...local])].filter(i=>Number.isInteger(i)&&i>=0&&i<(c.listaClases||[]).length&&(_tieneAcceso()||c.listaClases[i].isPreview===true));
+      DATA.progresos[c.id]=c.listaClases?.length?Math.round(DATA.clasesHechas[c.id].length/c.listaClases.length*100):0;
+    }
+  } catch (_) {}
+}
+function felicitarAvanceGratuito(cursoId) {
+  const c=DATA.cursos.find(c=>c.id===cursoId);if(!c)return;
+  const total=(c.listaClases||[]).filter(l=>l.isPreview===true).length;
+  const done=(DATA.clasesHechas[cursoId]||[]).filter(i=>c.listaClases[i]?.isPreview===true).length;
+  toast(total>0&&done>=total?'¡Felicidades! Terminaste las clases gratuitas. La última clase se desbloquea con membresía.':'¡Muy bien! Sigue disfrutando tu curso gratis. Avance guardado en este dispositivo.');
+}
+function iniciarRecorridoIMDAC(autoStart=true) {
+  if(!window.MembershipTour||!CURRENT_USER||!window._imdacCatalogReady)return;
+  const first=ordenarCursos(DATA.cursos)[0];
+  const free=first&&cursoRegalaClase(first);
+  const paid=_tieneAcceso();
+  const visit=sec=>()=>go(sec);
+  window._imdacTour=MembershipTour.mount({brand:'Club IMDAC',userId:CURRENT_USER.uid,autoStart,
+    steps:[
+      {title:'¡Bienvenido a Club IMDAC!',body:'Este es tu espacio de formación en arquitectura y construcción. Puedes saltar esta guía o repetirla desde el botón Recorrido.',onEnter:visit('inicio')},
+      {title:paid?'Tu biblioteca profesional':(free?'Disfruta tu curso gratis':'Tu biblioteca profesional'),body:paid?'Tu membresía incluye todas las clases del catálogo, también la última del curso inicial. Aprende a tu ritmo y consulta tu progreso.':(free?'Todas las clases del primer curso son gratuitas excepto la última. La última clase y los demás cursos requieren membresía. Tu avance gratuito se guarda en este dispositivo.':'Explora el catálogo y sus beneficios. La membresía habilita las clases disponibles.'),target:'.course-grid',onEnter:visit('biblioteca')},
+      {title:'Conecta con especialistas',body:'En Webinars puedes consultar las sesiones del club. La membresía habilita las transmisiones y grabaciones disponibles.',target:'#content',onEnter:visit('webinar')},
+      {title:'Recursos para aplicar en obra',body:'Revisa la biblioteca de materiales. Los miembros pueden abrir los documentos y recursos disponibles, además de usar las herramientas de cálculo y consulta del club.',target:'#content',onEnter:visit('material')},
+      {title:'Aprendizaje y comunidad',body:'En el menú encuentras herramientas, noticias, foro y avisos. La membresía incluye participación en la comunidad; los certificados requieren completar el curso y sus requisitos como miembro.',target:'#content',onEnter:visit('noticias')},
+      {title:'Tus beneficios y tu plan',body:paid?'En Suscripción puedes consultar y administrar tu plan. Tu membresía ya incluye la última clase y los demás cursos. ¡Nos alegra acompañarte en tu formación!':'En Suscripción están los precios, planes y opciones de pago. La última clase del curso inicial y los demás cursos requieren membresía. ¡Nos alegra acompañarte en tu formación!',target:'#content',onEnter:visit('suscripcion')}
+    ],onStartCourse:first?.listaClases?.length?()=>openCurso(first.id):undefined
+  });
+}
