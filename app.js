@@ -29,7 +29,7 @@ const firebaseConfig = {
 };
 // Cupón y contacto IMDAC (placeholders — cambiar por los reales)
 const IMDAC = {
-  precio: 499,
+  precio: 199,
   cupon: "CLUB20IMDAC",
   whatsapp: "522382196286",          // WhatsApp soporte/descuento (se sobreescribe desde config)
   canalWA: "https://whatsapp.com/channel/0029Vb8ABt0DOQIgG2gxJc0i",
@@ -41,10 +41,10 @@ const IMDAC = {
 };
 const waDigits=s=>'52'+String(s||'').replace(/\D/g,'').slice(-10);
 
-let db=null, auth=null, FB_OK=false;
+let db=null, auth=null, storage=null, FB_OK=false;
 try{
   firebase.initializeApp(firebaseConfig);
-  auth=firebase.auth(); db=firebase.firestore();
+  auth=firebase.auth(); db=firebase.firestore(); storage=firebase.storage();
   FB_OK = firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("REEMPLAZAR");
 }catch(e){ console.warn("Firebase sin configurar — modo demo.",e); }
 
@@ -55,32 +55,35 @@ let BUNNY_READY=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{}};
 let activeFilter="Todos";
+let courseQuery="";
+let courseSort="recientes";
+let courseView="todos";
 
 /* ====== 3. NAV (sidebar) ====== */
 const NAV=[
   {group:"Principal",items:[
     {id:"inicio",label:"Inicio",icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'},
-    {id:"biblioteca",label:"Biblioteca",icon:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'},
-    {id:"webinar",label:"Webinars",icon:'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'},
+    {id:"biblioteca",label:"Cursos",icon:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'},
+    {id:"webinar",label:"Clases en vivo",icon:'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'},
     {id:"material",label:"Material PDF",icon:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},
-    {id:"noticias",label:"Noticias",icon:'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'},
+  ]},
+  {group:"Comunidad",items:[
     {id:"foro",label:"Foro",icon:'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z'},
+    {id:"directorio",label:"Directorio VIP",icon:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'},
+    {id:"canal",label:"Canal Privado",icon:'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z'},
+  ]},
+  {group:"Tu progreso",items:[
+    {id:"logros",label:"Logros",icon:'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'},
+    {id:"certificados",label:"Certificados",icon:'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
   ]},
   {group:"Herramientas",items:[
     {id:"ficha-obra",label:"Ficha de Obra",icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
     {id:"calculadora",label:"Calc. Materiales",icon:'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z'},
-    {id:"precios",label:"Precios Unitarios",icon:'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'},
     {id:"normativas",label:"Guía Normativas",icon:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'},
-  ]},
-  {group:"Beneficios",items:[
-    {id:"descuento",label:"Descuento 20%",icon:'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'},
-    {id:"canal",label:"Canal Privado",icon:'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z'},
-    {id:"notificaciones",label:"Notificaciones",icon:'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'},
   ]},
   {group:"Mi cuenta",items:[
     {id:"perfil",label:"Mi Perfil",icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'},
     {id:"suscripcion",label:"Suscripción",icon:'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'},
-    {id:"logros",label:"Logros",icon:'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'},
     {id:"configuracion",label:"Configuración",icon:'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z'},
   ]},
 ];
@@ -103,7 +106,7 @@ function renderSidebar(){
    con las 17 secciones: cuatro huecos no dan para los cuatro grupos del menú.
    Los iconos salen de NAV para no tener dos copias que se desincronicen. */
 const MOB_NAV=['inicio','biblioteca','webinar','material'];
-const MOB_LABEL={inicio:'Inicio',biblioteca:'Biblioteca',webinar:'Webinars',material:'Material'};
+const MOB_LABEL={inicio:'Inicio',biblioteca:'Cursos',webinar:'En vivo',material:'Material'};
 function navItem(sec){for(const g of NAV)for(const it of g.items)if(it.id===sec)return it;return null;}
 function renderMobNav(){
   const el=document.getElementById('mob-nav');
@@ -123,7 +126,7 @@ function renderMobNav(){
 
 /* ====== 4. ROUTER ====== */
 let currentSection="inicio";
-const MEMBER_ONLY_SECTIONS=new Set(['foro','descuento','canal','notificaciones','logros']);
+const MEMBER_ONLY_SECTIONS=new Set(['foro','canal','directorio','logros','certificados']);
 /* Sin historial, el boton atras de Android sale de la app desde cualquier
    seccion: con la barra inferior eso es un callejon sin salida. El hash tambien
    hace que los accesos directos del manifest lleguen a su seccion. */
@@ -154,7 +157,6 @@ function go(sec){
   document.querySelectorAll('.mob-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
   if(window.innerWidth<=900) toggleSidebar(false);
   renderSection(sec);
-  if(sec==='notificaciones')marcarNotisLeidas();
   document.getElementById('content').scrollTop=0;
   window.scrollTo(0,0);
 }
@@ -164,10 +166,10 @@ function renderSection(sec){
   const R={
     inicio:renderInicio, biblioteca:renderBiblioteca, webinar:renderWebinar,
     material:renderMaterial, noticias:renderNoticias, foro:renderForo,
-    'ficha-obra':renderFichaObra, calculadora:renderCalculadora, precios:renderPrecios,
-    normativas:renderNormativas, descuento:renderDescuento, canal:renderCanal,
-    notificaciones:renderNotificaciones, perfil:renderPerfil, suscripcion:renderSuscripcion,
-    logros:renderLogros, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
+    'ficha-obra':renderFichaObra, calculadora:renderCalculadora,
+    normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
+    perfil:renderPerfil, suscripcion:renderSuscripcion,
+    logros:renderLogros, certificados:renderCertificados, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
   };
   const cr = sec==='inicio'?'':crumbs(navLabel(sec));
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
@@ -228,40 +230,175 @@ function ordenarCursos(arr){
     (Number(a.order||0)-Number(b.order||0))
     || String(a.titulo||'').localeCompare(String(b.titulo||''),'es'));
 }
+/* Para el curso que se está retomando: en qué clase va y cuál sigue.
+   Mismo cálculo que ya usaba courseCard (prog/100*clases), para no inventar
+   un segundo criterio de "en qué clase vas" que pueda desincronizarse. */
+function proximaLeccion(c,prog){
+  const total=c.clases||(c.listaClases||[]).length||0;
+  if(!total)return{idx:0,total:0,actual:null,siguiente:null};
+  const idx=Math.max(1,Math.min(total,Math.ceil(prog/100*total)));
+  const lista=c.listaClases||[];
+  const actual=lista[idx-1]?.titulo||`Clase ${idx}`;
+  const siguiente=prog>=100?'Obtén tu certificado':(lista[idx]?.titulo||(idx<total?`Clase ${idx+1}`:'Obtén tu certificado'));
+  return{idx,total,actual,siguiente};
+}
+function dsStat(label,val){return `<div class="ds-stat"><b>${val}</b><span>${label}</span></div>`;}
+function quickItem(sec,label,icon){return `<div class="quick-item" onclick="go('${sec}')"><div class="qi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg></div><span>${label}</span></div>`;}
+const IMG_POR_TIPO={
+  Materiales:'photo-1517581177682-a085bb7ffb15',
+  Estructuras:'photo-1541976590-713941681591',
+  Cimentación:'photo-1541888946425-d81bb19240f5',
+  Obra:'photo-1621905251189-08b45d6a269e',
+  Instalaciones:'photo-1581092921461-eab62e97a780',
+  Seguridad:'photo-1504307651254-35680f356dfd',
+  Diseño:'photo-1503387762-592deb58ef4e',
+  Sustentabilidad:'photo-1486406146926-c627a92ad1ab',
+  Costos:'photo-1504917595217-d4dc5ebe6122',
+  Normativa:'photo-1486406146926-c627a92ad1ab',
+  Topografía:'photo-1448630360428-65456885c650',
+  Acabados:'photo-1562259949-e8e7689d7828',
+  Maquinaria:'photo-1591955506264-3f5a6834570a',
+  Planeación:'photo-1503387762-592deb58ef4e',
+  Albañilería:'photo-1517581177682-a085bb7ffb15',
+  Impermeabilización:'photo-1455165814004-1126a7199f9b',
+  Calidad:'photo-1600585152220-90363fe7e115',
+  Construcción:'photo-1455165814004-1126a7199f9b',
+  _default:'photo-1621905251189-08b45d6a269e',
+};
+const DATOS_CURIOSOS=[
+  ['Materiales','Dato IMDAC','El concreto no se seca: fragua.','Su resistencia aumenta por una reacción química entre el cemento y el agua.','Respeta los tiempos de curado antes de retirar la cimbra: desencofrar antes de tiempo compromete la resistencia final.'],
+  ['Estructuras','Sabías que','Acero y concreto se complementan.','El concreto responde muy bien a compresión y el acero ayuda a resistir la tracción.','Verifica que el armado especificado en planos se instale tal cual: la posición del acero define dónde trabaja mejor cada material.'],
+  ['Cimentación','Buena práctica','Una cimentación se define con el terreno, no con una suposición.','El estudio de mecánica de suelos permite elegir una solución más segura y eficiente.','Solicita siempre el estudio de mecánica de suelos antes de definir el tipo de cimentación, aunque el proyecto parezca sencillo.'],
+  ['Obra','Tip IMDAC','La bitácora de obra protege las decisiones importantes.','Registrar acuerdos, avances y cambios da trazabilidad al proyecto.','Anota en bitácora cualquier cambio acordado de palabra el mismo día: lo que no se registra, después es difícil de comprobar.'],
+  ['Instalaciones','Dato IMDAC','Coordinar instalaciones antes de colar evita retrabajos.','Una revisión previa evita perforaciones innecesarias en elementos ya terminados.','Cruza los planos de instalaciones con el de estructura antes de colar, no durante la obra.'],
+  ['Seguridad','En obra','El orden también es seguridad.','Mantener circulaciones despejadas reduce riesgos y hace más eficiente el trabajo.','Dedica unos minutos al final del día a despejar pasillos y zonas de tránsito: cuesta poco y evita accidentes.'],
+  ['Diseño','Tip IMDAC','La orientación también construye confort.','Estudiar sol, viento y sombra desde el diseño mejora el desempeño de un espacio.','Antes de fijar la orientación final, revisa la trayectoria solar del sitio en las distintas estaciones del año.'],
+  ['Sustentabilidad','Para tu proyecto','Diseñar con el clima reduce la demanda energética.','La envolvente, la orientación y la ventilación natural importan desde el inicio.','Define la orientación y el tipo de envolvente desde el anteproyecto, no como un ajuste de último momento.'],
+  ['Estructuras','Dato IMDAC','Una viga no trabaja sola.','Su comportamiento depende de cómo se conecta con columnas, losas y apoyos.','Verifica siempre cómo llega la carga de una viga a sus apoyos antes de modificar su sección.'],
+  ['Materiales','En obra','Curar el concreto es tan importante como colocarlo.','Conservar la humedad adecuada durante los primeros días favorece su resistencia.','Mantén húmedo el concreto los primeros 7 días con riego o membranas de curado, según el clima de la zona.'],
+  ['Costos','Buena práctica','Medir antes de comprar ayuda a cuidar el presupuesto.','Las cuantificaciones actualizadas permiten anticipar faltantes y desperdicios.','Actualiza tus cuantificaciones cada vez que cambie el proyecto, no solo al armar el presupuesto inicial.'],
+  ['Normativa','Dato IMDAC','La normativa también es una herramienta de diseño.','Revisarla desde el anteproyecto ayuda a tomar decisiones con mayor certeza.','Consulta la normativa aplicable desde el anteproyecto, no hasta que llegue el momento del trámite.'],
+  ['Topografía','Tip IMDAC','Una buena nivelación evita sorpresas en la obra.','Las cotas correctas ordenan excavaciones, pendientes y el desplante del proyecto.','Verifica niveles y bancos de referencia antes de trazar ejes: un error aquí se arrastra a toda la obra.'],
+  ['Acabados','Detalle constructivo','Las muestras previas evitan diferencias al final.','Validar color, textura y colocación antes de ejecutar reduce correcciones.','Pide siempre una muestra física en obra antes de aprobar un acabado elegido solo por catálogo o imagen.'],
+  ['Maquinaria','En obra','Planear el acceso de maquinaria también es construir.','Las rutas de entrada y maniobra deben definirse antes de que inicien los trabajos.','Define rutas de acceso y zonas de maniobra de maquinaria en el programa de obra, no el día que llega el equipo.'],
+  ['Planeación','Dato IMDAC','Un programa de obra convierte tareas en decisiones.','Secuenciar actividades permite identificar dependencias y tiempos críticos.','Arma el programa de obra identificando primero qué actividades dependen de otras, no solo las fechas que te gustaría cumplir.'],
+  ['Albañilería','Buena práctica','La modulación mejora el resultado y reduce cortes.','Planear medidas desde el diseño ayuda a aprovechar mejor los materiales.','Ajusta ejes y medidas del proyecto a módulos completos de block o tabique antes de iniciar el trazo.'],
+  ['Impermeabilización','Tip IMDAC','El agua siempre encuentra el detalle débil.','Revisar pendientes, bajadas y encuentros es clave antes de impermeabilizar.','Revisa primero pretiles, bajadas pluviales y encuentros de muro: ahí empiezan la mayoría de las filtraciones.'],
+  ['Diseño','Para tu proyecto','La luz natural requiere control, no solo apertura.','Aleros, orientación y protecciones ayudan a aprovecharla sin sobrecalentar el espacio.','Diseña las protecciones solares junto con las aberturas, no después de notar que un espacio se sobrecalienta.'],
+  ['Estructuras','Sabías que','Las juntas permiten que los materiales se muevan.','Atender dilataciones y cambios de material previene fisuras no deseadas.','Ubica las juntas constructivas donde cambian materiales o geometría, y respeta el ancho que marca el proyecto.'],
+  ['Instalaciones','En obra','Las pruebas de presión deben hacerse antes de cerrar muros.','Comprobar la red a tiempo evita abrir acabados para corregir fugas.','Haz la prueba de presión de la red hidráulica antes de cerrar muros o colar firmes, con el instalador presente.'],
+  ['Costos','Dato IMDAC','El desperdicio tiene costo aunque no aparezca en el plano.','Almacenamiento, cortes y logística influyen directamente en el presupuesto real.','Incluye un porcentaje de desperdicio realista en tus cuantificaciones según el material y el método de corte.'],
+  ['Seguridad','Buena práctica','El equipo de protección es parte del sistema de trabajo.','Casco, calzado y señalización reducen riesgos cuando se usan correctamente.','Verifica que el equipo de protección se use bien, no solo que esté disponible en obra.'],
+  ['Materiales','Sabías que','El acero necesita recubrimiento para mantenerse protegido.','La separación adecuada frente al exterior ayuda a evitar problemas de corrosión.','Respeta los recubrimientos mínimos de proyecto, en especial en elementos expuestos a la intemperie.'],
+  ['Sustentabilidad','Tip IMDAC','Reutilizar materiales empieza desde la planeación.','Separar residuos en obra permite recuperar recursos y disminuir desperdicio.','Separa escombro, metal y madera desde que se generan, no hasta que la obra esté por terminar.'],
+  ['Cimentación','En obra','Excavar de más no siempre es una solución.','Los niveles y taludes deben respetar el proyecto y las condiciones del terreno.','Define a detalle niveles de desplante y taludes antes de excavar, y ajusta si el terreno cambia en obra.'],
+  ['Calidad','Dato IMDAC','Revisar por etapas es más eficiente que corregir al final.','Los puntos de control ayudan a detectar errores cuando aún son sencillos de resolver.','Establece puntos de control por etapa —armado, cimbra, colado— antes de avanzar a la siguiente.'],
+  ['Acabados','Detalle constructivo','La preparación de la superficie define el acabado.','Limpieza, nivelación y sellado tienen impacto directo en el resultado final.','No te saltes la preparación de superficie aunque el acabado parezca sencillo: ahí está la mitad del resultado.'],
+  ['Planeación','Para tu proyecto','Comprar con anticipación protege el calendario.','Identificar materiales de entrega lenta evita retrasos cuando la obra ya los necesita.','Identifica en el programa qué materiales tienen tiempos de entrega largos y ponlos primero en tu lista de compras.'],
+  ['Construcción','Hoy','Cada obra combina técnica, coordinación y oficio.','Las mejores decisiones nacen de revisar el proyecto completo antes de ejecutar.','Antes de ejecutar, dedica tiempo a revisar el proyecto completo: la mejor decisión en obra suele tomarse antes de empezar.']
+/* Fotos fijas de Unsplash por categoría (en vez de loremflickr, que entrega
+   una imagen distinta en cada carga y además ha mostrado caídas). Se repiten
+   entre categorías afines a propósito: mejor una docena de fotos reales y
+   consistentes que treinta huecos grises esperando un servicio externo. */
+].map((dato,i)=>({idx:i,tipo:dato[0],tag:dato[1],titulo:dato[2],texto:dato[3],consejo:dato[4],img:`https://images.unsplash.com/${IMG_POR_TIPO[dato[0]]||IMG_POR_TIPO._default}?w=1200&q=75&auto=format&fit=crop&ixlib=rb-4.0.3`}));
+function datosParaDescubrir(){
+  const grupoDiario=Math.floor(Date.now()/86400000)%Math.ceil(DATOS_CURIOSOS.length/6);
+  return Array.from({length:6},(_,i)=>DATOS_CURIOSOS[(grupoDiario*6+i)%DATOS_CURIOSOS.length]);
+}
+function discoverCard(d,featured=false){
+  return `<article class="discover-card ${featured?'featured':''}">
+    <img src="${escHtml(d.img)}" alt="" loading="lazy">
+    <div class="discover-card-body"><div class="discover-chips"><span>${escHtml(d.tipo)}</span><span>${escHtml(d.tag)}</span></div><h4>${escHtml(d.titulo)}</h4><p>${escHtml(d.texto)}</p><button class="discover-more" onclick="abrirDato(${d.idx})">Descubrir más <b>→</b></button></div>
+  </article>`;
+}
+/* "Descubrir más" abre el dato completo en el modal genérico de la app
+   (el mismo de #modal / modal-content que usa, p. ej., la guía de instalación),
+   en vez de un link muerto — estos datos son propios, no apuntan a nada externo. */
+function abrirDato(idx){
+  const d=DATOS_CURIOSOS[idx];
+  if(!d)return;
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body dato-modal">
+    <div class="dm-head">
+      <div class="dm-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg></div>
+      <div class="dm-head-text"><h3>${escHtml(d.titulo)}</h3><div class="dm-meta">${escHtml(d.tipo)} · ${escHtml(d.tag)}</div></div>
+      <button class="modal-x dm-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="dm-body">${escHtml(d.texto)}</p>
+    ${d.consejo?`<div class="dm-tip"><b>Consejo práctico:</b> ${escHtml(d.consejo)}</div>`:''}
+    <div class="dm-foot"><button class="dm-close-btn" onclick="closeModal()">Cerrar</button></div>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function renderDescubre(){
+  const items=datosParaDescubrir();
+  return `<section class="discover-module"><div class="discover-head"><div><h3>Descubre algo nuevo hoy <span>HOY</span></h3><p>Datos, técnicas y curiosidades del mundo de la arquitectura y la construcción.</p></div></div>
+    <div class="discover-layout">${items.map((d,i)=>discoverCard(d,i===0)).join('')}</div>
+  </section>`;
+}
 function renderInicio(){
   if(LOADING)return skelInicio();
-  const cursos=ordenarCursos(DATA.cursos).slice(0,4);
-  const noticias=DATA.noticias.filter(n=>n.img).slice(0,8);
-  const enProg=Object.values(DATA.progresos).filter(p=>p>0&&p<100).length;
-  const comp=Object.values(DATA.progresos).filter(p=>p>=100).length;
+  const cursosOrd=ordenarCursos(DATA.cursos);
+  const cursos=cursosOrd.slice(0,4);
+  const enProgList=cursosOrd.filter(c=>{const p=DATA.progresos[c.id]||0;return p>0&&p<100;});
+  const enProg=enProgList.length;
+  const comp=cursosOrd.filter(c=>(DATA.progresos[c.id]||0)>=100).length;
+  const member=_tieneAcceso();
+  const continuo=cursosOrd[0]?(enProgList[0]||cursosOrd[0]):null;
+  const prog=continuo&&member?(DATA.progresos[continuo.id]||0):0;
+  const lec=continuo?proximaLeccion(continuo,prog):null;
+  const w=DATA.webinars[0];
   return `
-  <div class="welcome">
-    <div><h2>${saludo()}, ${firstName()}.</h2><p>${_tieneAcceso()?'Tienes acceso completo. Retoma donde te quedaste.':(hayClaseGratis()?'Explora todo el catálogo y mira gratis la primera clase del curso de bienvenida.':'Explora todo el catálogo y activa tu membresía para ver las clases.')}</p></div>
-    <div class="streak"><span class="fl">🔥</span> <b>1</b> día de racha</div>
-  </div>
-  <div class="webinar-card">
-    <div class="wc-tag">Próximo webinar</div>
-    <div class="wc-title">${DATA.webinars[0]?.titulo||'Próximamente'}</div>
-    <div class="countdown" id="countdown">
-      <div class="cd-unit"><b data-cd="d">00</b><span>Días</span></div>
-      <div class="cd-unit"><b data-cd="h">00</b><span>Hrs</span></div>
-      <div class="cd-unit"><b data-cd="m">00</b><span>Min</span></div>
-      <div class="cd-unit"><b data-cd="s">00</b><span>Seg</span></div>
+  <div class="dash-hero">
+    <div class="dash-continue">
+      <div class="dc-tag">${saludo()}</div>
+      <h2>Hola, <i>${firstName()}</i>.</h2>
+      <p class="dc-sub">${member?'Tienes acceso completo. Retoma justo donde lo dejaste.':(hayClaseGratis()?'Explora el catálogo y mira gratis la primera clase del curso de bienvenida.':'Explora todo el catálogo y activa tu membresía para ver las clases.')}</p>
+      ${continuo?`
+      <div class="dc-course">
+        <div class="dc-course-label">${member?(prog>0?'Continúa tu curso':'Curso sugerido para empezar'):'Curso de entrada'}</div>
+        <h3>${continuo.titulo}</h3>
+        ${lec.total?`
+        <div class="dc-lesson">
+          <div class="dc-badge">${lec.idx}</div>
+          <div><span class="dc-lesson-tag">Siguiente · ${lec.idx} de ${lec.total}</span><span class="dc-lesson-title">${member?lec.siguiente:'Activa tu membresía para verla'}</span></div>
+        </div>`:''}
+        <div class="dc-progress-row"><div class="dc-progress-bar"><i style="width:${prog}%"></i></div><span class="dc-progress-pct">${prog}%</span></div>
+        <button class="dc-cta" onclick="openCurso('${continuo.id}')">▶ ${member&&prog>0?'Continuar curso':'Ver curso'}</button>
+      </div>`:`
+      <div class="dc-course"><div class="dc-course-label">Catálogo</div><h3>Aún no hay cursos publicados</h3></div>`}
     </div>
-    <div class="wc-meta">📅 ${DATA.webinars[0]?DATA.webinars[0].fecha:'Sin webinars programados'}</div>
+    <div class="dash-side">
+      <div class="ds-label">Tu siguiente meta</div>
+      <div class="ds-steps">
+        ${continuo&&lec&&lec.total?`
+        <div class="ds-step now"><span class="dot"></span><div><small>Ahora</small><b>${lec.actual}</b></div></div>
+        <div class="ds-step"><span class="dot"></span><div><small>Después</small><b>${lec.siguiente}</b></div></div>`
+        :(member?`<div class="ds-step"><span class="dot"></span><div><small>Catálogo</small><b>Aún no hay cursos publicados.</b></div></div>`
+        :`<div class="ds-step"><span class="dot"></span><div><small>Membresía</small><b>Activa tu membresía para desbloquear tus clases.</b></div></div>`)}
+      </div>
+      <div class="ds-webinar">
+        <div class="wlabel">Próxima clase en vivo<b>${w?w.titulo:'Por anunciar'}</b></div>
+        <div class="ds-cd" id="countdown"><span data-cd="d">00</span>d <span data-cd="h">00</span>h <span data-cd="m">00</span>m</div>
+      </div>
+      <div class="ds-stats">
+        ${dsStat('Cursos',DATA.cursos.length)}
+        ${dsStat('En progreso',enProg)}
+        ${dsStat('Material PDF',DATA.material.length)}
+        ${dsStat('Certificados',comp)}
+      </div>
+    </div>
   </div>
-  <div class="stats-row">
-    ${stat('En progreso',enProg,'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z')}
-    ${stat('Completados',comp,'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z')}
-    ${stat('Certificados',comp,'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z')}
+  <div class="quick-row">
+    ${quickItem('webinar','Clases en vivo','M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z')}
+    ${quickItem('material','Material PDF','M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z')}
+    ${quickItem('foro','Foro','M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z')}
+    ${quickItem('biblioteca','Cursos','M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253')}
   </div>
+  ${renderDescubre()}
   <div class="sec-head"><h3>Continuar aprendiendo</h3><a onclick="go('biblioteca')">Ver todos →</a></div>
   <div class="course-grid">${cursos.length?cursos.map(courseCard).join(''):emptyMini('Aún no hay cursos. ¡Pronto se liberan!')}</div>
-  ${noticias.length?`
-  <div class="sec-head" style="margin-top:26px"><h3>Noticias</h3><a onclick="go('noticias')">Ver todas →</a></div>
-  <div class="news-carousel"><div class="news-track">${[...noticias,...noticias].map(n=>`<div class="news-card" onclick="window.open('${n.url||'#'}','_blank')"><img class="nc-img" src="${n.img}" alt="" loading="lazy" onerror="var p=this.closest('.news-card');if(p)p.remove();"><div class="nc-body"><div class="nc-src">${n.fuente||'IMDAC'}</div><h5>${n.titulo}</h5><div class="nc-date">${n.fecha||''}</div></div></div>`).join('')}</div></div>`:''}`;
+  `;
 }
-function stat(label,val,icon){return `<div class="stat"><div class="si"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg></div><div><b>${val}</b><span>${label}</span></div></div>`;}
 function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t}</b></div>`;}
 
 /* ¿Este curso regala alguna clase? Se pregunta al catalogo, que ya trae el
@@ -272,6 +409,7 @@ function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t
 function cursoRegalaClase(c){
   return (c.listaClases||[]).some(l=>l.isPreview===true);
 }
+function cursoEsPruebaGratuita(c){return c?.esPruebaGratuita===true||String(c?.esPruebaGratuita||'').toLowerCase()==='true';}
 function hayClaseGratis(){
   return (DATA.cursos||[]).some(cursoRegalaClase);
 }
@@ -286,9 +424,10 @@ function courseCard(c){
       <h4>${c.titulo}</h4>
       <div class="course-meta">
         <span>${c.clases||0} clases · ${c.nivel||'Intermedio'}</span>
-        ${!member&&cursoRegalaClase(c)?'<span class="drip" style="color:#18794e">Primera clase gratis</span>':''}
+        ${!member&&cursoRegalaClase(c)?`<span class="drip" style="color:#18794e">${cursoEsPruebaGratuita(c)?'Prueba gratuita':'Primera clase gratis'}</span>`:''}
       </div>
       ${member?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
+      <span class="course-open">${member&&prog>0?'Continuar curso':'Ver curso'} <b>→</b></span>
     </div>
   </div>`;
 }
@@ -315,7 +454,10 @@ function dripStatus(c){
   if(window._imdacAdmin) return {locked:false,dias:0};
   const dd=c.dripDias||0;
   if(!dd) return {locked:false,dias:0};
-  const created=CURRENT_USER?.metadata?.creationTime?new Date(CURRENT_USER.metadata.creationTime):new Date();
+  // window._previewEnrollDate: "Ver panel de usuario → como miembro VIP" desde
+  // el panel admin simula una inscripción justo hoy, para poder revisar el
+  // calendario de desbloqueo como lo vería un socio recién llegado.
+  const created=window._previewEnrollDate || (CURRENT_USER?.metadata?.creationTime?new Date(CURRENT_USER.metadata.creationTime):new Date());
   const diasMember=Math.floor((Date.now()-created.getTime())/86400000);
   const restan=dd-diasMember;
   return restan>0?{locked:true,dias:restan}:{locked:false,dias:0};
@@ -323,16 +465,39 @@ function dripStatus(c){
 
 let CATS=["Todos","Estructuras","Instalaciones","Costos y Presupuestos","Topografía","Diseño CAD","Normatividad","Sustentabilidad","Gestión de Obra"];
 function renderBiblioteca(){
-  if(LOADING)return `<h1 class="page-h">Biblioteca de cursos</h1><p class="page-sub">Cargando catálogo...</p>${skelGrid(8)}`;
-  const base=activeFilter==="Todos"?DATA.cursos:DATA.cursos.filter(c=>c.categoria===activeFilter);
-  const list=ordenarCursos(base);
+  if(LOADING)return `<div class="member-catalog-hero"><div class="skel" style="height:180px;border-radius:18px"></div></div>${skelGrid(8)}`;
+  const total=DATA.cursos.length;
+  const enCurso=DATA.cursos.filter(c=>{const p=DATA.progresos[c.id]||0;return p>0&&p<100;}).length;
+  const completados=DATA.cursos.filter(c=>(DATA.progresos[c.id]||0)>=100).length;
+  const totalClases=DATA.cursos.reduce((n,c)=>n+Number(c.clases||(c.listaClases||[]).length||0),0);
+  const base=(activeFilter==="Todos"?DATA.cursos:DATA.cursos.filter(c=>c.categoria===activeFilter));
+  const byView=courseView==='progreso'?base.filter(c=>{const p=DATA.progresos[c.id]||0;return p>0&&p<100})
+    :courseView==='completados'?base.filter(c=>(DATA.progresos[c.id]||0)>=100):base;
+  const list=ordenarCursos(byView);
   return `
-  <h1 class="page-h">Biblioteca de cursos</h1>
-  <p class="page-sub">Todo nuestro catálogo de cursos grabados, disponibles 24/7.</p>
-  <div class="filters">${CATS.map(c=>`<button class="filter ${c===activeFilter?'active':''}" onclick="setFilter('${c.replace(/'/g,"\\'")}')">${c}</button>`).join('')}</div>
-  ${list.length?`<div class="course-grid">${list.map(courseCard).join('')}</div>`:emptyIllus('No hay cursos aquí','Aún no hay cursos en esta categoría. Prueba con otra o vuelve pronto.','Ver todos los cursos',"setFilter('Todos')")}`;
+  <section class="member-catalog-hero">
+    <div class="member-catalog-copy">
+      <div class="member-catalog-tag">Catálogo IMDAC</div>
+      <h1>Cursos grabados,<em>a tu ritmo.</em></h1>
+      <div class="member-catalog-stats"><div><b>${total}</b><span>cursos</span></div><div><b>${totalClases}</b><span>clases</span></div><div><b>${enCurso}</b><span>en progreso</span></div><div><b>${completados}</b><span>completados</span></div></div>
+    </div>
+    <div class="member-catalog-tabs" role="tablist" aria-label="Estado del curso">
+      <button class="${courseView==='todos'?'active':''}" onclick="setCourseView('todos')">Todos</button>
+      <button class="${courseView==='progreso'?'active':''}" onclick="setCourseView('progreso')">En progreso</button>
+      <button class="${courseView==='completados'?'active':''}" onclick="setCourseView('completados')">Completados</button>
+    </div>
+  </section>
+  <div class="catalog-area-label">Explora por área</div>
+  <div class="filters member-catalog-filters">${CATS.map(c=>`<button class="filter ${c===activeFilter?'active':''}" onclick="setFilter('${c.replace(/'/g,"\\'")}')">${c}${c==='Todos'?` <span>${total}</span>`:''}</button>`).join('')}</div>
+  <div class="catalog-result"><b>${list.length}</b> curso${list.length===1?'':'s'} ${courseView==='todos'?'disponible'+(list.length===1?'':'s'):courseView==='progreso'?'en progreso':'completado'+(list.length===1?'':'s')}</div>
+  ${list.length?`<div class="course-grid member-catalog-grid">${list.map(courseCard).join('')}</div>`:emptyIllus(courseView==='progreso'?'Aún no tienes cursos en progreso':courseView==='completados'?'Aún no tienes cursos completados':'No hay cursos aquí',courseView==='progreso'?'Cuando comiences un curso aparecerá aquí.':'Prueba con otra categoría para ver más cursos.','Ver todos los cursos',"resetCourseFilters()")}`;
 }
+function escHtml(v){return String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function setFilter(c){activeFilter=c;renderSection('biblioteca');}
+function setCourseQuery(q){courseQuery=q;renderSection('biblioteca');}
+function setCourseSort(sort){courseSort=sort;renderSection('biblioteca');}
+function setCourseView(view){courseView=view;renderSection('biblioteca');}
+function resetCourseFilters(){activeFilter='Todos';courseQuery='';courseSort='recientes';courseView='todos';renderSection('biblioteca');}
 
 function webinarEstado(w){
   // devuelve {estado, etiqueta, claseEtiqueta}
@@ -362,7 +527,7 @@ function calLink(w){
 async function abrirWebinar(id){
   const w=DATA.webinars.find(x=>x.id===id); if(!w)return;
   const e=webinarEstado(w);
-  if(!_tieneAcceso())return renderPaywall('Los webinars y sus grabaciones son exclusivos para miembros.');
+  if(!_tieneAcceso())return renderPaywall('Las clases en vivo y sus grabaciones son exclusivas para miembros.');
   if(e.estado==='prox'){ const l=calLink(w); if(l)window.open(l,'_blank'); else toast('Pronto se habilitará el recordatorio'); return; }
   if(e.estado==='vivo'||e.estado==='grabacion'){
     try{
@@ -370,21 +535,25 @@ async function abrirWebinar(id){
       if(data.url)window.open(data.url,'_blank','noopener');
     }catch(err){toast(err.message||'Enlace no disponible');}
   }
-  else toast('Este webinar ya finalizó');
+  else toast('Esta clase ya finalizó');
 }
 function renderWebinar(){
-  if(LOADING)return `<h1 class="page-h">Webinars</h1><p class="page-sub">Sesiones en vivo y grabaciones para miembros.</p>`+skelGrid(4);
-  if(!DATA.webinars.length) return emptyState('webinar','Sin webinars programados','En cuanto haya un webinar agendado, aparecerá aquí con su fecha y enlace.');
+  if(LOADING)return `<section class="live-hero"><div class="skel" style="height:165px;border-radius:18px"></div></section>`+skelGrid(4);
+  const liveHero=`<section class="live-hero"><div class="live-tag">Aprende en directo</div><h1>Clases en vivo</h1><p>Sesiones en directo con especialistas de arquitectura y construcción. Participa, pregunta y consulta las grabaciones disponibles.</p></section>`;
+  // Las ya finalizadas sin grabación no aportan nada al socio (no se pueden
+  // ver ni agendar) — se ocultan en vez de quedarse como tarjeta muerta con
+  // opacidad reducida. Las grabaciones sí se conservan, porque esas sí sirven.
+  const visibles=DATA.webinars.filter(w=>webinarEstado(w).estado!=='fin');
+  if(!visibles.length) return `${liveHero}<section class="live-empty"><div class="live-empty-icon">◉</div><h2>Aún no hay clases programadas</h2><p>Estamos preparando las próximas transmisiones. Te avisaremos en cuanto haya nuevas clases en vivo.</p></section>`;
   // ordenar: en vivo primero, luego próximos por fecha, luego pasados/grabaciones
   const orden={vivo:0,prox:1,grabacion:2,fin:3};
-  const list=DATA.webinars.slice().sort((a,b)=>{
+  const list=visibles.slice().sort((a,b)=>{
     const ea=webinarEstado(a),eb=webinarEstado(b);
     if(orden[ea.estado]!==orden[eb.estado])return orden[ea.estado]-orden[eb.estado];
     const ta=a.fechaISO?new Date(a.fechaISO).getTime():0, tb=b.fechaISO?new Date(b.fechaISO).getTime():0;
     return (ea.estado==='prox')?(ta-tb):(tb-ta);
   });
-  return `<h1 class="page-h">Webinars</h1><p class="page-sub">Sesiones en vivo y grabaciones para miembros.</p>
-  <div class="course-grid">${list.map(w=>{
+  return `${liveHero}<div class="course-grid live-grid">${list.map(w=>{
     const e=webinarEstado(w);
     const grisOpacidad=(e.estado==='fin')?'opacity:.72;':'';
     let btn='';
@@ -415,18 +584,150 @@ function ordenarMaterial(arr){
     return 0;
   });
 }
+/* Estado del material respecto a su curso: solo informativo. El propio panel
+   admin lo deja explícito ("no restringe el acceso: el archivo se abre
+   igual") — el curso asociado es para AGRUPAR y mostrar un aviso, nunca para
+   bloquear la descarga. (Antes esta función sí bloqueaba abrirMaterial; se
+   corrigió para que coincida con lo que dice el formulario del admin.) */
+function materialEstado(m){
+  if(!m.cursoId)return{locked:false,dias:0,curso:null};
+  const c=DATA.cursos.find(x=>x.id===m.cursoId);
+  if(!c)return{locked:false,dias:0,curso:null};
+  const ds=dripStatus(c);
+  return{locked:ds.locked,dias:ds.dias||0,curso:c};
+}
+function materialClase(m){
+  if(!m.cursoId||!m.claseId)return null;
+  const c=DATA.cursos.find(x=>x.id===m.cursoId); if(!c)return null;
+  const lista=c.listaClases||[];
+  const i=lista.findIndex(l=>l.lessonId===m.claseId);
+  return i>=0?{idx:i,titulo:lista[i].titulo||`Clase ${i+1}`}:null;
+}
+const MAT_FAV_KEY='imdac_mat_fav';
+function materialEsFavorito(id){return _statArr(MAT_FAV_KEY).includes(id);}
+function toggleFavoritoMaterial(id){
+  const arr=_statArr(MAT_FAV_KEY);
+  const i=arr.indexOf(id);
+  if(i>=0)arr.splice(i,1); else arr.push(id);
+  try{localStorage.setItem(MAT_FAV_KEY,JSON.stringify(arr));}catch(e){}
+  const btn=document.getElementById('mat-fav-btn');
+  if(btn)btn.classList.toggle('on',i<0);
+}
+const docIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
+const lockIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
+/* Un ícono por tipo de archivo, para que la tarjeta se distinga aunque no
+   tenga portada. "PDF"/"Word"/"Otro" comparten el ícono de documento porque
+   visualmente son lo mismo (hoja con líneas); lo que cambia es el texto del
+   badge, que sí sale del campo real. */
+const FORMATO_ICONS={
+  'Presentación':'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6"><rect x="3" y="4" width="18" height="13" rx="2"/><path stroke-linecap="round" d="M8 21h8M12 17v4"/></svg>',
+  'Excel':'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>',
+  'Imagen':'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 15l-5-5L5 21"/></svg>',
+};
+function materialIcon(formato){return FORMATO_ICONS[formato]||docIcon;}
+function materialCard(m){
+  const est=materialEstado(m);
+  const clase=materialClase(m);
+  const formato=m.formato||'PDF';
+  const hasImg=!!(m.img&&String(m.img).trim());
+  const cover=hasImg?driveImg(m.img):'';
+  return `<div class="material-card" onclick="abrirMaterial('${m.id}')">
+    <div class="mc-thumb ${est.locked?'locked':''}" ${hasImg?`style="background-image:url('${escHtml(cover)}')"`:''}>
+      ${hasImg?'':materialIcon(formato)}
+      <span class="mc-badge">${escHtml(formato)}</span>
+      ${est.curso?`<span class="mc-cat">${escHtml(est.curso.categoria||'Curso')}</span>`:''}
+      ${est.locked?`<span class="mc-lock">${lockIcon}</span>`:''}
+    </div>
+    <div class="mc-body">
+      <h4>${escHtml(m.titulo)}</h4>
+      <p>${escHtml(m.desc||'Documento descargable del Club IMDAC.')}</p>
+      <div class="mc-foot"><span>${clase?`Clase ${clase.idx+1}: ${escHtml(clase.titulo)}`:(est.curso?escHtml(est.curso.titulo):'Para todos los socios')}</span>${est.locked?`<b>${est.dias}d</b>`:''}</div>
+    </div>
+  </div>`;
+}
+/* Agrupado como pide el socio: primero por curso, y dentro de cada curso por
+   clase (en el mismo orden que listaClases) — así ya no se ve "todo
+   revuelto". Lo que no tiene curso queda en "Material general" al final. */
 function renderMaterial(){
   if(LOADING)return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+skelGrid(4);
-  if(!DATA.material.length) return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>`+emptyState('material','Próximamente','Estamos preparando material descargable para ti. Pronto encontrarás guías, normas y plantillas aquí.');
-  return `<h1 class="page-h">Material PDF</h1><p class="page-sub">Guías, planos tipo y documentos descargables.</p>
-  <div class="course-grid">${ordenarMaterial(DATA.material).map(m=>{
-    return `<div class="course" onclick="abrirMaterial('${m.id}')">
-      <div class="course-body" style="padding:24px"><h4>📄 ${m.titulo}</h4><p style="color:var(--muted);font-size:.86rem;margin-top:6px">${m.desc||''}</p><div class="course-meta" style="margin-top:14px"><span class="badge-norm">${_tieneAcceso()?'Abrir material':'Solo miembros'}</span></div></div>
-    </div>`;
-  }).join('')}</div>`;
-}
+  if(!DATA.material.length)return `
+  <div class="material-hero"><div class="material-pill">Biblioteca descargable</div><h1>Material PDF</h1><p>Guías, planos tipo y documentos descargables del Club IMDAC.</p></div>
+  ${emptyState('material','Próximamente','Estamos preparando material descargable para ti. Pronto encontrarás guías, normas y plantillas aquí.')}`;
 
-async function abrirMaterial(id){
+  const sinCurso=DATA.material.filter(m=>!m.cursoId);
+  const porCurso={};
+  DATA.material.filter(m=>m.cursoId).forEach(m=>{(porCurso[m.cursoId]=porCurso[m.cursoId]||[]).push(m);});
+  const cursosConMaterial=ordenarCursos(DATA.cursos.filter(c=>porCurso[c.id]&&porCurso[c.id].length));
+
+  let secciones='';
+  cursosConMaterial.forEach(c=>{
+    const mats=porCurso[c.id];
+    const lista=c.listaClases||[];
+    const porClase={}; const generales=[];
+    mats.forEach(m=>{
+      const i=m.claseId?lista.findIndex(l=>l.lessonId===m.claseId):-1;
+      if(i>=0)(porClase[i]=porClase[i]||[]).push(m); else generales.push(m);
+    });
+    let bloques='';
+    lista.forEach((l,i)=>{
+      const items=porClase[i]; if(!items||!items.length)return;
+      bloques+=`<div class="sec-head" style="margin:18px 0 12px"><h4 style="font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--muted)">Clase ${i+1}: ${escHtml(l.titulo||'')}</h4></div><div class="course-grid">${items.map(materialCard).join('')}</div>`;
+    });
+    if(generales.length)bloques+=`<div class="sec-head" style="margin:18px 0 12px"><h4 style="font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--muted)">General del curso</h4></div><div class="course-grid">${generales.map(materialCard).join('')}</div>`;
+    secciones+=`<div class="sec-head" style="margin-top:30px"><h3>📁 ${escHtml(c.titulo)}</h3></div>${bloques}`;
+  });
+  if(sinCurso.length)secciones+=`<div class="sec-head" style="margin-top:30px"><h3>📄 Material general</h3></div><div class="course-grid">${ordenarMaterial(sinCurso).map(materialCard).join('')}</div>`;
+
+  return `
+  <div class="material-hero">
+    <div class="material-pill">Biblioteca descargable</div>
+    <h1>Material PDF</h1>
+    <p>Guías, planos tipo y documentos descargables del Club IMDAC, agrupados por curso y por clase.</p>
+  </div>
+  ${secciones}`;
+}
+/* Ficha de un material — mismo patrón que la vista de detalle de curso
+   (openCurso/renderCursoDetalle): se inyecta directo en #content, fuera del
+   router de go(), y marca "material" como activa en el menú. */
+function abrirMaterial(id){
+  const m=DATA.material.find(x=>x.id===id); if(!m)return;
+  document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec==='material'));
+  document.getElementById('content').innerHTML=`<div class="section active">${renderMaterialDetalle(id)}</div>`;
+  window.scrollTo(0,0);
+}
+function renderMaterialDetalle(id){
+  const m=DATA.material.find(x=>x.id===id); if(!m)return renderMaterial();
+  const est=materialEstado(m);
+  const clase=materialClase(m);
+  const formato=m.formato||'PDF';
+  const hermanos=m.cursoId?DATA.material.filter(x=>x.cursoId===m.cursoId&&x.id!==m.id):[];
+  const fav=materialEsFavorito(id);
+  const hasImg=!!(m.img&&String(m.img).trim());
+  const cover=hasImg?driveImg(m.img):'';
+  return `<a class="cd-back" onclick="go('material')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Volver a Material PDF</a>
+  <div class="cd-hero">
+    <div class="cd-hero-img" style="${hasImg?`background-image:url('${escHtml(cover)}')`:'background:linear-gradient(135deg,var(--negro),var(--gris-900))'};display:flex;align-items:center;justify-content:center">
+      ${hasImg?'':`<div style="width:84px;height:84px;color:#fff;opacity:.9">${materialIcon(formato)}</div>`}
+    </div>
+    <div class="cd-hero-body">
+      <div class="cat">${est.curso?escHtml(est.curso.categoria||'Curso'):'Material'}</div>
+      <h2>${escHtml(m.titulo)}</h2>
+      <p class="desc">${escHtml(m.desc||'Documento descargable del Club IMDAC.')}</p>
+      <div class="material-info-grid">
+        <div class="mi"><b>Formato</b><span>${escHtml(formato)}</span></div>
+        <div class="mi"><b>${est.curso?'Del curso':'Disponibilidad'}</b><span>${est.curso?escHtml(est.curso.titulo):'Para todos los socios'}</span></div>
+        ${clase?`<div class="mi"><b>Clase</b><span>Clase ${clase.idx+1}: ${escHtml(clase.titulo)}</span></div>`:''}
+      </div>
+      <div class="mat-cta-row">
+        <button class="btn-block" style="width:auto;padding:14px 28px" onclick="abrirMaterialDescarga('${m.id}')">⬇ Abrir material</button>
+        <button class="mat-bookmark ${fav?'on':''}" id="mat-fav-btn" onclick="toggleFavoritoMaterial('${m.id}')" title="Guardar"><svg fill="${fav?'currentColor':'none'}" stroke="currentColor" viewBox="0 0 24 24" style="width:19px;height:19px;stroke-width:1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-5-7 5V5z"/></svg></button>
+      </div>
+    </div>
+  </div>
+  ${hermanos.length?`<div class="sec-head" style="margin-top:30px"><h3>Más materiales de este curso</h3></div>
+  <div class="course-grid">${hermanos.map(materialCard).join('')}</div>`:''}`;
+}
+async function abrirMaterialDescarga(id){
   if(!_tieneAcceso())return renderPaywall('Puedes consultar la ficha del material gratis; abrirlo o descargarlo requiere membresía.');
   try{
     const data=await apiFetch('/material-acceso',{method:'POST',body:{materialId:id}});
@@ -435,60 +736,76 @@ async function abrirMaterial(id){
 }
 
 function renderNoticias(){
-  if(LOADING)return `<h1 class="page-h">Noticias &amp; actualizaciones</h1><p class="page-sub">Lo último del sector de la arquitectura y la construcción.</p>`+skelNews(5);
-  return `<h1 class="page-h">Noticias & actualizaciones</h1><p class="page-sub">Lo último del sector de la arquitectura y la construcción.</p>
+  if(LOADING)return `<h1 class="page-h">Descubre algo nuevo hoy</h1><p class="page-sub">Ideas, técnicas y curiosidades del sector.</p>`+skelNews(5);
+  return `<h1 class="page-h">Descubre algo nuevo hoy</h1><p class="page-sub">Ideas, técnicas y curiosidades del mundo de la arquitectura y la construcción.</p>
   ${DATA.noticias.length?DATA.noticias.map(n=>`
     <div class="news-item" onclick="window.open('${n.url||'#'}','_blank')">
       <img class="news-thumb" src="${driveImg(n.img)}" alt="" loading="lazy" onerror="var p=this.closest('.news-item');if(p)p.remove();">
       <div><div class="news-src">${n.fuente||'IMDAC'}</div><h4>${n.titulo}</h4><p>${n.resumen||''}</p><div class="news-date">${n.fecha||''}</div></div>
-    </div>`).join(''):emptyState('noticias','Sin noticias por ahora','Pronto publicaremos novedades del sector.')}`;
+    </div>`).join(''):emptyState('noticias','Aún no hay contenido por mostrar','Pronto encontrarás nuevas ideas y recursos del sector.')}`;
 }
 
+let _foroTab='recientes';
 function renderForo(){
   if(LOADING)return `<h1 class="page-h">Foro</h1><p class="page-sub">Pregunta, comparte y aprende con la comunidad IMDAC.</p>`+skelNews(4);
-  return `<h1 class="page-h">Foro</h1><p class="page-sub">Pregunta, comparte y aprende con la comunidad IMDAC.</p>
-  <div class="search-bar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input placeholder="Buscar temas..." oninput="filterForo(this.value)"></div>
-  <div id="foro-list">${renderForoList(DATA.foro)}</div>
-  <div class="new-topic" id="nt-card" onclick="abrirNuevoTema()"><b>+ Crear un nuevo tema</b><span>Comparte tu pregunta o experiencia con la comunidad</span></div>
-  <div id="nt-form" style="display:none"></div>`;
-}
-function abrirNuevoTema(){
-  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){toast('Inicia sesión para publicar');return;}
-  const card=document.getElementById('nt-card'); if(card)card.style.display='none';
-  const cats=['General','Estructuras','Instalaciones','Costos y Presupuestos','Topografía','Diseño CAD','Normatividad','Sustentabilidad','Gestión de Obra'];
-  const f=document.getElementById('nt-form'); if(!f)return;
-  f.style.display='block';
-  const inp='width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);margin-bottom:10px';
-  f.innerHTML=`<div class="card" style="padding:18px;margin-top:8px">
-    <input id="nt-titulo" placeholder="Título de tu tema" style="${inp}">
-    <textarea id="nt-texto" rows="3" placeholder="Escribe tu pregunta o experiencia..." style="${inp};font-family:inherit;resize:none"></textarea>
-    <select id="nt-tag" style="${inp}">${cats.map(c=>`<option>${c}</option>`).join('')}</select>
-    <div style="display:flex;gap:8px">
-      <button onclick="publicarTema()" style="flex:1;padding:12px;border:none;border-radius:11px;background:var(--rojo);color:#fff;font-weight:700;cursor:pointer">Publicar</button>
-      <button onclick="cerrarNuevoTema()" style="padding:12px 18px;border:1.5px solid var(--line);border-radius:11px;background:var(--surface);color:var(--text);font-weight:600;cursor:pointer">Cancelar</button>
+  const puedePublicar=FB_OK&&CURRENT_USER&&CURRENT_USER.uid!=='demo';
+  return `
+  <div class="foro-hero">
+    <div class="foro-pill">Comunidad activa</div>
+    <h1>Foro IMDAC</h1>
+    <p>Comparte dudas, casos de obra y experiencia con la comunidad de arquitectos e ingenieros del Club. Publica, comenta y reacciona.</p>
+  </div>
+  <div class="foro-composer">
+    <div class="fc-row">
+      <div class="fc-av">${puedePublicar?initials():'?'}</div>
+      <div class="fc-body"><textarea id="nt-texto" rows="2" maxlength="1500" placeholder="¿Qué caso traes hoy? Comparte una pregunta o experiencia..." oninput="actualizarContadorForo()"></textarea></div>
     </div>
-  </div>`;
+    <div class="fc-foot">
+      <button class="fc-img-btn" onclick="toast('Las imágenes en el foro estarán disponibles pronto')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Imagen</button>
+      <span class="fc-count" id="fc-count">0 / 1500</span>
+      <button class="fc-submit" onclick="publicarTema()">Publicar <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg></button>
+    </div>
+  </div>
+  <div class="search-bar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input placeholder="Buscar temas..." oninput="filterForo(this.value)"></div>
+  <div class="foro-tabs">
+    <div class="foro-tab ${_foroTab==='recientes'?'active':''}" onclick="setForoTab('recientes')">Recientes</div>
+    <div class="foro-tab ${_foroTab==='top'?'active':''}" onclick="setForoTab('top')">Más reacciones</div>
+    <div class="foro-tab ${_foroTab==='mios'?'active':''}" onclick="setForoTab('mios')">Mis publicaciones</div>
+  </div>
+  <div id="foro-list">${renderForoList(DATA.foro)}</div>`;
 }
-function cerrarNuevoTema(){const f=document.getElementById('nt-form');if(f){f.style.display='none';f.innerHTML='';}const c=document.getElementById('nt-card');if(c)c.style.display='';}
+function actualizarContadorForo(){
+  const t=document.getElementById('nt-texto'),c=document.getElementById('fc-count');
+  if(t&&c)c.textContent=`${t.value.length} / 1500`;
+}
+function setForoTab(tab){_foroTab=tab;renderSection('foro');}
 function publicarTema(){
-  const titulo=(document.getElementById('nt-titulo').value||'').trim();
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){toast('Inicia sesión para publicar');return;}
   const texto=(document.getElementById('nt-texto').value||'').trim();
-  const tag=document.getElementById('nt-tag').value||'General';
-  if(!titulo){toast('Ponle un título a tu tema');return;}
-  const tema={titulo,texto,tag,autor:CURRENT_USER.displayName||'Miembro',autorUid:CURRENT_USER.uid,fecha:new Date().toLocaleDateString('es-MX'),vistas:0,likes:0,creado:firebase.firestore.FieldValue.serverTimestamp()};
+  if(!texto){toast('Escribe algo para publicar');return;}
+  const titulo=texto.length>70?texto.slice(0,70).trim()+'…':texto;
+  const tema={titulo,texto,tag:'General',autor:CURRENT_USER.displayName||'Miembro',autorUid:CURRENT_USER.uid,fecha:new Date().toLocaleDateString('es-MX'),vistas:0,likes:0,creado:firebase.firestore.FieldValue.serverTimestamp()};
   db.collection('foro_temas').add(tema).then(ref=>{
     DATA.foro.unshift({id:ref.id,...tema});
-    cerrarNuevoTema();
-    const list=document.getElementById('foro-list'); if(list)list.innerHTML=renderForoList(DATA.foro);
-    toast('¡Tema publicado!');
-  }).catch(()=>toast('No se pudo publicar el tema'));
+    renderSection('foro');
+    toast('¡Publicado!');
+  }).catch(()=>toast('No se pudo publicar'));
 }
 function renderForoList(list){
-  if(!list.length) return '<div class="empty"><b>Aún no hay temas</b><span>Sé el primero en abrir una conversación.</span></div>';
+  let arr=list.slice();
   const uid=CURRENT_USER&&CURRENT_USER.uid;
-  return list.map(t=>{
+  if(_foroTab==='top')arr.sort((a,b)=>(b.likes||0)-(a.likes||0));
+  else if(_foroTab==='mios')arr=arr.filter(t=>t.autorUid===uid);
+  if(!arr.length) return `<div class="foro-empty"><div class="fe-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M8 10h8M8 14h5m-9 7V7a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2H9l-5 4z"/></svg></div><b>La conversación empieza aquí</b><span>${_foroTab==='mios'?'Aún no has publicado nada en el foro.':'Todavía no hay publicaciones. Sé el primero en compartir una duda, caso o consejo.'}</span></div>`;
+  return arr.map(t=>{
     const liked=(t.likedBy||[]).includes(uid);
-    return `<div class="topic" onclick="toggleTema('${t.id}')"><h4>${(t.titulo||'').replace(/</g,'&lt;')}</h4><p>${(t.texto||'').replace(/</g,'&lt;')}</p><div class="topic-meta"><span class="au">${(t.autor||'Miembro').replace(/</g,'&lt;')}</span><span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${t.tag||'General'}</span><span>${t.fecha||''}</span><span id="cardlk-${t.id}">${liked?'❤️':'🤍'} ${t.likes||0}</span></div></div><div class="tema-panel" id="tp-${t.id}" style="display:none"></div>`;
+    const autor=(t.autor||'Miembro').replace(/</g,'&lt;');
+    const av=(t.autor||'M').trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    return `<div class="topic" onclick="toggleTema('${t.id}')">
+      <div class="topic-head"><div class="topic-av">${av}</div><div class="topic-who"><span class="au">${autor}</span><span class="topic-date">${t.fecha||''}</span></div></div>
+      <p>${(t.texto||'').replace(/</g,'&lt;')}</p>
+      <div class="topic-meta"><span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${t.tag||'General'}</span><span id="cardlk-${t.id}">${liked?'❤️':'🤍'} ${t.likes||0}</span></div>
+    </div><div class="tema-panel" id="tp-${t.id}" style="display:none"></div>`;
   }).join('');
 }
 let _temaAbierto=null;
@@ -600,44 +917,280 @@ function borrarTema(id){
 }
 function filterForo(q){q=q.toLowerCase();document.getElementById('foro-list').innerHTML=renderForoList(DATA.foro.filter(t=>(t.titulo+t.texto).toLowerCase().includes(q)));}
 
-function renderDescuento(){
-  return `<h1 class="page-h">Beneficio de miembro</h1><p class="page-sub">Tu cupón personal activo como miembro del club.</p>
-  <div class="benefit-card">
-    <div class="benefit-tag">Tu descuento exclusivo</div>
-    <div class="benefit-pct">20%</div>
-    <p style="color:var(--muted)">de descuento en todos los cursos, talleres y certificaciones IMDAC.</p>
-    <div class="coupon" onclick="copyCoupon()">${IMDAC.cupon}<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></div>
-    <p style="color:var(--muted);font-size:.84rem">Válido en la página oficial y cursos presenciales.<br>Uso ilimitado durante tu suscripción activa.</p>
-    <hr style="border:none;border-top:1px solid var(--line);margin:22px 0">
-    <p style="color:var(--muted);font-size:.9rem;margin-bottom:14px">¿Necesitas ayuda para aplicar tu descuento?</p>
-    <a class="btn-wa" href="https://wa.me/${IMDAC.whatsapp}?text=Hola%2C%20quiero%20aplicar%20mi%20cup%C3%B3n%20${IMDAC.cupon}%2C%20quiero%20conocer%20todos%20sus%20cursos" target="_blank">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
-      Aplicar descuento
-    </a>
-  </div>`;
-}
-function copyCoupon(){navigator.clipboard?.writeText(IMDAC.cupon);toast('Cupón copiado: '+IMDAC.cupon);}
 
 function renderCanal(){
-  return `<h1 class="page-h">Canal privado de miembros</h1><p class="page-sub">Comunidad exclusiva para miembros del club.</p>
-  <div class="benefit-card">
-    <div style="width:64px;height:64px;border-radius:50%;background:#e8f9ee;display:grid;place-items:center;margin:0 auto 14px"><svg width="28" height="28" viewBox="0 0 24 24" fill="#25D366"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg></div>
-    <h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700">WhatsApp · Canal IMDAC</h3>
-    <p style="color:var(--muted);margin:8px 0 18px;font-size:.92rem">Recibe actualizaciones, tips de obra y promociones directamente en tu WhatsApp.</p>
-    <a class="btn-wa" href="${IMDAC.canalWA}" target="_blank"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>Unirme al canal</a>
+  const waIcon='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>';
+  const arrow='<svg class="cl-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>';
+  return `
+  <div class="canal-hero">
+    <div class="canal-pill">Comunidad WhatsApp</div>
+    <h1>Canal IMDAC</h1>
+    <p>Únete a la comunidad y recibe novedades, webinars, avisos importantes y contenido para seguir creciendo como profesional de la construcción.</p>
   </div>
-  <div class="card" style="padding:30px;margin:8px auto 0;max-width:480px">
-    <h3 style="text-align:center;font-family:var(--font-display);font-size:1.2rem;margin-bottom:18px">¿Qué recibirás en el canal?</h3>
-    <div class="feature-list">
-      ${feat('M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z','Contenido exclusivo','Tips, detalles constructivos y técnicas que solo compartimos con miembros del canal.')}
-      ${feat('M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5','Avisos en tiempo real','Entérate primero de nuevos cursos, webinars y material antes que nadie.')}
-      ${feat('M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z','Ofertas y descuentos','Promociones especiales y descuentos exclusivos para miembros del canal.')}
-      ${feat('M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z','Comunidad profesional','Conecta con otros arquitectos, ingenieros y constructores del club.')}
-      ${feat('M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z','Recordatorios de eventos','No te pierdas ningún webinar en vivo ni fecha importante del club.')}
+  <div class="canal-cta">
+    <div class="cc-icon">${waIcon.replace('<svg ','<svg width="30" height="30" style="color:#25D366" ')}</div>
+    <h2>Únete al canal oficial</h2>
+    <p>Una comunidad para arquitectos, ingenieros y constructores. Información útil, sin ruido.</p>
+    <div class="canal-stats">
+      <div class="cs-item"><b>24/7</b><span>Activo</span></div>
+      <div class="cs-item"><b>100%</b><span>Profesional</span></div>
+      <div class="cs-item"><b>0</b><span>Spam</span></div>
+    </div>
+    <div class="canal-btns">
+      <a class="btn-wa" href="${IMDAC.canalWA}" target="_blank" rel="noopener">${waIcon}Abrir canal</a>
+      <button class="btn-wa-outline" onclick="compartirCanal()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342a3 3 0 100 4.316m0-4.316a3 3 0 110-4.684m0 4.684l6.632 4.316m0 0a3 3 0 105.368-1.658 3 3 0 00-5.368 1.658zm0-10.658a3 3 0 105.368 1.658 3 3 0 00-5.368-1.658z"/></svg>Compartir invitación</button>
+    </div>
+  </div>
+  <div class="canal-link" onclick="window.open('https://wa.me/${IMDAC.soporte.l1}','_blank')">
+    <div class="cl-icon" style="background:#25D366">${waIcon}</div>
+    <div class="cl-body"><b>Soporte por WhatsApp</b><span>Ayuda con tu acceso, membresía o el contenido de la plataforma.</span></div>
+    ${arrow}
+  </div>
+  <div class="canal-link" onclick="window.open('https://instagram.com/imd_ac','_blank')">
+    <div class="cl-icon" style="background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></div>
+    <div class="cl-body"><b>Síguenos en Instagram</b><span>Proyectos, avances de cursos y contenido visual.</span></div>
+    ${arrow}
+  </div>
+  <div class="canal-link" onclick="window.open('https://www.facebook.com/IMDAC11','_blank')">
+    <div class="cl-icon" style="background:#1877F2"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg></div>
+    <div class="cl-body"><b>Síguenos en Facebook</b><span>Novedades, cursos y contenido del Instituto.</span></div>
+    ${arrow}
+  </div>
+  <div class="canal-rules">
+    <h3>Reglas de la comunidad</h3>
+    ${rule('Respeto siempre.','Tratamos a todos los miembros con profesionalismo.')}
+    ${rule('Comparte experiencia real.','Dudas, casos de obra y consejos que ayuden a otros profesionales.')}
+    ${rule('Nada de spam ni venta directa.','El canal es para aprender y resolver dudas, no para ofrecer servicios externos.')}
+  </div>`;
+}
+function rule(t,d){return `<div class="rule-item"><div class="ri-check"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div><div><b>${t}</b><span>${d}</span></div></div>`;}
+function compartirCanal(){
+  if(navigator.share){navigator.share({title:'Canal IMDAC',text:'Únete al canal de WhatsApp del Club IMDAC',url:IMDAC.canalWA}).catch(()=>{});return;}
+  navigator.clipboard?.writeText(IMDAC.canalWA);
+  toast('Enlace del canal copiado');
+}
+
+/* ====== DIRECTORIO VIP ======
+   Tarjeta profesional opcional por socio, en su propia colección
+   `directorio` (nunca en `miembros`, que trae datos de facturación).
+   Visible por default — cada quien puede ocultarse con el checkbox
+   "Mostrar mi tarjeta en el directorio" dentro de su propia tarjeta. */
+/* En false hasta que el proyecto pase al plan Blaze: Storage no funciona en
+   Spark. Mientras tanto la tarjeta usa iniciales en vez de foto — nada roto,
+   nada que prometa un botón que hoy fallaría. Un solo cambio aquí lo reactiva. */
+const DIRECTORIO_FOTOS_ACTIVAS=false;
+const SECTORES_DIRECTORIO=['Arquitectura','Ingeniería Civil','Construcción y Obra','Diseño de Interiores','Instalaciones','Topografía','Costos y Presupuestos','Normatividad','Gestión de Obra','Consultoría','Docencia','Otro'];
+const COVER_COLORS=[
+  'linear-gradient(135deg,#a78bfa,#818cf8)',
+  'linear-gradient(135deg,#ff2c2c,#ff6a6a)',
+  'linear-gradient(135deg,#f6c453,#e8a33d)',
+  'linear-gradient(135deg,#60a5fa,#3b82f6)',
+  'linear-gradient(135deg,#34d399,#10b981)',
+  'linear-gradient(135deg,#fb923c,#f97316)',
+  'linear-gradient(135deg,#be6a7a,#9d4a5c)',
+  'linear-gradient(135deg,#94a3b8,#64748b)'
+];
+const ICONS_CONTACTO={
+  whatsapp:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.138.563 4.14 1.535 5.874L0 24l6.29-1.508A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.814 9.814 0 01-5.058-1.4l-.361-.214-3.735.896.944-3.653-.235-.374A9.817 9.817 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>',
+  email:'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>',
+  linkedin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 11.001-4.124 2.062 2.062 0 01-.001 4.124zM7.114 20.452H3.558V9h3.556v11.452z"/></svg>',
+  instagram:'<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>',
+  web:'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M3 12h18M12 3a15 15 0 010 18 15 15 0 010-18z"/></svg>'
+};
+let _dirQuery='',_dirSector='Todos';
+function miTarjeta(){return (DATA.directorio||[]).find(x=>x.uid===(CURRENT_USER&&CURRENT_USER.uid));}
+function normalizarUrlContacto(v,prefix){
+  v=(v||'').trim(); if(!v)return '';
+  if(/^https?:\/\//i.test(v))return v;
+  if(prefix)return 'https://'+prefix+v.replace(/^@/,'').replace(new RegExp('^'+prefix),'');
+  return 'https://'+v;
+}
+function cardContactIcons(c){
+  const t=c.contacto||{}, out=[];
+  if(t.whatsapp)out.push(['https://wa.me/'+waDigits(t.whatsapp),ICONS_CONTACTO.whatsapp,'WhatsApp']);
+  if(t.email)out.push(['mailto:'+t.email,ICONS_CONTACTO.email,'Correo']);
+  if(t.linkedin)out.push([normalizarUrlContacto(t.linkedin,'linkedin.com/'),ICONS_CONTACTO.linkedin,'LinkedIn']);
+  if(t.instagram)out.push([normalizarUrlContacto(t.instagram,'instagram.com/'),ICONS_CONTACTO.instagram,'Instagram']);
+  if(t.web)out.push([normalizarUrlContacto(t.web),ICONS_CONTACTO.web,'Sitio web']);
+  return out;
+}
+function directorioFiltrado(){
+  const q=_dirQuery.toLowerCase().trim();
+  return (DATA.directorio||[]).filter(c=>{
+    if(_dirSector!=='Todos'&&c.sector!==_dirSector)return false;
+    if(!q)return true;
+    return [c.nombre,c.puesto,c.empresa].filter(Boolean).join(' ').toLowerCase().includes(q);
+  });
+}
+function dirCard(c){
+  const uid=CURRENT_USER&&CURRENT_USER.uid;
+  const esMio=c.uid===uid;
+  const av=(c.nombre||'Miembro').trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const cover=COVER_COLORS[Number(c.colorPortada)||0];
+  const links=cardContactIcons(c);
+  return `<div class="dir-card" ${esMio?'onclick="abrirMiTarjeta()" style="cursor:pointer"':''}>
+    ${esMio?'<span class="dcard-me">● TÚ</span>':''}
+    <div class="dcard-cover" style="background:${cover}"></div>
+    <div class="dcard-av">${c.foto?`<img src="${escHtml(c.foto)}" alt="">`:`<b>${escHtml(av)}</b>`}</div>
+    <div class="dcard-body">
+      <h4>${escHtml(c.nombre||'Miembro IMDAC')}</h4>
+      <div class="dcard-role">${escHtml(c.puesto||'Miembro IMDAC')}${c.empresa?' · '+escHtml(c.empresa):''}</div>
+      ${c.sector?`<span class="dcard-sector">${escHtml(c.sector)}</span>`:''}
+      ${c.bio?`<p class="dcard-bio">${escHtml(c.bio)}</p>`:''}
+      ${links.length?`<div class="dcard-contact">${links.map(([href,svg,label])=>`<a href="${href}" target="_blank" rel="noopener" title="${label}" onclick="event.stopPropagation()">${svg}</a>`).join('')}</div>`:'<div class="dcard-empty">Sin datos de contacto</div>'}
     </div>
   </div>`;
 }
-function feat(ic,t,d){return `<div class="feature"><div class="fi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${ic}"/></svg></div><div><b>${t}</b><span>${d}</span></div></div>`;}
+function renderDirectorio(){
+  if(LOADING)return `<h1 class="page-h">Directorio VIP</h1><p class="page-sub">Conecta con la comunidad del Club.</p>`+skelGrid(4);
+  const uid=CURRENT_USER&&CURRENT_USER.uid;
+  const mia=miTarjeta();
+  const otros=directorioFiltrado().filter(c=>c.uid!==uid);
+  const sectorChips=['Todos',...SECTORES_DIRECTORIO].map(s=>`<button class="filter ${_dirSector===s?'active':''}" onclick="setDirSector('${s.replace(/'/g,"\\'")}')">${s}</button>`).join('');
+  return `
+  <div class="dir-hero">
+    <div class="dir-pill">Networking profesional</div>
+    <h1>Directorio IMDAC</h1>
+    <p>Conecta con la comunidad del Club. Crea tu tarjeta profesional y descubre a otros arquitectos, ingenieros y constructores.</p>
+  </div>
+  <div class="dir-cta">
+    <div class="dc-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>
+    <div class="dc-body"><b>Destaca con tu tarjeta profesional</b><span>Comparte tu experiencia y permite que otros socios conozcan tu trabajo.</span></div>
+    <button onclick="abrirMiTarjeta()">${mia?'✏️ Editar mi tarjeta':'+ Crear mi tarjeta'}</button>
+  </div>
+  <div class="search-bar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input placeholder="Buscar por nombre, empresa o puesto..." value="${escHtml(_dirQuery)}" oninput="setDirQuery(this.value)"></div>
+  <div class="filters">${sectorChips}</div>
+  <div class="dir-section-label">Tu tarjeta profesional</div>
+  <div class="dir-grid">${mia?dirCard(mia):`<div class="dir-card dcard-invite" onclick="abrirMiTarjeta()"><div class="dcard-invite-in"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg><b>Crea tu tarjeta</b><span>Aún no tienes una tarjeta en el directorio.</span></div></div>`}</div>
+  <div class="dir-section-label">Miembros de la comunidad</div>
+  <div class="dir-grid" id="dir-grid">${otros.length?otros.map(dirCard).join(''):`<div class="card" style="grid-column:1/-1"><div class="empty"><b>Aún no hay tarjetas aquí</b><span>Sé de los primeros en aparecer en el directorio.</span></div></div>`}</div>`;
+}
+function setDirQuery(v){
+  _dirQuery=v;
+  const g=document.getElementById('dir-grid'); if(!g)return;
+  const uid=CURRENT_USER&&CURRENT_USER.uid;
+  const otros=directorioFiltrado().filter(c=>c.uid!==uid);
+  g.innerHTML=otros.length?otros.map(dirCard).join(''):`<div class="card" style="grid-column:1/-1"><div class="empty"><b>Sin resultados</b><span>Prueba con otra búsqueda o filtro.</span></div></div>`;
+}
+function setDirSector(s){_dirSector=s;renderSection('directorio');}
+let _tarjetaFotoURL='';
+function abrirMiTarjeta(){
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){toast('Inicia sesión para crear tu tarjeta');return;}
+  const c=miTarjeta()||{};
+  const t=c.contacto||{};
+  const colorActual=Number(c.colorPortada)||0;
+  _tarjetaFotoURL=c.foto||'';
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body dcard-modal">
+    <div class="dm-banner">
+      <div class="dm-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>
+      <div style="flex:1"><h3>Mi tarjeta profesional</h3><div class="dm-sub">Aparecerá en el Directorio VIP</div></div>
+      <button class="modal-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="dm-body">
+      ${DIRECTORIO_FOTOS_ACTIVAS?`
+      <div class="dcard-photo-row">
+        <div class="dcard-photo" id="dc-foto-preview">${_tarjetaFotoURL?`<img src="${escHtml(_tarjetaFotoURL)}" alt="">`:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`}</div>
+        <input type="file" id="dc-foto-input" accept="image/*" style="display:none" onchange="subirFotoTarjeta(event)">
+        <button type="button" class="dcard-photo-btn" id="dc-foto-btn" onclick="document.getElementById('dc-foto-input').click()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Subir foto</button>
+      </div>`:''}
+      <label style="display:block;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:9px">Portada de tu tarjeta</label>
+      <div class="dcard-preview-cover" id="dc-preview" style="background:${COVER_COLORS[colorActual]}"></div>
+      <div class="color-pick">${COVER_COLORS.map((g,i)=>`<button type="button" style="background:${g}" class="${colorActual===i?'active':''}" data-color-i="${i}" onclick="elegirColorTarjeta(${i})" title="Color ${i+1}"></button>`).join('')}</div>
+      <div class="field"><label>Nombre completo</label><input id="dc-nombre" value="${escHtml(c.nombre||CURRENT_USER.displayName||'')}" placeholder="Tu nombre completo"></div>
+      <div class="field"><label>Puesto / cargo</label><input id="dc-puesto" value="${escHtml(c.puesto)}" placeholder="Ej. Arquitecto / Residente de obra"></div>
+      <div class="field"><label>Empresa</label><input id="dc-empresa" value="${escHtml(c.empresa)}" placeholder="Ej. Despacho Arquitectura MX"></div>
+      <div class="field"><label>Sector</label><select id="dc-sector"><option value="">Selecciona...</option>${SECTORES_DIRECTORIO.map(s=>`<option ${c.sector===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="field"><label>Bio breve (opcional)</label><textarea id="dc-bio" rows="2" placeholder="Una línea sobre tu experiencia...">${escHtml(c.bio)}</textarea></div>
+      <div class="dcard-contact-head">Contacto (todos opcionales)</div>
+      <div class="field"><label>WhatsApp</label><input id="dc-whatsapp" value="${escHtml(t.whatsapp)}" placeholder="Ej. 52 55 1234 5678"></div>
+      <div class="field"><label>Correo</label><input id="dc-email" value="${escHtml(t.email)}" placeholder="correo@ejemplo.com"></div>
+      <div class="field"><label>LinkedIn</label><input id="dc-linkedin" value="${escHtml(t.linkedin)}" placeholder="linkedin.com/in/tu-perfil"></div>
+      <div class="field"><label>Instagram</label><input id="dc-instagram" value="${escHtml(t.instagram)}" placeholder="instagram.com/tu-perfil o @tu-perfil"></div>
+      <div class="field"><label>Sitio web</label><input id="dc-web" value="${escHtml(t.web)}" placeholder="tusitio.com"></div>
+      <div class="dcard-visible-row"><label><input type="checkbox" id="dc-visible" ${c.visible===false?'':'checked'}> Mostrar mi tarjeta en el directorio</label></div>
+    </div>
+    <div class="modal-foot" style="padding:0 22px 22px">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" id="modal-save" onclick="guardarTarjeta()">Guardar tarjeta</button>
+    </div>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function elegirColorTarjeta(i){
+  document.querySelectorAll('.color-pick button').forEach((b,bi)=>b.classList.toggle('active',bi===i));
+  const prev=document.getElementById('dc-preview'); if(prev)prev.style.background=COVER_COLORS[i];
+}
+/* Redimensiona en el navegador antes de subir: un avatar no necesita la foto
+   de 8MB que entrega un celular moderno, y así el límite de 3MB de Storage
+   casi nunca se topa por culpa del tamaño del archivo original. */
+function redimensionarImagen(file,max=480){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      const esc_=Math.min(1,max/Math.max(img.width,img.height));
+      const w=Math.round(img.width*esc_), h=Math.round(img.height*esc_);
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      cv.toBlob(blob=>blob?resolve(blob):reject(new Error('No se pudo procesar la imagen')),'image/jpeg',.86);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Archivo de imagen inválido'));};
+    img.src=url;
+  });
+}
+function subirFotoTarjeta(ev){
+  const file=ev.target.files&&ev.target.files[0]; if(!file)return;
+  if(!/^image\//.test(file.type)){toast('Solo se aceptan imágenes');ev.target.value='';return;}
+  if(file.size>8*1024*1024){toast('La imagen pesa demasiado (máx. 8MB)');ev.target.value='';return;}
+  const btn=document.getElementById('dc-foto-btn'); const prev=document.getElementById('dc-foto-preview');
+  if(btn){btn.classList.add('loading');btn.lastChild.textContent='Subiendo…';}
+  redimensionarImagen(file).then(blob=>{
+    const ref=storage.ref().child('directorio/'+CURRENT_USER.uid+'/foto.jpg');
+    return ref.put(blob,{contentType:'image/jpeg'}).then(()=>ref.getDownloadURL());
+  }).then(url=>{
+    _tarjetaFotoURL=url;
+    if(prev)prev.innerHTML=`<img src="${escHtml(url)}" alt="">`;
+    toast('Foto lista — recuerda guardar la tarjeta');
+  }).catch(()=>toast('No se pudo subir la foto')).finally(()=>{
+    if(btn){btn.classList.remove('loading');btn.lastChild.textContent='Subir foto';}
+    ev.target.value='';
+  });
+}
+function guardarTarjeta(){
+  if(!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  const nombre=(document.getElementById('dc-nombre').value||'').trim();
+  if(!nombre){toast('Ponle tu nombre a la tarjeta');return;}
+  const activeBtn=document.querySelector('.color-pick button.active');
+  const colorPortada=activeBtn?Number(activeBtn.dataset.colorI):0;
+  const data={
+    nombre,
+    foto:_tarjetaFotoURL||'',
+    puesto:(document.getElementById('dc-puesto').value||'').trim(),
+    empresa:(document.getElementById('dc-empresa').value||'').trim(),
+    sector:document.getElementById('dc-sector').value||'',
+    bio:(document.getElementById('dc-bio').value||'').trim(),
+    colorPortada,
+    contacto:{
+      whatsapp:(document.getElementById('dc-whatsapp').value||'').trim(),
+      email:(document.getElementById('dc-email').value||'').trim(),
+      linkedin:(document.getElementById('dc-linkedin').value||'').trim(),
+      instagram:(document.getElementById('dc-instagram').value||'').trim(),
+      web:(document.getElementById('dc-web').value||'').trim()
+    },
+    visible:!!document.getElementById('dc-visible').checked,
+    actualizado:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  const btn=document.getElementById('modal-save'); if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+  db.collection('directorio').doc(CURRENT_USER.uid).set(data,{merge:true}).then(()=>{
+    const idx=(DATA.directorio||[]).findIndex(x=>x.uid===CURRENT_USER.uid);
+    const withUid={uid:CURRENT_USER.uid,...data};
+    if(idx>=0)DATA.directorio[idx]=withUid; else (DATA.directorio=DATA.directorio||[]).push(withUid);
+    closeModal();
+    if(currentSection==='directorio')renderSection('directorio');
+    toast('Tarjeta guardada');
+  }).catch(()=>{if(btn){btn.disabled=false;btn.textContent='Guardar tarjeta';}toast('No se pudo guardar tu tarjeta');});
+}
 
 /* ===== Notificaciones (broadcast desde Admin vía Firestore, estado por usuario en localStorage) ===== */
 const NOTIS_READ_KEY='imdac_notis_read';
@@ -654,16 +1207,12 @@ function notisVisibles(){const del=notisDismissed();return (DATA.notificaciones|
 const NOTIS_PREF_KEY='imdac_notis_prefs';
 const NOTI_EMOJI_CAT={'📚':'curso','🎥':'webinar','📄':'material','🏷️':'promo','📢':'anuncio'};
 function notisPrefs(){const def={curso:true,webinar:true,material:true,promo:true,anuncio:true};try{return Object.assign(def,JSON.parse(localStorage.getItem(NOTIS_PREF_KEY)||'{}'));}catch(e){return def;}}
-function setNotiPref(cat,on){const p=notisPrefs();p[cat]=on;try{localStorage.setItem(NOTIS_PREF_KEY,JSON.stringify(p));}catch(e){}updateNotisBadge();if(currentSection==='notificaciones')renderSection('notificaciones');toast(on?'Recibirás estos avisos':'No recibirás estos avisos');}
+function setNotiPref(cat,on){const p=notisPrefs();p[cat]=on;try{localStorage.setItem(NOTIS_PREF_KEY,JSON.stringify(p));}catch(e){}updateNotisBadge();refreshNotisPanel();toast(on?'Recibirás estos avisos':'No recibirás estos avisos');}
 function notiCategoria(n){return NOTI_EMOJI_CAT[n.emoji]||'anuncio';}
 function notiPermitida(n){if(n.paraUid)return true;return notisPrefs()[notiCategoria(n)]!==false;}
 function notisNoLeidas(){const rd=_notisArr(NOTIS_READ_KEY);return notisVisibles().filter(n=>!rd.includes(n.id)).length;}
 function updateNotisBadge(){
   const n=notisNoLeidas();
-  const item=document.querySelector('.sb-item[data-sec="notificaciones"]');
-  if(item){let dot=item.querySelector('.nav-dot');
-    if(n>0){if(!dot){dot=document.createElement('span');dot.className='nav-dot';item.appendChild(dot);}dot.textContent=n>9?'9+':n;}
-    else if(dot){dot.remove();}}
   const bd=document.getElementById('bell-dot');
   if(bd){if(n>0){bd.style.display='flex';bd.textContent=n>9?'9+':n;}else{bd.style.display='none';}}
 }
@@ -675,16 +1224,16 @@ function escucharNotis(){
       .filter(n=>!n.paraUid||n.paraUid===uid)
       .sort((a,b)=>((b.creado&&b.creado.toMillis?b.creado.toMillis():0)-(a.creado&&a.creado.toMillis?a.creado.toMillis():0)));
     updateNotisBadge();
-    if(currentSection==='notificaciones')renderSection('notificaciones');
+    refreshNotisPanel();
   },()=>{});
 }
 function eliminarNoti(id){
   const del=notisDismissed(); if(!del.includes(id)){del.push(id);_notisSet(NOTIS_DEL_KEY,del);}
-  renderSection('notificaciones'); updateNotisBadge();
+  refreshNotisPanel(); updateNotisBadge();
 }
 function eliminarTodasNotis(){
   const del=notisDismissed(); notisVisibles().forEach(n=>{if(!del.includes(n.id))del.push(n.id);});
-  _notisSet(NOTIS_DEL_KEY,del); renderSection('notificaciones'); updateNotisBadge();
+  _notisSet(NOTIS_DEL_KEY,del); refreshNotisPanel(); updateNotisBadge();
 }
 function marcarNotisLeidas(){
   const rd=_notisArr(NOTIS_READ_KEY); let ch=false;
@@ -692,12 +1241,27 @@ function marcarNotisLeidas(){
   if(ch)_notisSet(NOTIS_READ_KEY,rd);
   updateNotisBadge();
 }
-function renderNotificaciones(){
+/* Campanita del topbar: dropdown en vez de página aparte, igual que el patrón
+   de DulceLab. El panel vive siempre en el DOM (#notis-pop) y solo se llena
+   y se marca como leído cuando realmente se abre. */
+function notisPanelHTML(){
   const vis=notisVisibles();
-  setTimeout(updateNotisBadge,0);
-  const lista=vis.length?vis.map(n=>`<div class="noti-item"><div class="noti-ic">${n.emoji||'📢'}</div><div class="noti-body"><h4>${(n.titulo||'').replace(/</g,'&lt;')}</h4><p>${(n.mensaje||'').replace(/</g,'&lt;')}</p><span class="noti-date">${n.fecha||''}</span></div><button class="noti-del" onclick="eliminarNoti('${n.id}')" title="Eliminar">🗑️</button></div>`).join(''):emptyState('notificaciones','Todo al día','No tienes notificaciones nuevas. Te avisaremos cuando haya novedades.');
-  return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div><h1 class="page-h">Notificaciones</h1><p class="page-sub">Mantente al día con novedades y recordatorios.</p></div>${vis.length?`<button class="filter" onclick="eliminarTodasNotis()">Eliminar todas</button>`:''}</div>
-  <div class="noti-list">${lista}</div>`;
+  const lista=vis.length
+    ?vis.map(n=>`<div class="noti-item"><div class="noti-ic">${n.emoji||'📢'}</div><div class="noti-body"><h4>${(n.titulo||'').replace(/</g,'&lt;')}</h4><p>${(n.mensaje||'').replace(/</g,'&lt;')}</p><span class="noti-date">${n.fecha||''}</span></div><button class="noti-del" onclick="event.stopPropagation();eliminarNoti('${n.id}')" title="Eliminar">🗑️</button></div>`).join('')
+    :'<div class="notis-pop-empty">Todo al día. Te avisaremos cuando haya novedades.</div>';
+  return `<div class="notis-pop-head"><h4>Notificaciones</h4>${vis.length?`<button onclick="event.stopPropagation();eliminarTodasNotis()">Eliminar todas</button>`:''}</div>
+  <div class="notis-pop-body">${lista}</div>`;
+}
+function refreshNotisPanel(){
+  const pop=document.getElementById('notis-pop');
+  if(pop&&pop.classList.contains('open'))pop.innerHTML=notisPanelHTML();
+}
+function toggleNotisPanel(ev){
+  if(ev)ev.stopPropagation();
+  const pop=document.getElementById('notis-pop'); if(!pop)return;
+  const willOpen=!pop.classList.contains('open');
+  pop.classList.toggle('open',willOpen);
+  if(willOpen){pop.innerHTML=notisPanelHTML();marcarNotisLeidas();}
 }
 
 function renderPerfil(){
@@ -746,7 +1310,7 @@ const val=id=>document.getElementById(id)?.value||'';
 function renderSuscripcion(){
   const incluye=[
     ['Acceso ilimitado','A todos los cursos grabados, 24/7','M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'],
-    ['Webinars en vivo','Sesiones mensuales con expertos','M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'],
+    ['Clases en vivo','Sesiones mensuales con expertos','M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'],
     ['Material PDF','Planos tipo y guías descargables','M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
     ['20% de descuento','En cursos y certificaciones','M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'],
     ['Canal exclusivo','Comunidad de miembros','M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'],
@@ -806,6 +1370,32 @@ function registrarCertDescargado(cursoId){
   const arr=_statArr('imdac_certs');
   if(!arr.includes(cursoId)){arr.push(cursoId);try{localStorage.setItem('imdac_certs',JSON.stringify(arr));}catch(e){}}
 }
+/* Lunes 00:00 de la semana de una fecha, para agrupar días visitados por semana. */
+function _inicioSemana(d){const x=new Date(d);const dia=(x.getDay()+6)%7;x.setDate(x.getDate()-dia);x.setHours(0,0,0,0);return x;}
+function diasVisitaSemanaActual(){
+  const inicio=_inicioSemana(new Date());
+  const set=new Set();
+  _statArr('imdac_dias').forEach(f=>{const d=new Date(f+'T00:00:00');if(d>=inicio)set.add((d.getDay()+6)%7);});
+  return set; // índices 0=lunes … 6=domingo
+}
+function rachaSemanas(){
+  const dias=_statArr('imdac_dias'); if(!dias.length)return 0;
+  const semanas=new Set(dias.map(f=>_inicioSemana(new Date(f+'T00:00:00')).toISOString().slice(0,10)));
+  let racha=0,cur=_inicioSemana(new Date());
+  while(semanas.has(cur.toISOString().slice(0,10))){racha++;cur=new Date(cur);cur.setDate(cur.getDate()-7);}
+  return racha;
+}
+/* Nivel por puntos: 10 por clase vista, 50 por curso completado — mismas
+   cifras que ya mostraba calcLogros() en sus metas, solo que ahora también
+   se traducen en una progresión visual. Nombres reutilizan el vocabulario
+   de obra que ya usan los logros (Constructor, Residente, Maestro de obra),
+   para no inventar un segundo vocabulario de niveles sin relación. */
+const NIVELES_LOGROS=[{n:'Aprendiz',min:0},{n:'Oficial',min:100},{n:'Residente',min:300},{n:'Maestro de obra',min:600}];
+function nivelPorPuntos(pts){
+  let actual=NIVELES_LOGROS[0],siguiente=NIVELES_LOGROS[1]||null;
+  for(let i=0;i<NIVELES_LOGROS.length;i++){if(pts>=NIVELES_LOGROS[i].min){actual=NIVELES_LOGROS[i];siguiente=NIVELES_LOGROS[i+1]||null;}}
+  return{actual,siguiente};
+}
 function calcLogros(){
   const uid=CURRENT_USER&&CURRENT_USER.uid;
   const progs=Object.values(DATA.progresos||{});
@@ -840,49 +1430,109 @@ function calcLogros(){
   // dos a la vista, "3 categorías distintas" sería inalcanzable.
   const totalCats=new Set((DATA.cursos||[]).map(c=>c.categoria||'General')).size;
   const mCategorias=totalCats?Math.min(3,totalCats):3;
-  return [
-    {n:'Primer paso',d:'Inicia tu primer curso',ic:'🎯',v:iniciados,m:1},
-    {n:'Manos a la obra',d:'Completa tu primera clase',ic:'🧱',v:clasesTot,m:1},
-    {n:'Pico y pala',d:'Completa 10 clases',ic:'🔨',v:clasesTot,m:10},
-    {n:'Media jornada',d:'Completa 25 clases',ic:'⏱️',v:clasesTot,m:25},
-    {n:'Jornada completa',d:'Completa 50 clases',ic:'🚧',v:clasesTot,m:50},
-    {n:'Cimientos firmes',d:'Completa tu primer curso',ic:'🏠',v:completos,m:1},
-    {n:'Constructor',d:`Completa ${cursosTxt(mConstructor)}`,ic:'🏗️',v:completos,m:mConstructor},
-    {n:'Supervisor',d:`Completa ${cursosTxt(mSupervisor)} · mitad del catálogo`,ic:'📐',v:completos,m:mSupervisor},
-    {n:'Residente de obra',d:`Completa ${cursosTxt(mResidente)}`,ic:'🦺',v:completos,m:mResidente},
-    {n:'Maestro de obra',d:`Completa los ${cursosTxt(mMaestro)} del catálogo`,ic:'👷',v:completos,m:mMaestro},
-    {n:'Multidisciplinario',d:`Completa cursos de ${mCategorias} categorías distintas`,ic:'🗂️',v:catsCompletas,m:mCategorias},
-    {n:'Coleccionista',d:'Descarga tu primer certificado',ic:'📜',v:certsDesc,m:1},
-    {n:'Galería de títulos',d:'Descarga 5 certificados',ic:'🖼️',v:certsDesc,m:5},
-    {n:'Voz del gremio',d:'Publica tu primer tema en el foro',ic:'💬',v:misTemas.length,m:1},
-    {n:'Cronista',d:'Publica 3 temas en el foro',ic:'✍️',v:misTemas.length,m:3},
-    {n:'Líder de opinión',d:'Publica 5 temas en el foro',ic:'📣',v:misTemas.length,m:5},
-    {n:'Buen colega',d:'Reacciona a un tema del foro',ic:'❤️',v:diLike?1:0,m:1},
-    {n:'Mano amiga',d:'Reacciona a 5 temas del foro',ic:'🤝',v:likesDados,m:5},
-    {n:'Corazón de oro',d:'Reacciona a 15 temas del foro',ic:'💞',v:likesDados,m:15},
-    {n:'Influencer',d:'Recibe 10 reacciones en tus temas',ic:'⭐',v:likesRecibidos,m:10},
-    {n:'Voz respetada',d:'Recibe 25 reacciones en tus temas',ic:'🌟',v:likesRecibidos,m:25},
-    {n:'Constante',d:'Visita el club 7 días distintos',ic:'📅',v:diasVisita,m:7},
-    {n:'Racha de fuego',d:'Visita el club 30 días distintos',ic:'🔥',v:diasVisita,m:30},
-    {n:'Leyenda IMDAC',d:'Catálogo completo + 25 reacciones recibidas',ic:'🏆',v:(completos>=mMaestro&&likesRecibidos>=25)?1:0,m:1},
+  const lista=[
+    {n:'Primer paso',d:'Inicia tu primer curso',ic:'🎯',v:iniciados,m:1,g:'aprendizaje'},
+    {n:'Manos a la obra',d:'Completa tu primera clase',ic:'🧱',v:clasesTot,m:1,g:'aprendizaje'},
+    {n:'Pico y pala',d:'Completa 10 clases',ic:'🔨',v:clasesTot,m:10,g:'aprendizaje'},
+    {n:'Media jornada',d:'Completa 25 clases',ic:'⏱️',v:clasesTot,m:25,g:'aprendizaje'},
+    {n:'Jornada completa',d:'Completa 50 clases',ic:'🚧',v:clasesTot,m:50,g:'aprendizaje'},
+    {n:'Cimientos firmes',d:'Completa tu primer curso',ic:'🏠',v:completos,m:1,g:'aprendizaje'},
+    {n:'Constructor',d:`Completa ${cursosTxt(mConstructor)}`,ic:'🏗️',v:completos,m:mConstructor,g:'aprendizaje'},
+    {n:'Supervisor',d:`Completa ${cursosTxt(mSupervisor)} · mitad del catálogo`,ic:'📐',v:completos,m:mSupervisor,g:'aprendizaje'},
+    {n:'Residente de obra',d:`Completa ${cursosTxt(mResidente)}`,ic:'🦺',v:completos,m:mResidente,g:'aprendizaje'},
+    {n:'Maestro de obra',d:`Completa los ${cursosTxt(mMaestro)} del catálogo`,ic:'👷',v:completos,m:mMaestro,g:'aprendizaje'},
+    {n:'Multidisciplinario',d:`Completa cursos de ${mCategorias} categorías distintas`,ic:'🗂️',v:catsCompletas,m:mCategorias,g:'aprendizaje'},
+    {n:'Coleccionista',d:'Descarga tu primer certificado',ic:'📜',v:certsDesc,m:1,g:'certificacion'},
+    {n:'Galería de títulos',d:'Descarga 5 certificados',ic:'🖼️',v:certsDesc,m:5,g:'certificacion'},
+    {n:'Voz del gremio',d:'Publica tu primer tema en el foro',ic:'💬',v:misTemas.length,m:1,g:'comunidad'},
+    {n:'Cronista',d:'Publica 3 temas en el foro',ic:'✍️',v:misTemas.length,m:3,g:'comunidad'},
+    {n:'Líder de opinión',d:'Publica 5 temas en el foro',ic:'📣',v:misTemas.length,m:5,g:'comunidad'},
+    {n:'Buen colega',d:'Reacciona a un tema del foro',ic:'❤️',v:diLike?1:0,m:1,g:'comunidad'},
+    {n:'Mano amiga',d:'Reacciona a 5 temas del foro',ic:'🤝',v:likesDados,m:5,g:'comunidad'},
+    {n:'Corazón de oro',d:'Reacciona a 15 temas del foro',ic:'💞',v:likesDados,m:15,g:'comunidad'},
+    {n:'Influencer',d:'Recibe 10 reacciones en tus temas',ic:'⭐',v:likesRecibidos,m:10,g:'comunidad'},
+    {n:'Voz respetada',d:'Recibe 25 reacciones en tus temas',ic:'🌟',v:likesRecibidos,m:25,g:'comunidad'},
+    {n:'Constante',d:'Visita el club 7 días distintos',ic:'📅',v:diasVisita,m:7,g:'constancia'},
+    {n:'Racha de fuego',d:'Visita el club 30 días distintos',ic:'🔥',v:diasVisita,m:30,g:'constancia'},
+    {n:'Leyenda IMDAC',d:'Catálogo completo + 25 reacciones recibidas',ic:'🏆',v:(completos>=mMaestro&&likesRecibidos>=25)?1:0,m:1,g:'especial'},
   ].map(l=>({...l,ok:l.v>=l.m}));
+  const puntos=clasesTot*10+completos*50;
+  return{lista,clasesTot,completos,totalCursos,puntos};
+}
+const LOGROS_GRUPOS=[
+  {g:'aprendizaje',t:'Aprendizaje'},
+  {g:'certificacion',t:'Certificación'},
+  {g:'comunidad',t:'Comunidad'},
+  {g:'constancia',t:'Constancia'},
+  {g:'especial',t:'Especial'},
+];
+function logroCard(l){
+  const pct=Math.min(100,Math.round((l.v/l.m)*100));
+  return `<div class="card logro-card ${l.ok?'ok':''}" style="padding:22px">
+    <div class="logro-ic-wrap"><span class="logro-ic">${l.ic}</span></div>
+    <h4 style="font-family:var(--font-display);margin:0 0 4px;text-align:center">${l.n}</h4>
+    <p style="color:var(--muted);font-size:.86rem;text-align:center">${l.d}</p>
+    ${l.ok?'<span class="pill" style="background:var(--rojo-50);color:var(--rojo);margin-top:10px">✓ Desbloqueado</span>'
+      :`<div class="logro-bar"><i style="width:${pct}%"></i></div><span class="logro-cnt">${Math.min(l.v,l.m)}/${l.m}</span>`}
+  </div>`;
 }
 function renderLogros(){
-  const logros=calcLogros();
-  const des=logros.filter(l=>l.ok).length;
+  const{lista,clasesTot,completos,totalCursos,puntos}=calcLogros();
+  const des=lista.filter(l=>l.ok).length;
   const completados=DATA.cursos.filter(c=>(DATA.progresos[c.id]||0)>=100);
-  return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div><h1 class="page-h">Logros</h1><p class="page-sub">Tu progreso y reconocimientos en el club.</p></div><span class="pill" style="background:var(--rojo-50);color:var(--rojo);font-weight:700">${des}/${logros.length} desbloqueados</span></div>
-  <div class="course-grid">${logros.map(l=>{
-    const pct=Math.min(100,Math.round((l.v/l.m)*100));
-    return `<div class="card logro-card ${l.ok?'ok':''}" style="padding:24px;text-align:center">
-      <div class="logro-ic">${l.ic}</div>
-      <h4 style="font-family:var(--font-display);margin:10px 0 4px">${l.n}</h4>
-      <p style="color:var(--muted);font-size:.86rem">${l.d}</p>
-      ${l.ok?'<span class="pill" style="background:var(--rojo-50);color:var(--rojo);margin-top:10px">✓ Desbloqueado</span>'
-        :`<div class="logro-bar"><i style="width:${pct}%"></i></div><span class="logro-cnt">${Math.min(l.v,l.m)}/${l.m}</span>`}
-    </div>`;}).join('')}</div>
-  ${completados.length?`<h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;margin:34px 0 14px">Tus certificados</h3>
-    <div class="card" style="padding:6px 22px">${completados.map(c=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)"><div><b style="font-family:var(--font-display)">${c.titulo}</b><div style="color:var(--muted);font-size:.84rem">${c.categoria||''}</div></div><button class="filter" onclick="generarCertificado('${c.id}')">📄 Descargar PDF</button></div>`).join('')}</div>`:''}`;
+  const{actual,siguiente}=nivelPorPuntos(puntos);
+  const rangoIni=actual.min, rangoFin=siguiente?siguiente.min:actual.min;
+  const pctNivel=siguiente?Math.max(0,Math.min(1,(puntos-rangoIni)/(rangoFin-rangoIni))):1;
+  const r=34,circ=2*Math.PI*r;
+  const dias=diasVisitaSemanaActual();
+  const DIAS=['L','M','M','J','V','S','D'];
+  return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px"><div><h1 class="page-h">Logros</h1><p class="page-sub">Tu progreso y reconocimientos en el club.</p></div><span class="pill" style="background:var(--rojo-50);color:var(--rojo);font-weight:700">${des}/${lista.length} desbloqueados</span></div>
+  <div class="logros-hero">
+    <div class="lh-main">
+      <div class="lh-pill">🎓 Nivel ${escHtml(actual.n)}</div>
+      <div class="lh-pts">${puntos} puntos</div>
+      <div class="lh-sub">${siguiente?`${rangoFin-puntos} puntos para ${escHtml(siguiente.n)} · 10 por clase, 50 por curso`:'Nivel máximo alcanzado · 10 por clase, 50 por curso'}</div>
+      <div class="lh-track"><i style="width:${Math.round(pctNivel*100)}%"></i></div>
+      <div class="lh-stats">
+        <div><b>${rachaSemanas()}</b><span>Semanas de racha</span></div>
+        <div><b>${clasesTot}</b><span>Clases vistas</span></div>
+        <div><b>${completos}/${totalCursos||0}</b><span>Cursos completados</span></div>
+      </div>
+    </div>
+    <div class="lh-ring-wrap">
+      <div class="lh-ring"><svg width="96" height="96"><circle cx="48" cy="48" r="${r}" stroke="rgba(255,255,255,.15)" stroke-width="8" fill="none"/><circle cx="48" cy="48" r="${r}" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-pctNivel)}"/></svg><b>${siguiente?`${puntos}/${rangoFin}`:'MAX'}</b></div>
+      <div class="lh-week">${DIAS.map((d,i)=>`<span class="${dias.has(i)?'on':''}">${d}</span>`).join('')}</div>
+    </div>
+  </div>
+  ${LOGROS_GRUPOS.map(({g,t})=>{
+    const items=lista.filter(l=>l.g===g); if(!items.length)return '';
+    return `<div class="logros-grupo"><h3>${t}</h3><div class="course-grid">${items.map(logroCard).join('')}</div></div>`;
+  }).join('')}`;
+}
+function renderCertificados(){
+  const completados=DATA.cursos.filter(c=>(DATA.progresos[c.id]||0)>=100);
+  const descargados=new Set(_statArr('imdac_certs'));
+  const certIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+  const dlIcon='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="width:15px;height:15px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>';
+  return `<div class="cert-hero">
+    <div class="cert-pill">Tu progreso</div>
+    <h1>Certificados</h1>
+    <p>Descarga la constancia oficial de cada curso que completes en el Club IMDAC, con folio y código QR de verificación.</p>
+  </div>
+  ${completados.length?completados.map(c=>{
+    const ya=descargados.has(c.id);
+    return `<div class="cert-row">
+      <div class="cr-ic">${certIcon}</div>
+      <div class="cr-body"><b>${escHtml(c.titulo)}</b><span>${escHtml(c.categoria||'General')}</span></div>
+      ${ya?'<span class="cr-badge">✓ Descargado</span>':''}
+      <button class="cr-btn" onclick="generarCertificado('${c.id}')">${dlIcon}Descargar PDF</button>
+    </div>`;
+  }).join(''):`<div class="card"><div class="cert-empty">
+    <div class="ce-ic">${certIcon}</div>
+    <b>Aún no tienes certificados</b>
+    <span>Completa un curso del catálogo para generar tu primera constancia.</span><br>
+    <button class="cr-btn" onclick="go('biblioteca')">Ver catálogo de cursos</button>
+  </div></div>`}`;
 }
 
 function renderConfig(){
@@ -892,7 +1542,7 @@ function renderConfig(){
   const prefs=notisPrefs();
   const notifs=[
     ['Nuevos cursos','Recibe aviso cuando se suba un nuevo curso','curso'],
-    ['Webinars en vivo','Recordatorio antes de cada sesión','webinar'],
+    ['Clases en vivo','Recordatorio antes de cada sesión','webinar'],
     ['Nuevos PDFs','Aviso cuando se publique nuevo material','material'],
     ['Promociones','Ofertas especiales y descuentos del Club','promo'],
     ['Anuncios generales','Avisos importantes del Club','anuncio'],
@@ -1165,26 +1815,6 @@ function calcBlock(){
   document.getElementById('bk-piezas').textContent=piezas+' piezas';
 }
 
-function renderPrecios(){
-  const base=[
-    ['Excavación a mano en material tipo II','m³','$185.00'],
-    ['Plantilla de concreto f\'c=100','m²','$95.00'],
-    ['Cadena de cimentación 15×20 armada','ml','$420.00'],
-    ['Muro de block 15 cm asentado','m²','$540.00'],
-    ['Losa maciza 10 cm f\'c=200','m²','$980.00'],
-    ['Aplanado fino en muro','m²','$165.00'],
-    ['Piso de cerámica 30×30 colocado','m²','$310.00'],
-  ];
-  const conceptos=(DATA.precios&&DATA.precios.length)?DATA.precios.map(p=>[p.concepto,p.unidad,p.precio]):base;
-  const nota=(DATA.precios&&DATA.precios.length)?'* Catálogo administrado por IMDAC. Precios de referencia: ajusta según región, proveedor y fecha.':'* Precios de referencia general. Ajusta según región, proveedor y fecha.';
-  return `<h1 class="page-h">Catálogo de Precios Unitarios</h1><p class="page-sub">Referencia base de conceptos de obra (precios estimados, actualízalos a tu zona).</p>
-  <div class="card tbl-card">
-    <table class="norm"><thead><tr><th>Concepto</th><th>Unidad</th><th>P.U. estimado</th></tr></thead>
-    <tbody>${conceptos.map(c=>`<tr><td>${c[0]}</td><td>${c[1]}</td><td style="font-family:var(--font-display);font-weight:700;color:var(--rojo)">${c[2]}</td></tr>`).join('')}</tbody></table>
-  </div>
-  <p style="color:var(--muted);font-size:.82rem;margin-top:14px">${nota}</p>`;
-}
-
 function renderNormativas(){
   const normas=[
     ['NTC Diseño Estructuras de Concreto','Estructuras','Reglamento de Construcciones CDMX'],
@@ -1276,7 +1906,7 @@ function claseRow(cl,i,disp,cursoId,hecha){
   </div>`;
 }
 
-function mostrarMembresiaClase(){renderPaywall('La primera clase es gratuita. Desde la segunda clase se requiere una membresía vigente.');}
+function mostrarMembresiaClase(){renderPaywall('Esta clase requiere una membresía vigente. En los cursos de prueba gratuita, la última clase y el certificado son exclusivos para miembros.');}
 
 async function abrirTemario(courseId){
   if(!_tieneAcceso())return renderPaywall('Puedes ver el temario del curso; abrir el documento completo requiere membresía.');
@@ -1533,13 +2163,13 @@ function startCountdown(){
 function skelGrid(n){return `<div class="course-grid">${Array.from({length:n},()=>`<div class="skel-card"><div class="skel" style="aspect-ratio:16/10"></div><div style="padding:16px"><div class="skel skel-line" style="width:80%"></div><div class="skel skel-line" style="width:50%"></div><div class="skel skel-line" style="width:100%;margin-top:14px"></div></div></div>`).join('')}</div>`;}
 function skelNews(n){return Array.from({length:n},()=>`<div class="skel-card" style="display:flex;gap:14px;padding:14px;margin-bottom:12px"><div class="skel" style="width:120px;height:80px;border-radius:10px;flex-shrink:0"></div><div style="flex:1"><div class="skel skel-line" style="width:30%"></div><div class="skel skel-line" style="width:85%"></div><div class="skel skel-line" style="width:60%"></div></div></div>`).join('');}
 function skelInicio(){
-  return `<div class="skel" style="height:96px;border-radius:16px;margin-bottom:22px"></div>
-  <div class="inicio-grid"><div>
-    <div class="skel" style="height:150px;border-radius:16px;margin-bottom:22px"></div>
-    <div class="stats-row">${Array.from({length:3},()=>'<div class="skel" style="height:90px;border-radius:16px"></div>').join('')}</div>
-    <div class="skel skel-line" style="width:200px;height:20px;margin:8px 0 16px"></div>
-    ${skelGrid(2)}
-  </div><aside class="news-side"><div class="skel" style="height:300px;border-radius:16px"></div></aside></div>`;
+  return `<div class="dash-hero">
+    <div class="skel" style="height:280px;border-radius:16px"></div>
+    <div class="skel" style="height:280px;border-radius:16px"></div>
+  </div>
+  <div class="quick-row">${Array.from({length:4},()=>'<div class="skel" style="height:90px;border-radius:16px"></div>').join('')}</div>
+  <div class="skel skel-line" style="width:200px;height:20px;margin:8px 0 16px"></div>
+  ${skelGrid(4)}`;
 }
 function emptyIllus(title,desc,actionLabel,actionFn){
   const illus=`<svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="55" width="120" height="80" rx="10" fill="var(--gris-100)"/><path d="M40 70l60 38 60-38" stroke="var(--gris-300)" stroke-width="3" fill="none"/><rect x="64" y="30" width="72" height="48" rx="8" fill="var(--surface)" stroke="var(--rojo)" stroke-width="3"/><circle cx="100" cy="50" r="9" fill="var(--rojo)" opacity=".25"/><path d="M100 45v8m0 4h.01" stroke="var(--rojo)" stroke-width="3" stroke-linecap="round"/></svg>`;
@@ -1697,7 +2327,7 @@ async function apiFetch(path,{method='GET',body}={}){
 async function loadData(){
   // El catálogo premium se obtiene saneado desde el backend: las URLs privadas nunca llegan aquí.
   DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
-  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={};
+  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[];
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){
     DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
     DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos;
@@ -1720,10 +2350,10 @@ async function loadData(){
       if(cd.wa2){IMDAC.soporte.l2=waDigits(cd.wa2);IMDAC.soporte.l2Label=cd.wa2;}
       window._mantenimiento=!!cd.mantenimiento;
     try{const not=await db.collection('noticias').orderBy('fecha','desc').limit(20).get();DATA.noticias=not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);}catch(e){DATA.noticias=[];}
-    try{const pre=await db.collection('precios').get();DATA.precios=pre.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.precios=[];}
     if(_tieneAcceso()){
       try{const foro=await db.collection('foro_temas').orderBy('fecha','desc').limit(30).get();DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.foro=[];}
       try{const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0;if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});}catch(e){}
+      try{const dir=await db.collection('directorio').get();DATA.directorio=dir.docs.map(d=>({uid:d.id,...d.data()})).filter(x=>x.visible!==false);}catch(e){DATA.directorio=[];}
     }
   }catch(e){console.warn('Catálogo:',e.message);toast('No se pudo cargar el catálogo. Intenta recargar.');}
   LOADING=false;
@@ -1735,6 +2365,7 @@ function refreshUserUI(){
   document.getElementById('u-name').textContent=CURRENT_USER?.displayName||'Miembro';
   document.getElementById('u-email').textContent=CURRENT_USER?.email||'';
   document.getElementById('u-av').textContent=initials();
+  const topAvatar=document.getElementById('u-av-top');if(topAvatar)topAvatar.textContent=initials();
 }
 function toggleSidebar(open){
   const sb=document.getElementById('sidebar'),bd=document.getElementById('sb-backdrop');
@@ -1782,6 +2413,7 @@ async function onLogged(){
   renderSidebar();refreshUserUI();updateThemeIcon();
   LOADING=true; go('inicio');
   await loadData();
+  aplicarVistaPreview();
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
   const q=new URLSearchParams(location.search);
   go(seccionInicial());
@@ -1801,6 +2433,36 @@ async function onLogged(){
   if(_tieneAcceso())escucharNotis();
   registrarVisita();
 }
+/* ====== VISTA PREVIA DE ADMIN ("Ver panel de usuario" en Configuración) ======
+   Llega con ?vtok=<custom token>&preview=todo|miembro&volver=<url del admin>.
+   El sign-in con vtok ya pasó en DOMContentLoaded; aquí solo se decide qué
+   simular y se deja un banner fijo para volver al panel admin. */
+let _previewModo=null, _previewVolver='';
+function aplicarVistaPreview(){
+  const q=new URLSearchParams(location.search);
+  const modo=q.get('preview');
+  if(!modo)return;
+  _previewModo=modo;
+  _previewVolver=q.get('volver')||'';
+  if(modo==='miembro'){
+    // Simulado solo en memoria del navegador — nunca se escribe en Firestore,
+    // así que la cuenta real del admin no termina con una membresía falsa.
+    window._imdacAdmin=false;
+    window._miMiembro={estado:'Activo',plan:'Mensual',hasAccess:true,_simulado:true};
+    window._previewEnrollDate=new Date();
+  }
+  renderBannerPreview();
+}
+function renderBannerPreview(){
+  if(!_previewModo || document.getElementById('preview-banner'))return;
+  const texto=_previewModo==='miembro'
+    ?'👁️ Viendo como lo vería un miembro VIP · membresía simulada desde hoy'
+    :'👁️ Viendo con todo desbloqueado, como administrador';
+  const b=document.createElement('div');
+  b.id='preview-banner';
+  b.innerHTML=`<span>${texto}</span>${_previewVolver?`<a href="${escHtml(_previewVolver)}">← Volver al panel admin</a>`:''}`;
+  document.body.appendChild(b);
+}
 /* ====== PAYWALL (activa tu membresía) ====== */
 let _planes=null;
 function renderPaywall(reason){
@@ -1814,7 +2476,7 @@ function renderPaywall(reason){
         <div class="plan-name">Mensual</div>
         <div class="plan-price" id="pp-mensual">$—</div>
         <div class="plan-per">MXN / mes</div>
-        <ul class="plan-feats"><li>${DATA.cursos.length?`${DATA.cursos.length} curso${DATA.cursos.length===1?'':'s'} con certificado`:'Cursos con certificado'}</li><li>Webinars en vivo</li><li>Material PDF y herramientas</li><li>Foro y canal privado</li><li>20% de descuento adicional</li></ul>
+        <ul class="plan-feats"><li>${DATA.cursos.length?`${DATA.cursos.length} curso${DATA.cursos.length===1?'':'s'} con certificado`:'Cursos con certificado'}</li><li>Clases en vivo</li><li>Material PDF y herramientas</li><li>Foro y canal privado</li><li>20% de descuento adicional</li></ul>
         <button class="btn-primary" onclick="irAPagar('mensual')">Elegir Mensual</button>
         <div class="plan-note">Cancela cuando quieras</div>
       </div>
@@ -1934,9 +2596,20 @@ window.addEventListener('DOMContentLoaded',()=>{
   // Command palette ⌘K / Ctrl+K
   document.addEventListener('keydown',e=>{
     if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(document.body.classList.contains('logged')){document.getElementById('cmdk-bg').classList.contains('open')?closeCmdK():openCmdK();}}
-    else if(e.key==='Escape')closeCmdK();
+    else if(e.key==='Escape'){closeCmdK();const pop=document.getElementById('notis-pop');if(pop)pop.classList.remove('open');}
+  });
+  // Dropdown de notificaciones: se cierra al tocar fuera de él.
+  document.addEventListener('click',e=>{
+    const pop=document.getElementById('notis-pop');
+    if(pop&&pop.classList.contains('open')&&!pop.contains(e.target))pop.classList.remove('open');
   });
   if(FB_OK){
+    // "Ver panel de usuario" desde el panel admin (Configuración): llega con
+    // ?vtok=<custom token>&preview=todo|miembro&volver=<url del panel admin>.
+    // Con el token entra firmado como el propio admin, sin pedirle contraseña.
+    const qp=new URLSearchParams(location.search);
+    const vtok=qp.get('vtok');
+    if(vtok) auth.signInWithCustomToken(vtok).catch(e=>showErr(authMsg(e.code)));
     // Regreso del login con Google (redirect): crear miembro si es nuevo
     auth.getRedirectResult().then(res=>{
       if(res&&res.user&&res.additionalUserInfo&&res.additionalUserInfo.isNewUser){
