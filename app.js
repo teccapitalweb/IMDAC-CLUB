@@ -2955,16 +2955,29 @@ function confirmarCursoPrueba(cursoId){
   document.getElementById('modal').classList.add('open');
 }
 async function confirmarCursoPruebaOnboarding(cursoId){
+  const confirmBtn=document.querySelector('#modal-content .btn-primary');
+  if(confirmBtn){
+    if(confirmBtn.disabled)return;
+    confirmBtn.disabled=true;
+    confirmBtn.textContent='Guardando tu elección…';
+    confirmBtn.style.opacity='.72';
+    confirmBtn.style.cursor='wait';
+  }
   try{
     const data=await apiFetch('/curso-prueba',{method:'POST',body:{cursoId}});
     DATA.cursoPrueba=String(data.cursoId||cursoId);
-    await loadData();
     _eligiendoCursoPrueba=false;
-    toast('¡Listo! Ya puedes ver las clases de tu curso de prueba.');
     completarOnboarding();
-  }catch(e){toast(e.message||'No se pudo guardar tu curso de prueba',{type:'err'});return;}
-  closeModal();
-  openCurso(cursoId);
+    // No bloqueamos la entrada al curso con una segunda carga completa del
+    // catálogo. La información actual basta para abrirlo; se refresca detrás.
+    closeModal();
+    openCurso(cursoId);
+    toast('¡Listo! Ya puedes ver las clases de tu curso de prueba.');
+    loadData().catch(()=>{});
+  }catch(e){
+    if(confirmBtn){confirmBtn.disabled=false;confirmBtn.textContent='Sí, es mi prueba gratuita';confirmBtn.style.opacity='';confirmBtn.style.cursor='';}
+    toast(e.message||'No se pudo guardar tu curso de prueba',{type:'err'});
+  }
 }
 
 /* ====== PAYWALL (activa tu membresía) ====== */
