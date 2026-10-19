@@ -2813,8 +2813,25 @@ function tourSiguiente(){_tourPaso++;mostrarPasoTour();}
 const ONBOARDING_PASOS=['tour','nombre','perfil','regalo','cursoPrueba'];
 let _onboardingIdx=-1;
 function onboardingStorageKey(uid){return uid?`imdac-onboarding-pendiente-${uid}`:'';}
-function marcarOnboardingPendiente(uid){try{const key=onboardingStorageKey(uid);if(key)localStorage.setItem(key,'1');}catch(e){}}
-function onboardingPendiente(uid){try{const key=onboardingStorageKey(uid);return !!(key&&localStorage.getItem(key)==='1');}catch(e){return false;}}
+function onboardingState(uid){
+  try{
+    const raw=localStorage.getItem(onboardingStorageKey(uid));
+    if(!raw)return null;
+    // La versión anterior solo guardaba "1". Esas personas ya habían iniciado
+    // el flujo, así que las llevamos al único paso pendiente útil: su prueba.
+    if(raw==='1')return {step:'cursoPrueba'};
+    const state=JSON.parse(raw);
+    return state&&ONBOARDING_PASOS.includes(state.step)?state:null;
+  }catch(e){return null;}
+}
+function guardarPasoOnboarding(step){
+  try{const key=onboardingStorageKey(CURRENT_USER?.uid);if(key)localStorage.setItem(key,JSON.stringify({step}));}catch(e){}
+}
+function marcarOnboardingPendiente(uid){
+  if(onboardingState(uid))return;
+  try{const key=onboardingStorageKey(uid);if(key)localStorage.setItem(key,JSON.stringify({step:'tour'}));}catch(e){}
+}
+function onboardingPendiente(uid){return !!onboardingState(uid);}
 function completarOnboarding(){try{const key=onboardingStorageKey(CURRENT_USER?.uid);if(key)localStorage.removeItem(key);}catch(e){}window._registroEnProceso=false;window._esRegistroNuevo=false;}
 function iniciarOnboardingRegistro(){
   if(window._onboardingIniciado)return;
@@ -2823,10 +2840,16 @@ function iniciarOnboardingRegistro(){
   marcarOnboardingPendiente(CURRENT_USER?.uid);
   setTimeout(iniciarOnboarding,900);
 }
-function iniciarOnboarding(){_onboardingIdx=-1;siguientePasoOnboarding();}
+function iniciarOnboarding(){
+  const state=onboardingState(CURRENT_USER?.uid);
+  const index=state?ONBOARDING_PASOS.indexOf(state.step):-1;
+  _onboardingIdx=index-1;
+  siguientePasoOnboarding();
+}
 function siguientePasoOnboarding(){
   _onboardingIdx++;
   const paso=ONBOARDING_PASOS[_onboardingIdx];
+  if(paso)guardarPasoOnboarding(paso);
   if(paso==='tour')return iniciarTour();
   if(paso==='nombre')return mostrarModalNombreOnboarding();
   if(paso==='perfil')return mostrarModalPerfilOnboarding();
@@ -2872,15 +2895,10 @@ async function mostrarModalRegaloOnboarding(){
     <div class="calc-result" style="margin-bottom:18px"><b>${data.xp} XP</b><span>Tu saldo actual</span></div>
     <div style="display:flex;gap:10px">
       <button class="btn-ghost" style="flex:1" onclick="closeModal();siguientePasoOnboarding()">Más tarde</button>
-      <button class="btn-primary" style="flex:1" onclick="verMaterialOnboarding()">Ver el material →</button>
+      <button class="btn-primary" style="flex:1" onclick="closeModal();siguientePasoOnboarding()">Elegir mi curso →</button>
     </div>
   </div>`;
   document.getElementById('modal').classList.add('open');
-}
-function verMaterialOnboarding(){
-  closeModal();
-  go('material');
-  setTimeout(siguientePasoOnboarding,4000); // dar tiempo a ver el material antes del siguiente paso
 }
 function courseIsFreeTrialCliente(c){
   const v=c&&c.esPruebaGratuita;
@@ -2891,7 +2909,16 @@ function mostrarSelectorCursoPrueba(){
   // La elección es entre todos los cursos publicados que tengan al menos dos
   // clases: el usuario verá todas menos la última hasta activar membresía.
   const elegibles=(DATA.cursos||[]).filter(c=>(c.listaClases||[]).length>=2);
-  if(!elegibles.length)return;
+  if(!elegibles.length){
+    // Si el catálogo todavía estaba cargando, no reiniciamos la bienvenida:
+    // mantenemos el paso y reintentamos una vez con los datos recién leídos.
+    if(!window._cursoPruebaReintento){
+      window._cursoPruebaReintento=true;
+      setTimeout(()=>loadData().then(mostrarSelectorCursoPrueba).catch(()=>toast('No se pudieron cargar los cursos todavía')),900);
+    }else toast('Aún no hay cursos disponibles. Tu bienvenida seguirá pendiente.');
+    return;
+  }
+  window._cursoPruebaReintento=false;
   document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="padding:30px 28px"><div style="display:flex;gap:14px;align-items:center;margin-bottom:16px"><div style="width:48px;height:48px;border-radius:14px;background:var(--rojo-50);display:grid;place-items:center;color:var(--rojo);font-size:1.4rem">▷</div><div><h3 style="font-family:var(--font-display);font-size:1.2rem;margin:0">Tu prueba gratuita</h3><span style="color:var(--muted);font-size:.82rem">Una función para usuarios nuevos</span></div></div><div style="border-top:1px solid var(--line);padding-top:18px"><p style="font-size:1rem;line-height:1.55;margin:0 0 12px">Al ser nuevo, puedes elegir <b>un curso de tu interés</b> como prueba gratuita.</p><p style="color:var(--muted);font-size:.9rem;line-height:1.55;margin:0 0 20px">Verás todas sus clases menos la última. El certificado se habilita al activar tu membresía.</p></div><button class="btn-primary" style="width:auto;float:right;padding:13px 22px" onclick="mostrarListaCursosPrueba()">Elegir mi curso</button><div style="clear:both"></div></div>`;
   document.getElementById('modal').classList.add('open');
 }
