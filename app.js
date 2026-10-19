@@ -54,6 +54,7 @@ let LOADING=true;
 let BUNNY_READY=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{},xp:0,cursoPrueba:''};
+let _eligiendoCursoPrueba=false;
 let activeFilter="Todos";
 let courseQuery="";
 let courseSort="recientes";
@@ -422,7 +423,8 @@ function courseCard(c){
   const prog=DATA.progresos[c.id]||0;
   const member=_tieneAcceso();
   const schedule=dripStatus(c);
-  return `<div class="course" onclick="openCurso('${c.id}')">
+  const cardAction=_eligiendoCursoPrueba?`confirmarCursoPrueba(${JSON.stringify(c.id)})`:`openCurso('${c.id}')`;
+  return `<div class="course" onclick='${cardAction}'>
     <div class="course-img" style="background-image:url('${driveImg(c.img)}')">
       <span class="course-cat">${c.categoria||'General'}</span>
     </div>
@@ -433,7 +435,7 @@ function courseCard(c){
         ${member&&schedule.locked?`<span class="drip">🔒 Disponible en ${schedule.dias} día${schedule.dias===1?'':'s'}</span>`:(!member&&cursoRegalaClase(c)?`<span class="drip" style="color:#18794e">${cursoEsPruebaGratuita(c)?'Prueba gratuita':'Primera clase gratis'}</span>`:'')}
       </div>
       ${member?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
-      <span class="course-open">${member&&schedule.locked?'Ver disponibilidad':(member&&prog>0?'Continuar curso':'Ver curso')} <b>→</b></span>
+      <span class="course-open">${_eligiendoCursoPrueba?`Elegir como prueba gratuita <b>→</b>`:(member&&schedule.locked?'Ver disponibilidad':(member&&prog>0?'Continuar curso':'Ver curso'))} </span>
     </div>
   </div>`;
 }
@@ -493,6 +495,7 @@ function renderBiblioteca(){
       <button class="${courseView==='completados'?'active':''}" onclick="setCourseView('completados')">Completados</button>
     </div>
   </section>
+  ${_eligiendoCursoPrueba?`<div class="card" style="margin:20px 0 14px;padding:18px 20px;border-color:#9ab58f;background:#f4f8f1"><b style="font-size:1.02rem">▷ Selecciona el curso de tu preferencia para obtener tu prueba gratuita</b><span style="display:block;color:var(--muted);margin-top:5px;font-size:.86rem">Solo puedes elegir uno. Después confirmaremos tu elección.</span></div>`:''}
   <div class="catalog-area-label">Explora por área</div>
   <div class="filters member-catalog-filters">${CATS.map(c=>`<button class="filter ${c===activeFilter?'active':''}" onclick="setFilter('${c.replace(/'/g,"\\'")}')">${c}${c==='Todos'?` <span>${total}</span>`:''}</button>`).join('')}</div>
   <div class="catalog-result"><b>${list.length}</b> curso${list.length===1?'':'s'} ${courseView==='todos'?'disponible'+(list.length===1?'':'s'):courseView==='progreso'?'en progreso':'completado'+(list.length===1?'':'s')}</div>
@@ -1105,16 +1108,16 @@ function abrirMiTarjeta(onboarding=false){
       ${!onboarding?`<label style="display:block;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:9px">Portada de tu tarjeta</label>
       <div class="dcard-preview-cover" id="dc-preview" style="background:${COVER_COLORS[colorActual]}"></div>
       <div class="color-pick">${COVER_COLORS.map((g,i)=>`<button type="button" style="background:${g}" class="${colorActual===i?'active':''}" data-color-i="${i}" onclick="elegirColorTarjeta(${i})" title="Color ${i+1}"></button>`).join('')}</div>`:''}
-      <div class="field"><label>Nombre completo</label><input id="dc-nombre" value="${escHtml(c.nombre||CURRENT_USER.displayName||'')}" placeholder="Tu nombre completo"></div>
+      ${onboarding?`<input type="hidden" id="dc-nombre" value="${escHtml(c.nombre||CURRENT_USER.displayName||'')}">`:`<div class="field"><label>Nombre completo</label><input id="dc-nombre" value="${escHtml(c.nombre||CURRENT_USER.displayName||'')}" placeholder="Tu nombre completo"></div>`}
       <div class="field"><label>Puesto o profesión${onboarding?' *':''}</label><input id="dc-puesto" value="${escHtml(c.puesto)}" placeholder="Ej. Arquitecto, ingeniero, residente de obra"></div>
       <div class="field"><label>Empresa o negocio (opcional)</label><input id="dc-empresa" value="${escHtml(c.empresa)}" placeholder="Ej. Despacho Arquitectura MX"></div>
       <div class="field"><label>Área principal${onboarding?' *':''}</label><select id="dc-sector"><option value="">Selecciona un área</option>${SECTORES_DIRECTORIO.map(s=>`<option ${c.sector===s?'selected':''}>${s}</option>`).join('')}</select></div>
       <div class="field"><label>Cuéntanos brevemente sobre tu experiencia (opcional)</label><textarea id="dc-bio" rows="3" placeholder="Ej. Especialista en supervisión y ejecución de obra.">${escHtml(c.bio)}</textarea></div>
-      ${!onboarding?`<div class="dcard-contact-head">Contacto (todos opcionales)</div>
+      <div class="dcard-contact-head">Contacto (todos opcionales)</div>
       <div class="field"><label>WhatsApp</label><input id="dc-whatsapp" value="${escHtml(t.whatsapp)}" placeholder="Ej. 52 55 1234 5678"></div>
       <div class="field"><label>Correo</label><input id="dc-email" value="${escHtml(t.email)}" placeholder="correo@ejemplo.com"></div>
-      <div class="field"><label>LinkedIn</label><input id="dc-linkedin" value="${escHtml(t.linkedin)}" placeholder="linkedin.com/in/tu-perfil"></div>
       <div class="field"><label>Instagram</label><input id="dc-instagram" value="${escHtml(t.instagram)}" placeholder="instagram.com/tu-perfil o @tu-perfil"></div>
+      ${!onboarding?`<div class="field"><label>LinkedIn</label><input id="dc-linkedin" value="${escHtml(t.linkedin)}" placeholder="linkedin.com/in/tu-perfil"></div>
       <div class="field"><label>Sitio web</label><input id="dc-web" value="${escHtml(t.web)}" placeholder="tusitio.com"></div>
       <div class="dcard-visible-row"><label><input type="checkbox" id="dc-visible" ${c.visible===false?'':'checked'}> Mostrar mi tarjeta en el directorio</label></div>`:''}
     </div>
@@ -2760,7 +2763,7 @@ const TOUR_PASOS=[
   {sel:'.sb-item[data-sec="biblioteca"]',titulo:'Tus cursos',texto:'Todos los cursos del Club, con tu avance y las clases que vayas completando.'},
   {sel:'.sb-item[data-sec="webinar"]',titulo:'Clases en vivo',texto:'Sesiones en vivo con expertos — y sus grabaciones, si no llegas a tiempo.'},
   {sel:'.sb-item[data-sec="material"]',titulo:'PDFs y material',texto:'Guías, planos tipo y documentos descargables del Club IMDAC.'},
-  {sel:'.sb-item[data-sec="calculadora"]',titulo:'Tus herramientas',texto:'Calculadoras de materiales, honorarios, presupuesto y más, hechas para arquitectura y construcción.'},
+  {sel:'.sb-item[data-sec="ficha-obra"]',titulo:'Tus herramientas',texto:'Aquí están tus herramientas de obra: ficha, checklist, calculadoras y conversores.'},
   {sel:'.sb-item[data-sec="certificados"]',titulo:'Tus certificados',texto:'Cuando termines un curso, tu certificado con folio queda disponible aquí.'},
 ];
 let _tourPaso=0;
@@ -2893,8 +2896,10 @@ function mostrarSelectorCursoPrueba(){
   document.getElementById('modal').classList.add('open');
 }
 function mostrarListaCursosPrueba(){
-  const elegibles=(DATA.cursos||[]).filter(c=>(c.listaClases||[]).length>=2);
-  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="padding:28px 26px"><h3 style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:6px">Elige tu curso</h3><p style="color:var(--muted);font-size:.84rem;line-height:1.5;margin-bottom:18px">Después te pediremos confirmación. Solo podrás elegir uno.</p><div style="display:flex;flex-direction:column;gap:10px">${elegibles.map(c=>`<button onclick='confirmarCursoPrueba(${JSON.stringify(c.id)})' style="text-align:left;width:100%;padding:14px 16px;border:1.5px solid var(--line);border-radius:12px;background:var(--base);cursor:pointer;font-family:inherit"><b style="display:block;font-size:.9rem;color:var(--text)">${escHtml(c.titulo)}</b><span style="color:var(--muted);font-size:.78rem">${escHtml(c.categoria||'')} · ${c.clases||0} clases</span></button>`).join('')}</div></div>`;
+  if(!(DATA.cursos||[]).some(c=>(c.listaClases||[]).length>=2))return toast('Aún no hay cursos disponibles para prueba');
+  _eligiendoCursoPrueba=true;
+  closeModal();
+  go('biblioteca');
 }
 function confirmarCursoPrueba(cursoId){
   const c=(DATA.cursos||[]).find(x=>x.id===cursoId);if(!c)return;
@@ -2905,11 +2910,12 @@ async function confirmarCursoPruebaOnboarding(cursoId){
     const data=await apiFetch('/curso-prueba',{method:'POST',body:{cursoId}});
     DATA.cursoPrueba=String(data.cursoId||cursoId);
     await loadData();
+    _eligiendoCursoPrueba=false;
     toast('¡Listo! Ya puedes ver las clases de tu curso de prueba.');
     completarOnboarding();
   }catch(e){toast(e.message||'No se pudo guardar tu curso de prueba',{type:'err'});return;}
   closeModal();
-  go('biblioteca');
+  openCurso(cursoId);
 }
 
 /* ====== PAYWALL (activa tu membresía) ====== */
