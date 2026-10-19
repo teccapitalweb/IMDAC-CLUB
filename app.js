@@ -423,8 +423,10 @@ function courseCard(c){
   const prog=DATA.progresos[c.id]||0;
   const member=_tieneAcceso();
   const schedule=dripStatus(c);
-  const cardAction=_eligiendoCursoPrueba?`confirmarCursoPrueba(${JSON.stringify(c.id)})`:`openCurso('${c.id}')`;
-  return `<div class="course" onclick='${cardAction}'>
+  // La elección de prueba usa delegación de eventos: así el ID de Firestore no
+  // queda incrustado dentro de un onclick y no se rompe por comillas especiales.
+  const trialAttr=_eligiendoCursoPrueba?` data-trial-course="${encodeURIComponent(String(c.id))}"`:` onclick="openCurso(${JSON.stringify(c.id)})"`;
+  return `<div class="course"${trialAttr}>
     <div class="course-img" style="background-image:url('${driveImg(c.img)}')">
       <span class="course-cat">${c.categoria||'General'}</span>
     </div>
@@ -439,6 +441,18 @@ function courseCard(c){
     </div>
   </div>`;
 }
+
+// Las tarjetas del selector de prueba se renderizan dinámicamente. Este único
+// listener conserva el clic aunque el catálogo se vuelva a pintar.
+document.addEventListener('click',event=>{
+  const card=event.target.closest('.course[data-trial-course]');
+  if(!card)return;
+  event.preventDefault();
+  const rawId=card.getAttribute('data-trial-course');
+  if(!rawId)return;
+  try{confirmarCursoPrueba(decodeURIComponent(rawId));}
+  catch(e){toast('No se pudo seleccionar este curso',{type:'err'});}
+});
 
 /* El servidor calcula la ruta real. Aquí solo la presentamos y simulamos el
    modo de vista previa del administrador (membresía iniciada hoy). */
