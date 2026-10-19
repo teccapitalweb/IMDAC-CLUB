@@ -152,6 +152,21 @@ window.addEventListener('hashchange',()=>{
   try{ go(sec); } finally { _desdeHash=false; }
 });
 
+// Seleccionar un curso de prueba se resuelve con una ruta hash real en lugar
+// de depender de un handler inline de la tarjeta. El enlace funciona como un
+// enlace normal del navegador y después abre la confirmación correspondiente.
+window.addEventListener('hashchange',()=>{
+  const hash=hashActual();
+  if(!hash.startsWith('prueba/'))return;
+  const encodedId=hash.slice('prueba/'.length);
+  if(!encodedId)return;
+  try{
+    const cursoId=decodeURIComponent(encodedId);
+    history.replaceState(null,'','#biblioteca');
+    confirmarCursoPrueba(cursoId);
+  }catch(e){toast('No se pudo seleccionar este curso',{type:'err'});}
+});
+
 function go(sec){
   if(!LOADING&&MEMBER_ONLY_SECTIONS.has(sec)&&!_tieneAcceso()){
     renderPaywall('Esta sección es exclusiva para miembros. Puedes seguir explorando cursos, temarios y materiales.');
@@ -423,13 +438,14 @@ function courseCard(c){
   const prog=DATA.progresos[c.id]||0;
   const member=_tieneAcceso();
   const schedule=dripStatus(c);
-  // El ID se guarda codificado como atributo para que la tarjeta funcione aun
-  // cuando tenga comillas o caracteres especiales. Se usa el mismo onclick
-  // directo que los demás controles del catálogo.
-  const trialAttr=_eligiendoCursoPrueba
-    ?` data-trial-course="${encodeURIComponent(String(c.id))}" onclick="confirmarCursoPrueba(decodeURIComponent(this.dataset.trialCourse))"`
+  // La prueba es un enlace real (no un clic inline) para que toda la tarjeta,
+  // incluido el texto rojo, active la selección de forma fiable.
+  const isTrialChoice=_eligiendoCursoPrueba;
+  const tag=isTrialChoice?'a':'div';
+  const trialAttr=isTrialChoice
+    ?` href="#prueba/${encodeURIComponent(String(c.id))}"`
     :` onclick="openCurso(${JSON.stringify(c.id)})"`;
-  return `<div class="course"${trialAttr}>
+  return `<${tag} class="course${isTrialChoice?' trial-choice':''}"${trialAttr}>
     <div class="course-img" style="background-image:url('${driveImg(c.img)}')">
       <span class="course-cat">${c.categoria||'General'}</span>
     </div>
@@ -442,7 +458,7 @@ function courseCard(c){
       ${member?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
       <span class="course-open">${_eligiendoCursoPrueba?`Elegir como prueba gratuita <b>→</b>`:(member&&schedule.locked?'Ver disponibilidad':(member&&prog>0?'Continuar curso':'Ver curso'))} </span>
     </div>
-  </div>`;
+  </${tag}>`;
 }
 
 /* El servidor calcula la ruta real. Aquí solo la presentamos y simulamos el
