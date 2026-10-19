@@ -355,7 +355,7 @@ function renderInicio(){
     <div class="dash-continue">
       <div class="dc-tag">${saludo()}</div>
       <h2>Hola, <i>${firstName()}</i>.</h2>
-      <p class="dc-sub">${member?'Tienes acceso completo. Retoma justo donde lo dejaste.':(hayClaseGratis()?'Tu curso de prueba está disponible: mira todas sus clases excepto la última.':'Elige un curso de prueba para empezar a aprender.')}</p>
+      <p class="dc-sub">${member?'Tu ruta avanza a tu ritmo: se habilita un curso nuevo cada 7 días.':(hayClaseGratis()?'Tu curso de prueba está disponible: mira todas sus clases excepto la última.':'Elige un curso de prueba para empezar a aprender.')}</p>
       ${continuo?`
       <div class="dc-course">
         <div class="dc-course-label">${member?(prog>0?'Continúa tu curso':'Curso sugerido para empezar'):'Curso de entrada'}</div>
@@ -419,6 +419,7 @@ function hayClaseGratis(){
 function courseCard(c){
   const prog=DATA.progresos[c.id]||0;
   const member=_tieneAcceso();
+  const schedule=dripStatus(c);
   return `<div class="course" onclick="openCurso('${c.id}')">
     <div class="course-img" style="background-image:url('${driveImg(c.img)}')">
       <span class="course-cat">${c.categoria||'General'}</span>
@@ -427,15 +428,16 @@ function courseCard(c){
       <h4>${c.titulo}</h4>
       <div class="course-meta">
         <span>${c.clases||0} clases · ${c.nivel||'Intermedio'}</span>
-        ${!member&&cursoRegalaClase(c)?`<span class="drip" style="color:#18794e">${cursoEsPruebaGratuita(c)?'Prueba gratuita':'Primera clase gratis'}</span>`:''}
+        ${member&&schedule.locked?`<span class="drip">🔒 Disponible en ${schedule.dias} día${schedule.dias===1?'':'s'}</span>`:(!member&&cursoRegalaClase(c)?`<span class="drip" style="color:#18794e">${cursoEsPruebaGratuita(c)?'Prueba gratuita':'Primera clase gratis'}</span>`:'')}
       </div>
       ${member?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
-      <span class="course-open">${member&&prog>0?'Continuar curso':'Ver curso'} <b>→</b></span>
+      <span class="course-open">${member&&schedule.locked?'Ver disponibilidad':(member&&prog>0?'Continuar curso':'Ver curso')} <b>→</b></span>
     </div>
   </div>`;
 }
 
-/* Drip helper: compara fecha de alta del usuario vs dripDias del curso */
+/* El servidor calcula la ruta real. Aquí solo la presentamos y simulamos el
+   modo de vista previa del administrador (membresía iniciada hoy). */
 /* Convierte un link de Google Drive a imagen directa visible.
    Acepta: .../file/d/ID/view , open?id=ID , uc?id=ID , o un ID suelto.
    Si no es de Drive, devuelve la URL tal cual. */
@@ -455,15 +457,14 @@ function driveImg(url){
 }
 function dripStatus(c){
   if(window._imdacAdmin) return {locked:false,dias:0};
-  const dd=c.dripDias||0;
-  if(!dd) return {locked:false,dias:0};
-  // window._previewEnrollDate: "Ver panel de usuario → como miembro VIP" desde
-  // el panel admin simula una inscripción justo hoy, para poder revisar el
-  // calendario de desbloqueo como lo vería un socio recién llegado.
-  const created=window._previewEnrollDate || (CURRENT_USER?.metadata?.creationTime?new Date(CURRENT_USER.metadata.creationTime):new Date());
-  const diasMember=Math.floor((Date.now()-created.getTime())/86400000);
-  const restan=dd-diasMember;
-  return restan>0?{locked:true,dias:restan}:{locked:false,dias:0};
+  if(window._previewEnrollDate){
+    const ordered=ordenarCursos(DATA.cursos||[]);
+    const index=Math.max(0,ordered.findIndex(x=>x.id===c.id));
+    const elapsed=Math.max(0,Math.floor((Date.now()-window._previewEnrollDate.getTime())/86400000));
+    const restan=index*7-elapsed;
+    return restan>0?{locked:true,dias:restan}:{locked:false,dias:0};
+  }
+  return c.membershipUnlocked===false?{locked:true,dias:Number(c.membershipWaitDays||7)}:{locked:false,dias:0};
 }
 
 let CATS=["Todos","Estructuras","Instalaciones","Costos y Presupuestos","Topografía","Diseño CAD","Normatividad","Sustentabilidad","Gestión de Obra"];
@@ -732,6 +733,9 @@ function renderMaterialDetalle(id){
 }
 async function abrirMaterialDescarga(id){
   if(!_tieneAcceso())return renderPaywall('Puedes consultar la ficha del material gratis; abrirlo o descargarlo requiere membresía.');
+  const material=DATA.material.find(m=>m.id===id);
+  const course=material&&DATA.cursos.find(c=>c.id===material.cursoId);
+  if(course&&dripStatus(course).locked)return mostrarCursoProgramado(course);
   try{
     const data=await apiFetch('/material-acceso',{method:'POST',body:{materialId:id}});
     if(data.url)window.open(data.url,'_blank','noopener');
@@ -2042,6 +2046,7 @@ function renderCursoDetalle(id){
     ? c.listaClases
     : Array.from({length:(c.clases||0)},(_,i)=>({titulo:`Clase ${i+1}`,duracion:'2 Horas'}));
   const total=clases.length;
+  const schedule=dripStatus(c);
   // seguimiento por clase: si aún no existe, lo sembramos desde el porcentaje guardado
   if(!Array.isArray(DATA.clasesHechas[id])){
     const seed=Math.round((DATA.progresos[id]||0)/100*total);
@@ -2066,12 +2071,12 @@ function renderCursoDetalle(id){
       <div class="cd-clases-badge"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>${total} clases</div>
     </div>
   </div>
-  ${_tieneAcceso()?`<div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>`:'<div class="cd-progress"><span class="lbl">Estás explorando gratis. El progreso se guarda con una membresía activa.</span></div>'}
+  ${_tieneAcceso()&&!schedule.locked?`<div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>`:(schedule.locked?`<div class="cd-progress"><span class="lbl">🔒 Este curso se habilita en ${schedule.dias} día${schedule.dias===1?'':'s'}.</span></div>`:'<div class="cd-progress"><span class="lbl">Estás explorando gratis. El progreso se guarda con una membresía activa.</span></div>')}
   ${_tieneAcceso()&&prog>=100?`<div class="cert-banner"><div class="cbi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div><b>¡Curso completado!</b><p>Descarga tu certificado de finalización con folio y QR verificable.</p></div><button onclick="generarCertificado('${id}')">Descargar certificado</button></div>`:''}
   <div class="cd-list-head"><h3>Lista de clases</h3><span>${hechas.length} de ${total} completadas</span></div>
-  ${clases.map((cl,i)=>claseRow(cl,i,cl.isPreview===true||_tieneAcceso(),id,hechas.includes(i))).join('')}`;
+  ${clases.map((cl,i)=>claseRow(cl,i,cl.isPreview===true||(_tieneAcceso()&&!schedule.locked),id,hechas.includes(i),schedule)).join('')}`;
 }
-function claseRow(cl,i,disp,cursoId,hecha){
+function claseRow(cl,i,disp,cursoId,hecha,schedule={locked:false,dias:0}){
   const playIcon='<svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
   const clock='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
   const checkDone='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6" d="M5 13l4 4L19 7"/></svg>';
@@ -2080,7 +2085,7 @@ function claseRow(cl,i,disp,cursoId,hecha){
   if(!disp){
     return `<div class="clase lock" onclick="mostrarMembresiaClase()" style="cursor:pointer">
       <div class="cst">${lockIcon}</div>
-      <div class="cinfo"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">Solo miembros</span>
+      <div class="cinfo"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${schedule.locked?`Disponible en ${schedule.dias} día${schedule.dias===1?'':'s'}`:'Solo miembros'}</span>
         <div class="dur">${clock}${cl.duracion||'2 Horas'}</div></div>
     </div>`;
   }
@@ -2095,9 +2100,12 @@ function claseRow(cl,i,disp,cursoId,hecha){
 }
 
 function mostrarMembresiaClase(){renderPaywall('Esta clase requiere una membresía vigente. En los cursos de prueba gratuita, la última clase y el certificado son exclusivos para miembros.');}
+function mostrarCursoProgramado(c){const s=dripStatus(c);toast(`Este curso se desbloquea en ${s.dias} día${s.dias===1?'':'s'}.`);}
 
 async function abrirTemario(courseId){
   if(!_tieneAcceso())return renderPaywall('Puedes ver el temario del curso; abrir el documento completo requiere membresía.');
+  const course=DATA.cursos.find(c=>c.id===courseId);
+  if(course&&dripStatus(course).locked)return mostrarCursoProgramado(course);
   try{
     const data=await apiFetch('/temario-acceso',{method:'POST',body:{courseId}});
     if(data.url)window.open(data.url,'_blank','noopener');
@@ -2108,11 +2116,13 @@ async function playClase(cursoId,i){
   const cl=(c.listaClases||[])[i];
   if(!cl||!cl.hasVideo){toast('Esta clase aún no tiene video cargado');return;}
   if(cl.isPreview!==true&&!_tieneAcceso())return mostrarMembresiaClase();
+  if(cl.isPreview!==true&&dripStatus(c).locked)return mostrarCursoProgramado(c);
   try{
     const data=await apiFetch('/reproduccion',{method:'POST',body:{courseId:cursoId,lessonId:cl.lessonId||cl.id}});
     abrirVideoModal(data.embedUrl, cl.titulo||('Clase '+(i+1)), cursoId, i);
   }catch(err){
     if(err.code==='membership_required')return mostrarMembresiaClase();
+    if(err.code==='course_locked')return toast(err.message||'Este curso todavía no está disponible');
     if(err.code==='video_not_migrated'||err.code==='bunny_not_configured')return toast('Esta clase está pendiente de vincular con Bunny Stream');
     toast(err.message||'No se pudo reproducir la clase');
   }
