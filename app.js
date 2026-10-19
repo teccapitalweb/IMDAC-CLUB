@@ -53,7 +53,7 @@ let CURRENT_USER=null;
 let LOADING=true;
 let BUNNY_READY=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{}};
+let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{},xp:0,cursoPrueba:''};
 let activeFilter="Todos";
 let courseQuery="";
 let courseSort="recientes";
@@ -77,8 +77,11 @@ const NAV=[
     {id:"certificados",label:"Certificados",icon:'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
   ]},
   {group:"Herramientas",items:[
-    {id:"ficha-obra",label:"Ficha de Obra",icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
+    {id:"checklist",label:"Checklist de Obra",icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
     {id:"calculadora",label:"Calc. Materiales",icon:'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z'},
+    {id:"honorarios",label:"Calc. Honorarios",icon:'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z'},
+    {id:"presupuesto",label:"Calc. Presupuesto",icon:'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2'},
+    {id:"conversor",label:"Conversor de Unidades",icon:'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'},
     {id:"normativas",label:"Guía Normativas",icon:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'},
   ]},
   {group:"Mi cuenta",items:[
@@ -166,7 +169,7 @@ function renderSection(sec){
   const R={
     inicio:renderInicio, biblioteca:renderBiblioteca, webinar:renderWebinar,
     material:renderMaterial, noticias:renderNoticias, foro:renderForo,
-    'ficha-obra':renderFichaObra, calculadora:renderCalculadora,
+    checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor,
     normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
     perfil:renderPerfil, suscripcion:renderSuscripcion,
     logros:renderLogros, certificados:renderCertificados, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
@@ -352,7 +355,7 @@ function renderInicio(){
     <div class="dash-continue">
       <div class="dc-tag">${saludo()}</div>
       <h2>Hola, <i>${firstName()}</i>.</h2>
-      <p class="dc-sub">${member?'Tienes acceso completo. Retoma justo donde lo dejaste.':(hayClaseGratis()?'Explora el catálogo y mira gratis la primera clase del curso de bienvenida.':'Explora todo el catálogo y activa tu membresía para ver las clases.')}</p>
+      <p class="dc-sub">${member?'Tienes acceso completo. Retoma justo donde lo dejaste.':(hayClaseGratis()?'Tu curso de prueba está disponible: mira todas sus clases excepto la última.':'Elige un curso de prueba para empezar a aprender.')}</p>
       ${continuo?`
       <div class="dc-course">
         <div class="dc-course-label">${member?(prog>0?'Continúa tu curso':'Curso sugerido para empezar'):'Curso de entrada'}</div>
@@ -1456,7 +1459,7 @@ function calcLogros(){
     {n:'Racha de fuego',d:'Visita el club 30 días distintos',ic:'🔥',v:diasVisita,m:30,g:'constancia'},
     {n:'Leyenda IMDAC',d:'Catálogo completo + 25 reacciones recibidas',ic:'🏆',v:(completos>=mMaestro&&likesRecibidos>=25)?1:0,m:1,g:'especial'},
   ].map(l=>({...l,ok:l.v>=l.m}));
-  const puntos=clasesTot*10+completos*50;
+  const puntos=(Number(DATA.xp)||0)+clasesTot*10+completos*50;
   return{lista,clasesTot,completos,totalCursos,puntos};
 }
 const LOGROS_GRUPOS=[
@@ -1683,7 +1686,8 @@ const LEGAL={
     <h4>5. Almacenamiento local</h4><p>La aplicación guarda en tu dispositivo preferencias y estados de uso (por ejemplo, tema oscuro, notificaciones leídas y avance local) para mejorar tu experiencia. Puedes borrarlos limpiando los datos del navegador.</p>
     <h4>6. Derechos ARCO</h4><p>Puedes solicitar el acceso, rectificación, cancelación u oposición del tratamiento de tus datos en cualquier momento, contactando a soporte desde la plataforma. Atenderemos tu solicitud en los plazos que marca la ley.</p>
     <h4>7. Conservación</h4><p>Conservamos tus datos mientras tu cuenta esté activa y por el tiempo necesario para cumplir obligaciones legales. Al eliminarse tu cuenta, los datos se suprimen o anonimizan conforme a la normativa aplicable.</p>
-    <h4>8. Cambios a esta política</h4><p>Cualquier actualización se publicará en la plataforma. El uso continuado del Club implica la aceptación de la versión vigente.</p>`}
+    <h4>8. Cambios a esta política</h4><p>Cualquier actualización se publicará en la plataforma. El uso continuado del Club implica la aceptación de la versión vigente.</p>
+    <h4>9. Cookies</h4><p>Usamos cookies y almacenamiento local necesarios para mantener tu sesión iniciada y recordar preferencias (como el tema oscuro). Si activas las cookies de personalización, también nos ayudan a entender cómo usas la plataforma para mejorarla. Puedes aceptarlas o borrarlas desde la configuración de tu navegador en cualquier momento; bloquear las necesarias puede impedir que la sesión se mantenga iniciada.</p>`}
 };
 function mostrarLegal(tipo){
   const L=LEGAL[tipo]; if(!L)return;
@@ -1706,45 +1710,97 @@ function emptyState(sec,title,desc){
 }
 
 /* ====== 6. HERRAMIENTAS DE OBRA ====== */
-function renderFichaObra(){
-  return `<h1 class="page-h">Ficha de Obra</h1><p class="page-sub">Genera una ficha técnica de obra en PDF lista para imprimir.</p>
-  <div class="card" style="padding:30px;max-width:760px">
-    <div class="form-grid">
-      <div class="field form-full"><label>Nombre de la obra</label><input id="fo-obra" placeholder="Ej. Casa habitación dos niveles"></div>
-      <div class="field"><label>Cliente / Propietario</label><input id="fo-cliente" placeholder="Nombre"></div>
-      <div class="field"><label>Ubicación</label><input id="fo-ubic" placeholder="Calle, colonia, ciudad"></div>
-      <div class="field"><label>Superficie (m²)</label><input id="fo-sup" type="number" placeholder="0"></div>
-      <div class="field"><label>Tipo de obra</label><input id="fo-tipo" placeholder="Residencial / Comercial / Industrial"></div>
-      <div class="field"><label>Responsable (DRO)</label><input id="fo-dro" placeholder="Director Responsable de Obra"></div>
-      <div class="field"><label>Fecha de inicio</label><input id="fo-inicio" type="date"></div>
-      <div class="field form-full"><label>Descripción / Alcances</label><textarea id="fo-desc" rows="3" placeholder="Detalle de la obra..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
-    </div>
-    <button class="btn-primary" style="width:auto;padding:13px 30px;margin-top:8px" onclick="genFichaPDF()">📄 Generar PDF</button>
-  </div>`;
+/* Checklist de Supervisión de Obra — reemplaza a Ficha de Obra (que solo
+   volcaba un formulario a PDF, sin más valor que una plantilla). Esto es
+   accionable: se marca en vivo y se exporta con lo marcado. No se guarda
+   entre sesiones (es una herramienta de repaso puntual, no un registro). */
+const CHECKLIST_OBRA=[
+  {etapa:'Preliminares',items:[
+    'Trazo y nivel verificados contra proyecto',
+    'Banco de nivel (BM) protegido y accesible',
+    'Licencias y permisos vigentes en obra',
+    'Bodega y área de resguardo de materiales delimitada',
+    'Señalización y protecciones de seguridad instaladas'
+  ]},
+  {etapa:'Cimentación',items:[
+    'Estudio de mecánica de suelos revisado contra lo encontrado en excavación',
+    'Niveles de desplante verificados',
+    'Acero de refuerzo colocado según proyecto (diámetro, separación, recubrimiento)',
+    'Plantilla de concreto colada antes del armado',
+    'Ademe o talud seguro en excavaciones mayores a 1.2 m'
+  ]},
+  {etapa:'Estructura',items:[
+    'Verticalidad de castillos y columnas verificada',
+    'Recubrimientos mínimos de acero respetados',
+    'Cimbra limpia y bien apuntalada antes de colar',
+    'Muestras de concreto tomadas para prueba de resistencia (cilindros)',
+    'Juntas constructivas según proyecto'
+  ]},
+  {etapa:'Instalaciones',items:[
+    'Pendientes de drenaje verificadas antes de cubrir tuberías',
+    'Pruebas de hermeticidad en instalación hidráulica realizadas',
+    'Instalación eléctrica revisada contra NOM-001-SEDE',
+    'Registros y pozos de visita accesibles y bien ubicados'
+  ]},
+  {etapa:'Acabados',items:[
+    'Aplanados a plomo y nivel',
+    'Juntas de dilatación respetadas en pisos',
+    'Pendientes correctas en áreas húmedas (baños, azoteas)',
+    'Limpieza final de obra realizada'
+  ]}
+];
+let _chkState={}, _chkObraNombre='';
+function renderChecklist(){
+  const total=CHECKLIST_OBRA.reduce((s,e)=>s+e.items.length,0);
+  const hechos=Object.values(_chkState).filter(Boolean).length;
+  return `<h1 class="page-h">Checklist de Supervisión de Obra</h1><p class="page-sub">Marca lo que ya revisaste en cada etapa. No se guarda entre sesiones — expórtalo a PDF si necesitas conservarlo.</p>
+  <div class="card" style="padding:22px 26px;max-width:760px;margin-bottom:18px">
+    <div class="field form-full" style="margin:0"><label>Nombre de la obra (para el PDF)</label><input id="chk-obra" placeholder="Ej. Casa habitación dos niveles" value="${escHtml(_chkObraNombre)}" oninput="_chkObraNombre=this.value"></div>
+  </div>
+  <div class="calc-result" style="max-width:760px;margin-bottom:20px"><b id="chk-progreso">${hechos}/${total}</b><span>puntos revisados</span></div>
+  ${CHECKLIST_OBRA.map((e,ei)=>`
+  <div class="tool-intro" style="max-width:760px">
+    <h3 style="font-family:var(--font-display);margin-bottom:14px">${e.etapa}</h3>
+    ${e.items.map((it,ii)=>`<label class="chk-item"><input type="checkbox" ${_chkState[ei+'-'+ii]?'checked':''} onchange="toggleChk(this,${ei},${ii})"><span>${it}</span></label>`).join('')}
+  </div>`).join('')}
+  <button class="btn-primary" style="width:auto;padding:13px 30px" onclick="exportChecklistPDF()">📄 Exportar checklist a PDF</button>`;
 }
-function genFichaPDF(){
-  if(!requiereMembresiaAccion('Generar y descargar fichas de obra requiere membresía.'))return;
+function toggleChk(box,ei,ii){
+  if(!requiereMembresiaAccion('El checklist está disponible para miembros.')){
+    box.checked=!box.checked; // revertir el clic visual ya que no se le permite marcar
+    return;
+  }
+  const k=ei+'-'+ii; _chkState[k]=!_chkState[k];
+  const total=CHECKLIST_OBRA.reduce((s,e)=>s+e.items.length,0);
+  const hechos=Object.values(_chkState).filter(Boolean).length;
+  const el=document.getElementById('chk-progreso'); if(el)el.textContent=hechos+'/'+total;
+}
+function exportChecklistPDF(){
+  if(!requiereMembresiaAccion('Exportar el checklist a PDF requiere membresía.'))return;
   loadJsPDF(()=>{
     const {jsPDF}=window.jspdf; const doc=new jsPDF();
     doc.setFillColor(13,13,13);doc.rect(0,0,210,32,'F');
     doc.setFillColor(255,44,44);doc.rect(0,32,210,2.5,'F');
     doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text('IMDAC',16,16);
     doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('Instituto Mexicano de Arquitectura y Construcción',16,23);
-    doc.setTextColor(255,44,44);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('FICHA TÉCNICA DE OBRA',150,18,{align:'center'});
-    let y=48; doc.setTextColor(20,20,20);
-    const row=(l,v)=>{doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120,120,120);doc.text(l.toUpperCase(),16,y);doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(20,20,20);doc.text(v||'—',16,y+6);y+=16;};
-    row('Nombre de la obra',val('fo-obra'));
-    row('Cliente / Propietario',val('fo-cliente'));
-    row('Ubicación',val('fo-ubic'));
-    row('Superficie',val('fo-sup')?val('fo-sup')+' m²':'');
-    row('Tipo de obra',val('fo-tipo'));
-    row('Responsable (DRO)',val('fo-dro'));
-    row('Fecha de inicio',val('fo-inicio'));
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120,120,120);doc.text('DESCRIPCIÓN / ALCANCES',16,y);y+=6;
-    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(20,20,20);
-    doc.text(doc.splitTextToSize(val('fo-desc')||'—',178),16,y);
-    doc.setFontSize(8);doc.setTextColor(150,150,150);doc.text('Generado por IMDAC · Club de Miembros · '+new Date().toLocaleDateString('es-MX'),16,285);
-    doc.save('ficha-obra-imdac.pdf'); toast('Ficha de obra generada');
+    doc.setTextColor(255,44,44);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('CHECKLIST DE SUPERVISIÓN DE OBRA',150,18,{align:'center'});
+    let y=44;doc.setTextColor(20,20,20);
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('OBRA: '+(_chkObraNombre||'—'),16,y);y+=6;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(120,120,120);doc.text('Fecha: '+new Date().toLocaleDateString('es-MX'),16,y);y+=10;
+    CHECKLIST_OBRA.forEach((e,ei)=>{
+      if(y>265){doc.addPage();y=20;}
+      doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(255,44,44);doc.text(e.etapa,16,y);y+=7;
+      e.items.forEach((it,ii)=>{
+        if(y>275){doc.addPage();y=20;}
+        const ok=!!_chkState[ei+'-'+ii];
+        doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(20,20,20);
+        doc.text(doc.splitTextToSize((ok?'[x] ':'[ ] ')+it,178),18,y);y+=6;
+      });
+      y+=4;
+    });
+    doc.setFontSize(8);doc.setTextColor(150,150,150);
+    doc.text('Generado por IMDAC · Club de Miembros · '+new Date().toLocaleDateString('es-MX'),16,290);
+    doc.save('checklist-obra-imdac.pdf'); toast('Checklist exportado');
   });
 }
 
@@ -1770,7 +1826,30 @@ function renderCalculadora(){
     </div>
     <div class="calc-result"><b id="bk-piezas">0 piezas</b><span>Block 15×20×40 cm · 12.5 pzas/m² (incluye 5% desperdicio)</span></div>
   </div>
+  <div class="tool-intro">
+    <h3 style="font-family:var(--font-display);margin-bottom:4px">Acero de refuerzo</h3>
+    <p style="color:var(--muted);font-size:.88rem;margin-bottom:18px">Calcula el peso de varilla que necesitas, por diámetro.</p>
+    <div class="tool-row">
+      <div class="field"><label>Varilla</label><select id="ac-var" class="cfg-select" onchange="calcAcero()">
+        <option value="3">#3 (3/8") · 0.559 kg/m</option>
+        <option value="4" selected>#4 (1/2") · 0.993 kg/m</option>
+        <option value="5">#5 (5/8") · 1.552 kg/m</option>
+        <option value="6">#6 (3/4") · 2.235 kg/m</option>
+        <option value="8">#8 (1") · 3.973 kg/m</option>
+      </select></div>
+      <div class="field"><label>Número de varillas</label><input id="ac-num" type="number" value="0" oninput="calcAcero()"></div>
+      <div class="field form-full"><label>Longitud de cada varilla (m)</label><input id="ac-long" type="number" value="0" oninput="calcAcero()"></div>
+    </div>
+    <div class="calc-result"><b id="ac-peso">0.00 kg</b><span>Peso total de acero estimado</span></div>
+  </div>
   <button class="btn-primary" style="width:auto;padding:13px 30px" onclick="exportCalcPDF()">📄 Exportar cálculo a PDF</button>`;
+}
+const PESO_VARILLA={3:0.559,4:0.993,5:1.552,6:2.235,8:3.973};
+function calcAcero(){
+  if(!requiereMembresiaAccion('La calculadora está disponible para miembros.'))return;
+  const peso=PESO_VARILLA[val('ac-var')||'4']||0.993;
+  const num=+val('ac-num'),largo=+val('ac-long');
+  document.getElementById('ac-peso').textContent=(peso*num*largo).toFixed(2)+' kg';
 }
 function exportCalcPDF(){
   if(!requiereMembresiaAccion('Exportar cálculos a PDF requiere membresía.'))return;
@@ -1792,6 +1871,11 @@ function exportCalcPDF(){
     y+=6;sec('Muro de block');
     row('Dimensiones del muro',`${val('bk-largo')||0} x ${val('bk-alto')||0} m`);
     row('Piezas de block (con 5% desperdicio)',document.getElementById('bk-piezas')?.textContent||'0');
+    y+=6;sec('Acero de refuerzo');
+    row('Varilla',`#${val('ac-var')||4}`);
+    row('Número de varillas',val('ac-num')||0);
+    row('Longitud por varilla',`${val('ac-long')||0} m`);
+    row('Peso total',document.getElementById('ac-peso')?.textContent||'0.00 kg');
     doc.setFontSize(8);doc.setTextColor(150,150,150);
     doc.text('Cálculo de referencia generado por IMDAC · Club de Miembros · '+new Date().toLocaleDateString('es-MX'),16,285);
     doc.text('Los valores son estimados. Ajusta según proyecto, proveedor y normativa vigente.',16,290);
@@ -1813,6 +1897,110 @@ function calcBlock(){
   const l=+val('bk-largo'),h=+val('bk-alto');
   const piezas=Math.ceil(l*h*12.5*1.05);
   document.getElementById('bk-piezas').textContent=piezas+' piezas';
+}
+
+/* Calculadora de Honorarios — % de referencia según práctica común en
+   México por tipo de servicio. Editable: el % es solo un punto de partida,
+   nunca una tarifa fija (varía por negociación, región y complejidad). */
+const HONORARIOS_DEFAULT={anteproyecto:1.5,ejecutivo:5,supervision:4,dro:3,integral:10};
+function renderHonorarios(){
+  return `<h1 class="page-h">Calculadora de Honorarios</h1><p class="page-sub">Estima tus honorarios profesionales como % del costo de la obra.</p>
+  <div class="tool-intro">
+    <div class="tool-row">
+      <div class="field"><label>Costo estimado de la obra (MXN)</label><input id="ho-costo" type="number" value="0" oninput="calcHonorarios()"></div>
+      <div class="field"><label>Tipo de servicio</label><select id="ho-tipo" class="cfg-select" onchange="calcHonorarios()">
+        <option value="anteproyecto">Anteproyecto (diseño conceptual)</option>
+        <option value="ejecutivo" selected>Proyecto ejecutivo completo</option>
+        <option value="supervision">Supervisión de obra</option>
+        <option value="dro">Dirección Responsable de Obra (DRO)</option>
+        <option value="integral">Diseño integral (todo incluido)</option>
+      </select></div>
+    </div>
+    <div class="tool-row">
+      <div class="field form-full"><label>% de honorario (ajustable)</label><input id="ho-pct" type="number" step="0.1" value="5" oninput="calcHonorarios(true)"></div>
+    </div>
+    <div class="calc-result"><b id="ho-total">$0.00</b><span>Honorario estimado</span></div>
+    <p style="color:var(--muted);font-size:.78rem;margin-top:10px">* Porcentajes de referencia según práctica común en México — ajusta según tu experiencia, complejidad del proyecto y acuerdo con el cliente.</p>
+  </div>`;
+}
+function calcHonorarios(manual){
+  if(!requiereMembresiaAccion('La calculadora está disponible para miembros.'))return;
+  if(!manual){
+    const pct=HONORARIOS_DEFAULT[val('ho-tipo')||'ejecutivo']||5;
+    document.getElementById('ho-pct').value=pct;
+  }
+  const costo=+val('ho-costo'), pct=+val('ho-pct');
+  document.getElementById('ho-total').textContent='$'+(costo*pct/100).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+/* Calculadora de Presupuesto Rápido — modelo simplificado costo directo +
+   % indirectos + % utilidad (cada uno sobre el costo directo), para pasar
+   de "cuánto me cuesta" a "cuánto cobro" sin trabajar a pérdida. */
+function renderPresupuesto(){
+  return `<h1 class="page-h">Calculadora de Presupuesto Rápido</h1><p class="page-sub">Pasa de costo directo a precio de venta, con indirectos y utilidad.</p>
+  <div class="tool-intro">
+    <div class="tool-row">
+      <div class="field"><label>Costo directo (materiales + mano de obra)</label><input id="pr-directo" type="number" value="0" oninput="calcPresupuesto()"></div>
+      <div class="field"><label>% Indirectos (administración, imprevistos)</label><input id="pr-indirectos" type="number" step="0.1" value="12" oninput="calcPresupuesto()"></div>
+      <div class="field form-full"><label>% Utilidad</label><input id="pr-utilidad" type="number" step="0.1" value="15" oninput="calcPresupuesto()"></div>
+    </div>
+    <div class="calc-result"><b id="pr-total">$0.00</b><span>Precio de venta sugerido</span></div>
+    <div style="margin-top:16px;font-size:.86rem;color:var(--muted)">
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)"><span>Costo directo</span><b id="pr-d" style="color:var(--text)">$0.00</b></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)"><span>+ Indirectos</span><b id="pr-i" style="color:var(--text)">$0.00</b></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0"><span>+ Utilidad</span><b id="pr-u" style="color:var(--text)">$0.00</b></div>
+    </div>
+    <p style="color:var(--muted);font-size:.78rem;margin-top:14px">* Modelo simplificado de referencia. Ajusta los porcentajes a tu operación real.</p>
+  </div>`;
+}
+function calcPresupuesto(){
+  if(!requiereMembresiaAccion('La calculadora está disponible para miembros.'))return;
+  const d=+val('pr-directo'), pi=+val('pr-indirectos'), pu=+val('pr-utilidad');
+  const i=d*pi/100, u=d*pu/100;
+  const money=n=>'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('pr-total').textContent=money(d+i+u);
+  document.getElementById('pr-d').textContent=money(d);
+  document.getElementById('pr-i').textContent=money(i);
+  document.getElementById('pr-u').textContent=money(u);
+}
+
+/* Conversor de Unidades — pares fijos de uso diario en obra, bidireccional. */
+const CONV_PARES=[
+  {id:'area',label:'Área',u1:'m²',u2:'ft²',factor:10.7639},
+  {id:'vol',label:'Volumen',u1:'m³',u2:'ft³',factor:35.3147},
+  {id:'long',label:'Longitud',u1:'m',u2:'ft',factor:3.28084},
+  {id:'peso',label:'Peso',u1:'kg',u2:'lb',factor:2.20462},
+  {id:'presion',label:'Presión',u1:'kg/cm²',u2:'psi',factor:14.2233},
+];
+function renderConversor(){
+  return `<h1 class="page-h">Conversor de Unidades</h1><p class="page-sub">Conversiones rápidas de uso común en obra — escribe en cualquiera de los dos campos.</p>
+  ${CONV_PARES.map(c=>`
+  <div class="tool-intro">
+    <h3 style="font-family:var(--font-display);margin-bottom:14px">${c.label}</h3>
+    <div class="tool-row">
+      <div class="field"><label>${c.u1}</label><input id="cv-${c.id}-1" type="number" value="0" oninput="calcConv('${c.id}',1,${c.factor})"></div>
+      <div class="field"><label>${c.u2}</label><input id="cv-${c.id}-2" type="number" value="0" oninput="calcConv('${c.id}',2,${c.factor})"></div>
+    </div>
+  </div>`).join('')}
+  <div class="tool-intro">
+    <h3 style="font-family:var(--font-display);margin-bottom:14px">Temperatura</h3>
+    <div class="tool-row">
+      <div class="field"><label>°C</label><input id="cv-temp-1" type="number" value="0" oninput="calcTemp(1)"></div>
+      <div class="field"><label>°F</label><input id="cv-temp-2" type="number" value="32" oninput="calcTemp(2)"></div>
+    </div>
+  </div>`;
+}
+function calcConv(id,from,factor){
+  if(!requiereMembresiaAccion('El conversor está disponible para miembros.'))return;
+  const i1=document.getElementById('cv-'+id+'-1'), i2=document.getElementById('cv-'+id+'-2');
+  if(from===1) i2.value=+((+i1.value*factor).toFixed(4));
+  else i1.value=+((+i2.value/factor).toFixed(4));
+}
+function calcTemp(from){
+  if(!requiereMembresiaAccion('El conversor está disponible para miembros.'))return;
+  const c=document.getElementById('cv-temp-1'), f=document.getElementById('cv-temp-2');
+  if(from===1) f.value=+((+c.value*9/5+32).toFixed(2));
+  else c.value=+(((+f.value-32)*5/9).toFixed(2));
 }
 
 function renderNormativas(){
@@ -1900,7 +2088,7 @@ function claseRow(cl,i,disp,cursoId,hecha){
   const canTrack=_tieneAcceso();
   return `<div class="clase disp ${hecha?'done':''}">
     ${canTrack?`<button class="cst chk ${hecha?'on':''}" onclick="toggleClaseHecha('${cursoId}',${i})" title="${hecha?'Marcar como pendiente':'Marcar como completada'}">${hecha?checkDone:checkEmpty}</button>`:`<div class="cst">${playIcon}</div>`}
-    <div class="cinfo" onclick="playClase('${cursoId}',${i})" style="cursor:pointer"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${preview&&!canTrack?'Primera clase gratis':(hecha?'Completada':'Disponible')}</span>
+    <div class="cinfo" onclick="playClase('${cursoId}',${i})" style="cursor:pointer"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${preview&&!canTrack?'Curso de prueba':(hecha?'Completada':'Disponible')}</span>
       <div class="dur">${clock}${cl.duracion||'2 Horas'}</div></div>
     <div class="play" onclick="playClase('${cursoId}',${i})" style="cursor:pointer">${playIcon}</div>
   </div>`;
@@ -2002,7 +2190,14 @@ function guardarProgreso(cursoId,prog,arr){
   db.collection('progreso').doc(CURRENT_USER.uid+'_'+cursoId)
     .set({uid:CURRENT_USER.uid,cursoId,porcentaje:prog,clases:arr},{merge:true}).catch(()=>{});
 }
-function closeModal(){document.getElementById('modal').classList.remove('open');}
+function closeModal(){
+  document.getElementById('modal').classList.remove('open');
+  // El paso "perfil" del onboarding reutiliza el modal normal de la tarjeta
+  // del Directorio (abrirMiTarjeta/guardarTarjeta) tal cual, sin tocarlo —
+  // solo se arma esta bandera antes de abrirlo para saber que hay que
+  // continuar la secuencia cuando se cierre, sea guardando o cancelando.
+  if(window._onboardingEsperandoCierre){window._onboardingEsperandoCierre=false;siguientePasoOnboarding();}
+}
 
 /* ====== CERTIFICADO ====== */
 function genFolio(cursoId){
@@ -2233,6 +2428,7 @@ function doRegister(){
   auth.createUserWithEmailAndPassword(email,pass).then(cred=>{
     cred.user.updateProfile({displayName:name});
     db.collection('miembros').doc(cred.user.uid).set({nombre:name,email,creado:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    window._esRegistroNuevo=true; // onLogged() lo revisa para lanzar el onboarding
   }).catch(e=>showErr(authMsg(e.code)));
 }
 function doGoogle(){
@@ -2242,6 +2438,7 @@ function doGoogle(){
   auth.signInWithPopup(provider).then(res=>{
     if(res&&res.user&&res.additionalUserInfo&&res.additionalUserInfo.isNewUser){
       db.collection('miembros').doc(res.user.uid).set({nombre:res.user.displayName||'',email:res.user.email||'',creado:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).catch(()=>{});
+      window._esRegistroNuevo=true;
     }
   }).catch(e=>{ if(e.code!=='auth/popup-closed-by-user')showErr(authMsg(e.code)); });
 }
@@ -2327,7 +2524,7 @@ async function apiFetch(path,{method='GET',body}={}){
 async function loadData(){
   // El catálogo premium se obtiene saneado desde el backend: las URLs privadas nunca llegan aquí.
   DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
-  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[];
+  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[]; DATA.xp=0; DATA.cursoPrueba='';
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){
     DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
     DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos;
@@ -2339,6 +2536,7 @@ async function loadData(){
     DATA.webinars=Array.isArray(catalog.webinars)?catalog.webinars:[];
     DATA.material=Array.isArray(catalog.materials)?catalog.materials:[];
     window._miMiembro=catalog.membership||{};
+    DATA.cursoPrueba=String(catalog.trialCourseId||'');
     BUNNY_READY=!!catalog.bunnyReady;
     try{window._imdacAdmin=(await db.collection('admins').doc(CURRENT_USER.uid).get()).exists;}catch(e){window._imdacAdmin=false;}
     const cd=catalog.config||{};
@@ -2350,6 +2548,10 @@ async function loadData(){
       if(cd.wa2){IMDAC.soporte.l2=waDigits(cd.wa2);IMDAC.soporte.l2Label=cd.wa2;}
       window._mantenimiento=!!cd.mantenimiento;
     try{const not=await db.collection('noticias').orderBy('fecha','desc').limit(20).get();DATA.noticias=not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);}catch(e){DATA.noticias=[];}
+    // El saldo de bienvenida y el curso de prueba viven en el documento
+    // progreso/{uid}; se leen aun sin membresía para que no desaparezcan al
+    // recargar después de registrarse.
+    try{const perfilProgreso=await db.collection('progreso').doc(CURRENT_USER.uid).get();if(perfilProgreso.exists){const p=perfilProgreso.data()||{};DATA.xp=Number(p.xp)||0;DATA.cursoPrueba=String(p.cursoPrueba||DATA.cursoPrueba||'');}}catch(e){}
     if(_tieneAcceso()){
       try{const foro=await db.collection('foro_temas').orderBy('fecha','desc').limit(30).get();DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.foro=[];}
       try{const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0;if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});}catch(e){}
@@ -2417,6 +2619,14 @@ async function onLogged(){
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
   const q=new URLSearchParams(location.search);
   go(seccionInicial());
+  if(window._esRegistroNuevo && !_previewModo){
+    window._esRegistroNuevo=false;
+    setTimeout(iniciarOnboarding,900);
+  }else if(!_previewModo&&!_tieneAcceso()&&!DATA.cursoPrueba){
+    // Cuentas existentes sin prueba elegida reciben solo este paso, sin repetir
+    // el tour ni los demás datos de bienvenida.
+    setTimeout(mostrarSelectorCursoPrueba,700);
+  }
   if(q.get('pago')==='ok'){
     toast('Pago recibido, activando tu membresía…');
     let intentos=0;
@@ -2463,6 +2673,164 @@ function renderBannerPreview(){
   b.innerHTML=`<span>${texto}</span>${_previewVolver?`<a href="${escHtml(_previewVolver)}">← Volver al panel admin</a>`:''}`;
   document.body.appendChild(b);
 }
+/* ====== ONBOARDING DE REGISTRO NUEVO ======
+   Igual que DulceLab: tour guiado → nombre para certificados → tarjeta del
+   Directorio → regalo de XP → elegir curso de prueba. Solo corre para quien
+   se acaba de registrar (window._esRegistroNuevo, armado en doRegister/
+   doGoogle), nunca para un login normal ni para la vista previa de admin.
+   Simplificado a propósito frente a DulceLab: un solo orquestador secuencial
+   en vez de una cola de prioridades — IMDAC no tiene los otros popups
+   (splash de pago, cofres, instalar app) con los que DulceLab sí necesita
+   coordinarse, así que esa complejidad no hacía falta aquí. */
+const TOUR_PASOS=[
+  {sel:'.sb-item[data-sec="inicio"]',titulo:'Bienvenido al Club IMDAC',texto:'Este es tu panel: tu progreso, tus próximas clases y lo nuevo del Club, todo en un solo lugar.'},
+  {sel:'.sb-item[data-sec="biblioteca"]',titulo:'Tus cursos',texto:'Todos los cursos del Club, con tu avance y las clases que vayas completando.'},
+  {sel:'.sb-item[data-sec="webinar"]',titulo:'Clases en vivo',texto:'Sesiones en vivo con expertos — y sus grabaciones, si no llegas a tiempo.'},
+  {sel:'.sb-item[data-sec="material"]',titulo:'PDFs y material',texto:'Guías, planos tipo y documentos descargables del Club IMDAC.'},
+  {sel:'.sb-item[data-sec="calculadora"]',titulo:'Tus herramientas',texto:'Calculadoras de materiales, honorarios, presupuesto y más, hechas para arquitectura y construcción.'},
+  {sel:'.sb-item[data-sec="certificados"]',titulo:'Tus certificados',texto:'Cuando termines un curso, tu certificado con folio queda disponible aquí.'},
+];
+let _tourPaso=0;
+function tourKey(){return 'imdac_tour_v1_'+((CURRENT_USER&&CURRENT_USER.uid)||'anon');}
+function tourVisto(){try{return localStorage.getItem(tourKey())==='1';}catch(e){return false;}}
+function marcarTourVisto(){try{localStorage.setItem(tourKey(),'1');}catch(e){}}
+function iniciarTour(forzado){
+  if(!forzado&&tourVisto())return siguientePasoOnboarding();
+  _tourPaso=0;
+  mostrarPasoTour();
+}
+function cerrarTour(){
+  document.getElementById('tour-spot')?.remove();
+  document.getElementById('tour-card')?.remove();
+  marcarTourVisto();
+  siguientePasoOnboarding();
+}
+function mostrarPasoTour(){
+  const paso=TOUR_PASOS[_tourPaso];
+  if(!paso)return cerrarTour();
+  const el=document.querySelector(paso.sel);
+  if(!el){_tourPaso++;return mostrarPasoTour();}
+  el.scrollIntoView({block:'center',behavior:'smooth'});
+  setTimeout(()=>posicionarTour(el,paso),150);
+}
+function posicionarTour(el,paso){
+  const r=el.getBoundingClientRect();
+  let spot=document.getElementById('tour-spot');
+  if(!spot){spot=document.createElement('div');spot.id='tour-spot';document.body.appendChild(spot);}
+  spot.style.cssText=`position:fixed;left:${r.left-6}px;top:${r.top-6}px;width:${r.width+12}px;height:${r.height+12}px;border-radius:14px;box-shadow:0 0 0 9999px rgba(13,13,13,.72);z-index:8100;pointer-events:none;transition:.25s`;
+  let card=document.getElementById('tour-card');
+  if(!card){card=document.createElement('div');card.id='tour-card';document.body.appendChild(card);}
+  let top=r.bottom+14, left=Math.min(Math.max(r.left,16),window.innerWidth-316);
+  if(top+170>window.innerHeight)top=Math.max(16,r.top-170);
+  card.style.cssText=`position:fixed;left:${left}px;top:${top}px;width:min(300px,calc(100vw - 32px));z-index:8101`;
+  card.innerHTML=`<div class="tour-card-in">
+    <div class="tour-card-step">GUÍA IMDAC · PASO ${_tourPaso+1} DE ${TOUR_PASOS.length}</div>
+    <h4>${escHtml(paso.titulo)}</h4><p>${escHtml(paso.texto)}</p>
+    <div class="tour-card-acts">
+      <button class="btn-ghost" onclick="cerrarTour()">Saltar</button>
+      <button class="btn-primary" onclick="tourSiguiente()">${_tourPaso===TOUR_PASOS.length-1?'Terminar':'Siguiente'}</button>
+    </div>
+  </div>`;
+}
+function tourSiguiente(){_tourPaso++;mostrarPasoTour();}
+
+const ONBOARDING_PASOS=['tour','nombre','perfil','regalo','cursoPrueba'];
+let _onboardingIdx=-1;
+function iniciarOnboarding(){_onboardingIdx=-1;siguientePasoOnboarding();}
+function siguientePasoOnboarding(){
+  _onboardingIdx++;
+  const paso=ONBOARDING_PASOS[_onboardingIdx];
+  if(paso==='tour')return iniciarTour();
+  if(paso==='nombre')return mostrarModalNombreOnboarding();
+  if(paso==='perfil')return mostrarModalPerfilOnboarding();
+  if(paso==='regalo')return mostrarModalRegaloOnboarding();
+  if(paso==='cursoPrueba')return mostrarSelectorCursoPrueba();
+  // fin de la secuencia: nada más que hacer
+}
+function mostrarModalNombreOnboarding(){
+  const nombreActual=(CURRENT_USER&&CURRENT_USER.displayName)||'';
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="text-align:center;padding:32px 26px">
+    <div style="font-size:2.2rem;margin-bottom:10px">🎓</div>
+    <h3 style="font-family:var(--font-display);font-size:1.2rem;margin-bottom:8px">¿Cómo quieres que aparezca tu nombre?</h3>
+    <p style="color:var(--muted);font-size:.86rem;line-height:1.5;margin-bottom:18px">Este es el nombre que aparecerá en <b>tus certificados oficiales IMDAC</b>. Escríbelo completo y bien escrito (nombre y apellidos).</p>
+    <input id="ob-nombre" value="${escHtml(nombreActual)}" style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);text-align:center;font-weight:600;margin-bottom:16px;box-sizing:border-box">
+    <button class="btn-primary" style="width:100%;margin-bottom:10px" onclick="guardarNombreOnboarding()">Guardar y continuar</button>
+    <button class="btn-ghost" style="width:100%" onclick="closeModal();siguientePasoOnboarding()">Lo dejo así por ahora</button>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function guardarNombreOnboarding(){
+  const nombre=(document.getElementById('ob-nombre').value||'').trim();
+  if(!nombre)return toast('Escribe un nombre');
+  if(CURRENT_USER.updateProfile)CURRENT_USER.updateProfile({displayName:nombre}).catch(()=>{});
+  db.collection('miembros').doc(CURRENT_USER.uid).set({nombre},{merge:true}).catch(()=>{});
+  closeModal();
+  siguientePasoOnboarding();
+}
+function mostrarModalPerfilOnboarding(){
+  window._onboardingEsperandoCierre=true; // ver closeModal(): esto hace que, al cerrarse, siga con el regalo de XP
+  abrirMiTarjeta();
+}
+async function mostrarModalRegaloOnboarding(){
+  let data;
+  try{ data=await apiFetch('/regalo-bienvenida',{method:'POST'}); }
+  catch(e){ return siguientePasoOnboarding(); } // si falla, no se traba el onboarding por esto
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="text-align:center;padding:32px 26px">
+    <div style="width:62px;height:62px;border-radius:18px;background:var(--rojo-50);display:grid;place-items:center;margin:0 auto 14px;position:relative">
+      <svg width="28" height="28" fill="none" stroke="var(--rojo)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12v10H4V12M2 7h20v5H2V7zm10 0v15M12 7a2.5 2.5 0 11-2.5-2.5h2.5v2.5zm0 0a2.5 2.5 0 102.5-2.5H12v2.5z"/></svg>
+      <span style="position:absolute;top:-8px;right:-14px;background:var(--rojo);color:#fff;font-size:.68rem;font-weight:800;padding:3px 7px;border-radius:50px">+${data.regalo}</span>
+    </div>
+    <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Regalo de bienvenida</div>
+    <h3 style="font-family:var(--font-display);font-size:1.25rem;margin-bottom:10px">¡Tienes ${data.regalo} XP de regalo!</h3>
+    <p style="color:var(--muted);font-size:.86rem;line-height:1.55;margin-bottom:18px">Te los damos por unirte al Club IMDAC. Ya están en tu saldo y sirven para desbloquear material de la biblioteca más adelante — necesitas tu membresía activa para poder canjearlos. Sigue el Club para ganar más.</p>
+    <div class="calc-result" style="margin-bottom:18px"><b>${data.xp} XP</b><span>Tu saldo actual</span></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-ghost" style="flex:1" onclick="closeModal();siguientePasoOnboarding()">Más tarde</button>
+      <button class="btn-primary" style="flex:1" onclick="verMaterialOnboarding()">Ver el material →</button>
+    </div>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function verMaterialOnboarding(){
+  closeModal();
+  go('material');
+  setTimeout(siguientePasoOnboarding,4000); // dar tiempo a ver el material antes del siguiente paso
+}
+function courseIsFreeTrialCliente(c){
+  const v=c&&c.esPruebaGratuita;
+  if(v===true)return true;
+  return String(v||'').trim().toLowerCase()==='true';
+}
+function mostrarSelectorCursoPrueba(){
+  // La elección es entre todos los cursos publicados que tengan al menos dos
+  // clases: el usuario verá todas menos la última hasta activar membresía.
+  const elegibles=(DATA.cursos||[]).filter(c=>(c.listaClases||[]).length>=2);
+  if(!elegibles.length)return; // nada que ofrecer — fin silencioso del onboarding
+  if(elegibles.length===1)return confirmarCursoPruebaOnboarding(elegibles[0].id);
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="padding:28px 26px">
+    <h3 style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:6px">Elige tu curso de prueba</h3>
+    <p style="color:var(--muted);font-size:.84rem;line-height:1.5;margin-bottom:18px">Elige un curso para tu prueba. Podrás ver todas sus clases excepto la última; el resto del catálogo se habilita con la membresía. Esta elección no se puede cambiar.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${elegibles.map(c=>`<button onclick='confirmarCursoPruebaOnboarding(${JSON.stringify(c.id)})' style="text-align:left;width:100%;padding:14px 16px;border:1.5px solid var(--line);border-radius:12px;background:var(--base);cursor:pointer;font-family:inherit">
+        <b style="display:block;font-size:.9rem;color:var(--text)">${escHtml(c.titulo)}</b>
+        <span style="color:var(--muted);font-size:.78rem">${escHtml(c.categoria||'')}</span>
+      </button>`).join('')}
+    </div>
+    <button class="btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Decidir después</button>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+async function confirmarCursoPruebaOnboarding(cursoId){
+  try{
+    const data=await apiFetch('/curso-prueba',{method:'POST',body:{cursoId}});
+    DATA.cursoPrueba=String(data.cursoId||cursoId);
+    DATA.cursos.forEach(c=>(c.listaClases||[]).forEach((cl,i)=>{cl.isPreview=c.id===DATA.cursoPrueba&&i<(c.listaClases.length-1);}));
+    toast('¡Listo! Ya puedes ver las clases de tu curso de prueba.');
+  }catch(e){toast(e.message||'No se pudo guardar tu curso de prueba',{type:'err'});return;}
+  closeModal();
+  go('biblioteca');
+}
+
 /* ====== PAYWALL (activa tu membresía) ====== */
 let _planes=null;
 function renderPaywall(reason){
