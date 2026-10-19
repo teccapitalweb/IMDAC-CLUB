@@ -2235,11 +2235,18 @@ function toggleClaseHecha(cursoId,i){
   if(arr.length>=total&&!yaCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
 }
 function guardarProgreso(cursoId,prog,arr){
-  if(!puedeGuardarProgreso(cursoId)||!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
-  apiFetch('/progreso-clase',{method:'POST',body:{courseId:cursoId,clases:arr}}).then(data=>{
+  if(!puedeGuardarProgreso(cursoId)||!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return Promise.resolve(false);
+  return apiFetch('/progreso-clase',{method:'POST',body:{courseId:cursoId,clases:arr}}).then(data=>{
     DATA.clasesHechas[cursoId]=data.clases||arr;
     DATA.progresos[cursoId]=Number(data.porcentaje??prog);
-  }).catch(e=>toast(e.message||'No se pudo guardar el avance'));
+    return true;
+  }).catch(e=>{
+    toast(e.message||'No se pudo guardar el avance');
+    // Restablece desde el servidor el dato confirmado; no dejamos un 100%
+    // falso en pantalla si hubo problema de red o de permisos.
+    loadData().then(()=>{if(_cursoActivo===cursoId)openCurso(cursoId);}).catch(()=>{});
+    return false;
+  });
 }
 function puedeGuardarProgreso(cursoId){return _tieneAcceso()||String(DATA.cursoPrueba||'')===String(cursoId||'');}
 function closeModal(){
@@ -2277,9 +2284,15 @@ function getLogoDataURL(cb){
     else{const i2=new Image();i2.onload=()=>toData(i2);i2.onerror=()=>cb(null);i2.src=img.src;}
   }catch(e){cb(null);}
 }
-function generarCertificado(cursoId){
+async function generarCertificado(cursoId){
   if(!_tieneAcceso())return renderPaywall('Los certificados son exclusivos para miembros.');
   const c=DATA.cursos.find(x=>x.id===cursoId);if(!c)return;
+  try{
+    await apiFetch('/certificado-elegible',{method:'POST',body:{courseId:cursoId}});
+  }catch(e){
+    toast(e.message||'Aún no se confirmó el avance del curso');
+    return;
+  }
   registrarCertDescargado(cursoId);
   const curso=c.titulo;
   const fecha=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
