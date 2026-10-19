@@ -77,11 +77,13 @@ const NAV=[
     {id:"certificados",label:"Certificados",icon:'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
   ]},
   {group:"Herramientas",items:[
+    {id:"ficha-obra",label:"Ficha de Obra",icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
     {id:"checklist",label:"Checklist de Obra",icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
     {id:"calculadora",label:"Calc. Materiales",icon:'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z'},
     {id:"honorarios",label:"Calc. Honorarios",icon:'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z'},
     {id:"presupuesto",label:"Calc. Presupuesto",icon:'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2'},
     {id:"conversor",label:"Conversor de Unidades",icon:'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'},
+    {id:"precios",label:"Precios Unitarios",icon:'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'},
     {id:"normativas",label:"Guía Normativas",icon:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'},
   ]},
   {group:"Mi cuenta",items:[
@@ -169,7 +171,7 @@ function renderSection(sec){
   const R={
     inicio:renderInicio, biblioteca:renderBiblioteca, webinar:renderWebinar,
     material:renderMaterial, noticias:renderNoticias, foro:renderForo,
-    checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor,
+    'ficha-obra':renderFichaObra, checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor, precios:renderPrecios,
     normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
     perfil:renderPerfil, suscripcion:renderSuscripcion,
     logros:renderLogros, certificados:renderCertificados, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
@@ -1714,8 +1716,42 @@ function emptyState(sec,title,desc){
 }
 
 /* ====== 6. HERRAMIENTAS DE OBRA ====== */
-/* Checklist de Supervisión de Obra — reemplaza a Ficha de Obra (que solo
-   volcaba un formulario a PDF, sin más valor que una plantilla). Esto es
+function renderFichaObra(){
+  return `<h1 class="page-h">Ficha de Obra</h1><p class="page-sub">Genera una ficha técnica de obra en PDF lista para imprimir.</p>
+  <div class="card" style="padding:30px;max-width:760px"><div class="form-grid">
+    <div class="field form-full"><label>Nombre de la obra</label><input id="fo-obra" placeholder="Ej. Casa habitación dos niveles"></div>
+    <div class="field"><label>Cliente / Propietario</label><input id="fo-cliente" placeholder="Nombre"></div>
+    <div class="field"><label>Ubicación</label><input id="fo-ubic" placeholder="Calle, colonia, ciudad"></div>
+    <div class="field"><label>Superficie (m²)</label><input id="fo-sup" type="number" placeholder="0"></div>
+    <div class="field"><label>Tipo de obra</label><input id="fo-tipo" placeholder="Residencial / Comercial / Industrial"></div>
+    <div class="field"><label>Responsable (DRO)</label><input id="fo-dro" placeholder="Director Responsable de Obra"></div>
+    <div class="field"><label>Fecha de inicio</label><input id="fo-inicio" type="date"></div>
+    <div class="field form-full"><label>Descripción / Alcances</label><textarea id="fo-desc" rows="3" placeholder="Detalle de la obra..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
+  </div><button class="btn-primary" style="width:auto;padding:13px 30px;margin-top:8px" onclick="genFichaPDF()">📄 Generar PDF</button></div>`;
+}
+function genFichaPDF(){
+  if(!requiereMembresiaAccion('Generar y descargar fichas de obra requiere membresía.'))return;
+  loadJsPDF(()=>{
+    const {jsPDF}=window.jspdf; const doc=new jsPDF();
+    doc.setFillColor(13,13,13);doc.rect(0,0,210,32,'F');doc.setFillColor(255,44,44);doc.rect(0,32,210,2.5,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text('IMDAC',16,16);
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('Instituto Mexicano de Arquitectura y Construcción',16,23);
+    doc.setTextColor(255,44,44);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('FICHA TÉCNICA DE OBRA',150,18,{align:'center'});
+    let y=48; const row=(l,v)=>{doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120,120,120);doc.text(l.toUpperCase(),16,y);doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(20,20,20);doc.text(v||'—',16,y+6);y+=16;};
+    row('Nombre de la obra',val('fo-obra'));row('Cliente / Propietario',val('fo-cliente'));row('Ubicación',val('fo-ubic'));row('Superficie',val('fo-sup')?val('fo-sup')+' m²':'');row('Tipo de obra',val('fo-tipo'));row('Responsable (DRO)',val('fo-dro'));row('Fecha de inicio',val('fo-inicio'));
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120,120,120);doc.text('DESCRIPCIÓN / ALCANCES',16,y);y+=6;doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(20,20,20);doc.text(doc.splitTextToSize(val('fo-desc')||'—',178),16,y);
+    doc.setFontSize(8);doc.setTextColor(150,150,150);doc.text('Generado por IMDAC · Club de Miembros · '+new Date().toLocaleDateString('es-MX'),16,285);doc.save('ficha-obra-imdac.pdf');toast('Ficha de obra generada');
+  });
+}
+
+function renderPrecios(){
+  const base=[['Excavación a mano en material tipo II','m³','$185.00'],["Plantilla de concreto f'c=100",'m²','$95.00'],['Cadena de cimentación 15×20 armada','ml','$420.00'],['Muro de block 15 cm asentado','m²','$540.00'],["Losa maciza 10 cm f'c=200",'m²','$980.00'],['Aplanado fino en muro','m²','$165.00'],['Piso de cerámica 30×30 colocado','m²','$310.00']];
+  const conceptos=(DATA.precios&&DATA.precios.length)?DATA.precios.map(p=>[p.concepto,p.unidad,p.precio]):base;
+  return `<h1 class="page-h">Catálogo de Precios Unitarios</h1><p class="page-sub">Referencia base de conceptos de obra; ajústalos a tu zona y fecha.</p><div class="card tbl-card"><table class="norm"><thead><tr><th>Concepto</th><th>Unidad</th><th>P.U. estimado</th></tr></thead><tbody>${conceptos.map(c=>`<tr><td>${c[0]}</td><td>${c[1]}</td><td style="font-family:var(--font-display);font-weight:700;color:var(--rojo)">${c[2]}</td></tr>`).join('')}</tbody></table></div><p style="color:var(--muted);font-size:.82rem;margin-top:14px">* Precios de referencia general. Ajusta según región, proveedor y fecha.</p>`;
+}
+
+/* Checklist de Supervisión de Obra. Complementa la Ficha de Obra con una
+   revisión práctica por etapas. Esto es
    accionable: se marca en vivo y se exporta con lo marcado. No se guarda
    entre sesiones (es una herramienta de repaso puntual, no un registro). */
 const CHECKLIST_OBRA=[
@@ -2435,11 +2471,17 @@ function doRegister(){
   if(!name||!email||!pass)return showErr('Completa todos los campos.');
   if(!document.getElementById('rg-terms').checked)return showErr('Debes aceptar los Términos y la Política de Privacidad.');
   if(!FB_OK)return demoLogin(email,name);
+  // Auth puede avisar que la sesión inició antes de que se resuelva este
+  // promise. Esta bandera evita que un registro nuevo entre como usuario
+  // normal y se salte toda la bienvenida.
+  window._registroEnProceso=true;
   auth.createUserWithEmailAndPassword(email,pass).then(cred=>{
     cred.user.updateProfile({displayName:name});
     db.collection('miembros').doc(cred.user.uid).set({nombre:name,email,creado:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     window._esRegistroNuevo=true; // onLogged() lo revisa para lanzar el onboarding
-  }).catch(e=>showErr(authMsg(e.code)));
+    marcarOnboardingPendiente(cred.user.uid);
+    if(CURRENT_USER&&CURRENT_USER.uid===cred.user.uid)iniciarOnboardingRegistro();
+  }).catch(e=>{window._registroEnProceso=false;showErr(authMsg(e.code));});
 }
 function doGoogle(){
   hideErr();
@@ -2449,6 +2491,8 @@ function doGoogle(){
     if(res&&res.user&&res.additionalUserInfo&&res.additionalUserInfo.isNewUser){
       db.collection('miembros').doc(res.user.uid).set({nombre:res.user.displayName||'',email:res.user.email||'',creado:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).catch(()=>{});
       window._esRegistroNuevo=true;
+      marcarOnboardingPendiente(res.user.uid);
+      if(CURRENT_USER&&CURRENT_USER.uid===res.user.uid)iniciarOnboardingRegistro();
     }
   }).catch(e=>{ if(e.code!=='auth/popup-closed-by-user')showErr(authMsg(e.code)); });
 }
@@ -2459,6 +2503,7 @@ function doReset(){
   auth.sendPasswordResetEmail(email).then(()=>toast('Enlace enviado a '+email+' — revisa tu bandeja y spam')).catch(e=>showErr(authMsg(e.code)));
 }
 function doLogout(){
+  window._onboardingIniciado=false;
   document.getElementById('maint-overlay')?.remove();
   if(FB_OK)auth.signOut();
   else{CURRENT_USER=null;document.body.classList.remove('logged');document.getElementById('login').classList.remove('hidden');}
@@ -2629,9 +2674,8 @@ async function onLogged(){
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
   const q=new URLSearchParams(location.search);
   go(seccionInicial());
-  if(window._esRegistroNuevo && !_previewModo){
-    window._esRegistroNuevo=false;
-    setTimeout(iniciarOnboarding,900);
+  if((window._esRegistroNuevo||window._registroEnProceso||onboardingPendiente(CURRENT_USER?.uid)) && !_previewModo){
+    iniciarOnboardingRegistro();
   }else if(!_previewModo&&!_tieneAcceso()&&!DATA.cursoPrueba){
     // Cuentas existentes sin prueba elegida reciben solo este paso, sin repetir
     // el tour ni los demás datos de bienvenida.
@@ -2746,6 +2790,17 @@ function tourSiguiente(){_tourPaso++;mostrarPasoTour();}
 
 const ONBOARDING_PASOS=['tour','nombre','perfil','regalo','cursoPrueba'];
 let _onboardingIdx=-1;
+function onboardingStorageKey(uid){return uid?`imdac-onboarding-pendiente-${uid}`:'';}
+function marcarOnboardingPendiente(uid){try{const key=onboardingStorageKey(uid);if(key)localStorage.setItem(key,'1');}catch(e){}}
+function onboardingPendiente(uid){try{const key=onboardingStorageKey(uid);return !!(key&&localStorage.getItem(key)==='1');}catch(e){return false;}}
+function completarOnboarding(){try{const key=onboardingStorageKey(CURRENT_USER?.uid);if(key)localStorage.removeItem(key);}catch(e){}window._registroEnProceso=false;window._esRegistroNuevo=false;}
+function iniciarOnboardingRegistro(){
+  if(window._onboardingIniciado)return;
+  window._onboardingIniciado=true;
+  window._registroEnProceso=false;window._esRegistroNuevo=false;
+  marcarOnboardingPendiente(CURRENT_USER?.uid);
+  setTimeout(iniciarOnboarding,900);
+}
 function iniciarOnboarding(){_onboardingIdx=-1;siguientePasoOnboarding();}
 function siguientePasoOnboarding(){
   _onboardingIdx++;
@@ -2836,6 +2891,7 @@ async function confirmarCursoPruebaOnboarding(cursoId){
     DATA.cursoPrueba=String(data.cursoId||cursoId);
     DATA.cursos.forEach(c=>(c.listaClases||[]).forEach((cl,i)=>{cl.isPreview=c.id===DATA.cursoPrueba&&i<(c.listaClases.length-1);}));
     toast('¡Listo! Ya puedes ver las clases de tu curso de prueba.');
+    completarOnboarding();
   }catch(e){toast(e.message||'No se pudo guardar tu curso de prueba',{type:'err'});return;}
   closeModal();
   go('biblioteca');
