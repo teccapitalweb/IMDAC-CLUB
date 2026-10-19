@@ -1083,7 +1083,7 @@ function setDirQuery(v){
 }
 function setDirSector(s){_dirSector=s;renderSection('directorio');}
 let _tarjetaFotoURL='';
-function abrirMiTarjeta(){
+function abrirMiTarjeta(onboarding=false){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){toast('Inicia sesión para crear tu tarjeta');return;}
   const c=miTarjeta()||{};
   const t=c.contacto||{};
@@ -1092,35 +1092,35 @@ function abrirMiTarjeta(){
   document.getElementById('modal-content').innerHTML=`<div class="modal-body dcard-modal">
     <div class="dm-banner">
       <div class="dm-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>
-      <div style="flex:1"><h3>Mi tarjeta profesional</h3><div class="dm-sub">Aparecerá en el Directorio VIP</div></div>
+      <div style="flex:1"><h3>${onboarding?'Tu perfil profesional':'Mi tarjeta profesional'}</h3><div class="dm-sub">${onboarding?'Guardaremos estos datos para preparar tu tarjeta del Directorio VIP. Permanecerá privada hasta activar tu membresía.':'Aparecerá en el Directorio VIP'}</div></div>
       <button class="modal-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
     </div>
     <div class="dm-body">
-      ${DIRECTORIO_FOTOS_ACTIVAS?`
+      ${!onboarding&&DIRECTORIO_FOTOS_ACTIVAS?`
       <div class="dcard-photo-row">
         <div class="dcard-photo" id="dc-foto-preview">${_tarjetaFotoURL?`<img src="${escHtml(_tarjetaFotoURL)}" alt="">`:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`}</div>
         <input type="file" id="dc-foto-input" accept="image/*" style="display:none" onchange="subirFotoTarjeta(event)">
         <button type="button" class="dcard-photo-btn" id="dc-foto-btn" onclick="document.getElementById('dc-foto-input').click()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Subir foto</button>
       </div>`:''}
-      <label style="display:block;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:9px">Portada de tu tarjeta</label>
+      ${!onboarding?`<label style="display:block;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:9px">Portada de tu tarjeta</label>
       <div class="dcard-preview-cover" id="dc-preview" style="background:${COVER_COLORS[colorActual]}"></div>
-      <div class="color-pick">${COVER_COLORS.map((g,i)=>`<button type="button" style="background:${g}" class="${colorActual===i?'active':''}" data-color-i="${i}" onclick="elegirColorTarjeta(${i})" title="Color ${i+1}"></button>`).join('')}</div>
+      <div class="color-pick">${COVER_COLORS.map((g,i)=>`<button type="button" style="background:${g}" class="${colorActual===i?'active':''}" data-color-i="${i}" onclick="elegirColorTarjeta(${i})" title="Color ${i+1}"></button>`).join('')}</div>`:''}
       <div class="field"><label>Nombre completo</label><input id="dc-nombre" value="${escHtml(c.nombre||CURRENT_USER.displayName||'')}" placeholder="Tu nombre completo"></div>
-      <div class="field"><label>Puesto / cargo</label><input id="dc-puesto" value="${escHtml(c.puesto)}" placeholder="Ej. Arquitecto / Residente de obra"></div>
-      <div class="field"><label>Empresa</label><input id="dc-empresa" value="${escHtml(c.empresa)}" placeholder="Ej. Despacho Arquitectura MX"></div>
-      <div class="field"><label>Sector</label><select id="dc-sector"><option value="">Selecciona...</option>${SECTORES_DIRECTORIO.map(s=>`<option ${c.sector===s?'selected':''}>${s}</option>`).join('')}</select></div>
-      <div class="field"><label>Bio breve (opcional)</label><textarea id="dc-bio" rows="2" placeholder="Una línea sobre tu experiencia...">${escHtml(c.bio)}</textarea></div>
-      <div class="dcard-contact-head">Contacto (todos opcionales)</div>
+      <div class="field"><label>Puesto o profesión${onboarding?' *':''}</label><input id="dc-puesto" value="${escHtml(c.puesto)}" placeholder="Ej. Arquitecto, ingeniero, residente de obra"></div>
+      <div class="field"><label>Empresa o negocio (opcional)</label><input id="dc-empresa" value="${escHtml(c.empresa)}" placeholder="Ej. Despacho Arquitectura MX"></div>
+      <div class="field"><label>Área principal${onboarding?' *':''}</label><select id="dc-sector"><option value="">Selecciona un área</option>${SECTORES_DIRECTORIO.map(s=>`<option ${c.sector===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="field"><label>Cuéntanos brevemente sobre tu experiencia (opcional)</label><textarea id="dc-bio" rows="3" placeholder="Ej. Especialista en supervisión y ejecución de obra.">${escHtml(c.bio)}</textarea></div>
+      ${!onboarding?`<div class="dcard-contact-head">Contacto (todos opcionales)</div>
       <div class="field"><label>WhatsApp</label><input id="dc-whatsapp" value="${escHtml(t.whatsapp)}" placeholder="Ej. 52 55 1234 5678"></div>
       <div class="field"><label>Correo</label><input id="dc-email" value="${escHtml(t.email)}" placeholder="correo@ejemplo.com"></div>
       <div class="field"><label>LinkedIn</label><input id="dc-linkedin" value="${escHtml(t.linkedin)}" placeholder="linkedin.com/in/tu-perfil"></div>
       <div class="field"><label>Instagram</label><input id="dc-instagram" value="${escHtml(t.instagram)}" placeholder="instagram.com/tu-perfil o @tu-perfil"></div>
       <div class="field"><label>Sitio web</label><input id="dc-web" value="${escHtml(t.web)}" placeholder="tusitio.com"></div>
-      <div class="dcard-visible-row"><label><input type="checkbox" id="dc-visible" ${c.visible===false?'':'checked'}> Mostrar mi tarjeta en el directorio</label></div>
+      <div class="dcard-visible-row"><label><input type="checkbox" id="dc-visible" ${c.visible===false?'':'checked'}> Mostrar mi tarjeta en el directorio</label></div>`:''}
     </div>
     <div class="modal-foot" style="padding:0 22px 22px">
-      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn-save" id="modal-save" onclick="guardarTarjeta()">Guardar tarjeta</button>
+      <button class="btn-ghost" onclick="${onboarding?'closeModal();siguientePasoOnboarding()':'closeModal()'}">${onboarding?'Completar después':'Cancelar'}</button>
+      <button class="btn-save" id="modal-save" onclick="guardarTarjeta(${onboarding})">${onboarding?'Guardar mi perfil profesional':'Guardar tarjeta'}</button>
     </div>
   </div>`;
   document.getElementById('modal').classList.add('open');
@@ -1166,10 +1166,12 @@ function subirFotoTarjeta(ev){
     ev.target.value='';
   });
 }
-function guardarTarjeta(){
+function guardarTarjeta(onboarding=false){
   if(!CURRENT_USER||CURRENT_USER.uid==='demo')return;
   const nombre=(document.getElementById('dc-nombre').value||'').trim();
   if(!nombre){toast('Ponle tu nombre a la tarjeta');return;}
+  if(onboarding&&!(document.getElementById('dc-puesto').value||'').trim())return toast('Indica tu puesto o profesión');
+  if(onboarding&&!document.getElementById('dc-sector').value)return toast('Selecciona tu área principal');
   const activeBtn=document.querySelector('.color-pick button.active');
   const colorPortada=activeBtn?Number(activeBtn.dataset.colorI):0;
   const data={
@@ -1181,13 +1183,13 @@ function guardarTarjeta(){
     bio:(document.getElementById('dc-bio').value||'').trim(),
     colorPortada,
     contacto:{
-      whatsapp:(document.getElementById('dc-whatsapp').value||'').trim(),
-      email:(document.getElementById('dc-email').value||'').trim(),
-      linkedin:(document.getElementById('dc-linkedin').value||'').trim(),
-      instagram:(document.getElementById('dc-instagram').value||'').trim(),
-      web:(document.getElementById('dc-web').value||'').trim()
+      whatsapp:(document.getElementById('dc-whatsapp')?.value||'').trim(),
+      email:(document.getElementById('dc-email')?.value||'').trim(),
+      linkedin:(document.getElementById('dc-linkedin')?.value||'').trim(),
+      instagram:(document.getElementById('dc-instagram')?.value||'').trim(),
+      web:(document.getElementById('dc-web')?.value||'').trim()
     },
-    visible:!!document.getElementById('dc-visible').checked,
+    visible:onboarding?false:!!document.getElementById('dc-visible')?.checked,
     actualizado:firebase.firestore.FieldValue.serverTimestamp()
   };
   const btn=document.getElementById('modal-save'); if(btn){btn.disabled=true;btn.textContent='Guardando…';}
@@ -1196,6 +1198,7 @@ function guardarTarjeta(){
     const withUid={uid:CURRENT_USER.uid,...data};
     if(idx>=0)DATA.directorio[idx]=withUid; else (DATA.directorio=DATA.directorio||[]).push(withUid);
     closeModal();
+    if(onboarding)siguientePasoOnboarding();
     if(currentSection==='directorio')renderSection('directorio');
     toast('Tarjeta guardada');
   }).catch(()=>{if(btn){btn.disabled=false;btn.textContent='Guardar tarjeta';}toast('No se pudo guardar tu tarjeta');});
@@ -2107,7 +2110,7 @@ function renderCursoDetalle(id){
       <div class="cd-clases-badge"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>${total} clases</div>
     </div>
   </div>
-  ${_tieneAcceso()&&!schedule.locked?`<div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>`:(schedule.locked?`<div class="cd-progress"><span class="lbl">🔒 Este curso se habilita en ${schedule.dias} día${schedule.dias===1?'':'s'}.</span></div>`:'<div class="cd-progress"><span class="lbl">Estás explorando gratis. El progreso se guarda con una membresía activa.</span></div>')}
+  ${(_tieneAcceso()&&!schedule.locked)||puedeGuardarProgreso(id)?`<div class="cd-progress"><span class="lbl">Tu progreso</span><div class="bar"><i style="width:${prog}%"></i></div><span class="pct">${prog}%</span></div>`:(schedule.locked?`<div class="cd-progress"><span class="lbl">🔒 Este curso se habilita en ${schedule.dias} día${schedule.dias===1?'':'s'}.</span></div>`:'<div class="cd-progress"><span class="lbl">Activa tu membresía para continuar.</span></div>')}
   ${_tieneAcceso()&&prog>=100?`<div class="cert-banner"><div class="cbi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div><b>¡Curso completado!</b><p>Descarga tu certificado de finalización con folio y QR verificable.</p></div><button onclick="generarCertificado('${id}')">Descargar certificado</button></div>`:''}
   <div class="cd-list-head"><h3>Lista de clases</h3><span>${hechas.length} de ${total} completadas</span></div>
   ${clases.map((cl,i)=>claseRow(cl,i,cl.isPreview===true||(_tieneAcceso()&&!schedule.locked),id,hechas.includes(i),schedule)).join('')}`;
@@ -2126,7 +2129,7 @@ function claseRow(cl,i,disp,cursoId,hecha,schedule={locked:false,dias:0}){
     </div>`;
   }
   const preview=cl.isPreview===true;
-  const canTrack=_tieneAcceso();
+  const canTrack=puedeGuardarProgreso(cursoId);
   return `<div class="clase disp ${hecha?'done':''}">
     ${canTrack?`<button class="cst chk ${hecha?'on':''}" onclick="toggleClaseHecha('${cursoId}',${i})" title="${hecha?'Marcar como pendiente':'Marcar como completada'}">${hecha?checkDone:checkEmpty}</button>`:`<div class="cst">${playIcon}</div>`}
     <div class="cinfo" onclick="playClase('${cursoId}',${i})" style="cursor:pointer"><b>${cl.titulo||('Clase '+(i+1))}</b><span class="est">${preview&&!canTrack?'Curso de prueba':(hecha?'Completada':'Disponible')}</span>
@@ -2164,7 +2167,7 @@ async function playClase(cursoId,i){
   }
 }
 function marcarHechaSilencio(cursoId,i){
-  if(!_tieneAcceso())return false;
+  if(!puedeGuardarProgreso(cursoId))return false;
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return false;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0; if(!total)return false;
   const set=new Set(DATA.clasesHechas[cursoId]||[]);
@@ -2180,7 +2183,7 @@ function marcarHechaSilencio(cursoId,i){
 function siguienteClase(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0;
-  const seCompleto=_tieneAcceso()?marcarHechaSilencio(cursoId,i):false;
+  const seCompleto=puedeGuardarProgreso(cursoId)?marcarHechaSilencio(cursoId,i):false;
   const next=i+1;
   const hayNext = next<total && (c.listaClases||[])[next] && (c.listaClases[next].hasVideo);
   // refrescar el detalle de fondo (barra + bolitas)
@@ -2217,7 +2220,7 @@ function cerrarVideoModal(){
   document.body.style.overflow='';
 }
 function toggleClaseHecha(cursoId,i){
-  if(!_tieneAcceso())return renderPaywall('El progreso y los certificados se habilitan con una membresía vigente.');
+  if(!puedeGuardarProgreso(cursoId))return renderPaywall('El progreso se guarda en tu curso de prueba. Los certificados se habilitan con una membresía vigente.');
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0; if(!total)return;
   const set=new Set(DATA.clasesHechas[cursoId]||[]);
@@ -2232,10 +2235,13 @@ function toggleClaseHecha(cursoId,i){
   if(arr.length>=total&&!yaCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
 }
 function guardarProgreso(cursoId,prog,arr){
-  if(!_tieneAcceso()||!FB_OK||!window.db||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
-  db.collection('progreso').doc(CURRENT_USER.uid+'_'+cursoId)
-    .set({uid:CURRENT_USER.uid,cursoId,porcentaje:prog,clases:arr},{merge:true}).catch(()=>{});
+  if(!puedeGuardarProgreso(cursoId)||!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  apiFetch('/progreso-clase',{method:'POST',body:{courseId:cursoId,clases:arr}}).then(data=>{
+    DATA.clasesHechas[cursoId]=data.clases||arr;
+    DATA.progresos[cursoId]=Number(data.porcentaje??prog);
+  }).catch(e=>toast(e.message||'No se pudo guardar el avance'));
 }
+function puedeGuardarProgreso(cursoId){return _tieneAcceso()||String(DATA.cursoPrueba||'')===String(cursoId||'');}
 function closeModal(){
   document.getElementById('modal').classList.remove('open');
   // El paso "perfil" del onboarding reutiliza el modal normal de la tarjeta
@@ -2607,7 +2613,7 @@ async function loadData(){
     // progreso/{uid}; se leen aun sin membresía para que no desaparezcan al
     // recargar después de registrarse.
     try{const perfilProgreso=await db.collection('progreso').doc(CURRENT_USER.uid).get();if(perfilProgreso.exists){const p=perfilProgreso.data()||{};DATA.xp=Number(p.xp)||0;DATA.cursoPrueba=String(p.cursoPrueba||DATA.cursoPrueba||'');}}catch(e){}
-    if(_tieneAcceso()){
+    if(_tieneAcceso()||DATA.cursoPrueba){
       try{const foro=await db.collection('foro_temas').orderBy('fecha','desc').limit(30).get();DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.foro=[];}
       try{const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0;if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});}catch(e){}
       try{const dir=await db.collection('directorio').get();DATA.directorio=dir.docs.map(d=>({uid:d.id,...d.data()})).filter(x=>x.visible!==false);}catch(e){DATA.directorio=[];}
@@ -2833,8 +2839,7 @@ function guardarNombreOnboarding(){
   siguientePasoOnboarding();
 }
 function mostrarModalPerfilOnboarding(){
-  window._onboardingEsperandoCierre=true; // ver closeModal(): esto hace que, al cerrarse, siga con el regalo de XP
-  abrirMiTarjeta();
+  abrirMiTarjeta(true);
 }
 async function mostrarModalRegaloOnboarding(){
   let data;
@@ -2870,26 +2875,23 @@ function mostrarSelectorCursoPrueba(){
   // La elección es entre todos los cursos publicados que tengan al menos dos
   // clases: el usuario verá todas menos la última hasta activar membresía.
   const elegibles=(DATA.cursos||[]).filter(c=>(c.listaClases||[]).length>=2);
-  if(!elegibles.length)return; // nada que ofrecer — fin silencioso del onboarding
-  if(elegibles.length===1)return confirmarCursoPruebaOnboarding(elegibles[0].id);
-  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="padding:28px 26px">
-    <h3 style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:6px">Elige tu curso de prueba</h3>
-    <p style="color:var(--muted);font-size:.84rem;line-height:1.5;margin-bottom:18px">Elige un curso para tu prueba. Podrás ver todas sus clases excepto la última; el resto del catálogo se habilita con la membresía. Esta elección no se puede cambiar.</p>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      ${elegibles.map(c=>`<button onclick='confirmarCursoPruebaOnboarding(${JSON.stringify(c.id)})' style="text-align:left;width:100%;padding:14px 16px;border:1.5px solid var(--line);border-radius:12px;background:var(--base);cursor:pointer;font-family:inherit">
-        <b style="display:block;font-size:.9rem;color:var(--text)">${escHtml(c.titulo)}</b>
-        <span style="color:var(--muted);font-size:.78rem">${escHtml(c.categoria||'')}</span>
-      </button>`).join('')}
-    </div>
-    <button class="btn-ghost" style="width:100%;margin-top:16px" onclick="closeModal()">Decidir después</button>
-  </div>`;
+  if(!elegibles.length)return;
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="padding:30px 28px"><div style="display:flex;gap:14px;align-items:center;margin-bottom:16px"><div style="width:48px;height:48px;border-radius:14px;background:var(--rojo-50);display:grid;place-items:center;color:var(--rojo);font-size:1.4rem">▷</div><div><h3 style="font-family:var(--font-display);font-size:1.2rem;margin:0">Tu prueba gratuita</h3><span style="color:var(--muted);font-size:.82rem">Una función para usuarios nuevos</span></div></div><div style="border-top:1px solid var(--line);padding-top:18px"><p style="font-size:1rem;line-height:1.55;margin:0 0 12px">Al ser nuevo, puedes elegir <b>un curso de tu interés</b> como prueba gratuita.</p><p style="color:var(--muted);font-size:.9rem;line-height:1.55;margin:0 0 20px">Verás todas sus clases menos la última. El certificado se habilita al activar tu membresía.</p></div><button class="btn-primary" style="width:auto;float:right;padding:13px 22px" onclick="mostrarListaCursosPrueba()">Elegir mi curso</button><div style="clear:both"></div></div>`;
   document.getElementById('modal').classList.add('open');
+}
+function mostrarListaCursosPrueba(){
+  const elegibles=(DATA.cursos||[]).filter(c=>(c.listaClases||[]).length>=2);
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="padding:28px 26px"><h3 style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:6px">Elige tu curso</h3><p style="color:var(--muted);font-size:.84rem;line-height:1.5;margin-bottom:18px">Después te pediremos confirmación. Solo podrás elegir uno.</p><div style="display:flex;flex-direction:column;gap:10px">${elegibles.map(c=>`<button onclick='confirmarCursoPrueba(${JSON.stringify(c.id)})' style="text-align:left;width:100%;padding:14px 16px;border:1.5px solid var(--line);border-radius:12px;background:var(--base);cursor:pointer;font-family:inherit"><b style="display:block;font-size:.9rem;color:var(--text)">${escHtml(c.titulo)}</b><span style="color:var(--muted);font-size:.78rem">${escHtml(c.categoria||'')} · ${c.clases||0} clases</span></button>`).join('')}</div></div>`;
+}
+function confirmarCursoPrueba(cursoId){
+  const c=(DATA.cursos||[]).find(x=>x.id===cursoId);if(!c)return;
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="padding:28px 26px"><div style="display:flex;gap:12px;align-items:center;margin-bottom:16px"><div style="width:45px;height:45px;border-radius:13px;background:var(--rojo-50);display:grid;place-items:center;color:var(--rojo);font-size:1.3rem">▷</div><div><h3 style="font-family:var(--font-display);font-size:1.15rem;margin:0">¿Seguro que deseas este curso?</h3><span style="color:var(--muted);font-size:.8rem">Tu prueba gratuita</span></div></div><div style="border-top:1px solid var(--line);padding-top:16px">${c.img?`<div style="height:130px;border-radius:12px;background:url('${driveImg(c.img)}') center/cover;margin-bottom:16px"></div>`:''}<h3 style="font-family:var(--font-display);font-size:1.1rem;margin-bottom:10px">${escHtml(c.titulo)}</h3><p style="color:var(--muted);line-height:1.55">Será tu prueba gratuita y podrás ver todas sus clases menos la última, que se abre con la membresía.</p><p style="font-weight:700;line-height:1.45">Solo puedes elegir uno y después no se puede cambiar.</p></div><button class="btn-ghost" style="width:100%;margin:8px 0" onclick="mostrarListaCursosPrueba()">No, ver otros cursos</button><button class="btn-primary" style="width:100%" onclick='confirmarCursoPruebaOnboarding(${JSON.stringify(cursoId)})'>Sí, es mi prueba gratuita</button></div>`;
 }
 async function confirmarCursoPruebaOnboarding(cursoId){
   try{
     const data=await apiFetch('/curso-prueba',{method:'POST',body:{cursoId}});
     DATA.cursoPrueba=String(data.cursoId||cursoId);
-    DATA.cursos.forEach(c=>(c.listaClases||[]).forEach((cl,i)=>{cl.isPreview=c.id===DATA.cursoPrueba&&i<(c.listaClases.length-1);}));
+    await loadData();
     toast('¡Listo! Ya puedes ver las clases de tu curso de prueba.');
     completarOnboarding();
   }catch(e){toast(e.message||'No se pudo guardar tu curso de prueba',{type:'err'});return;}
