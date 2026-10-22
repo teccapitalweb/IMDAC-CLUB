@@ -450,18 +450,28 @@ function courseCard(c){
   const trialAttr=isTrialChoice
     ?` href="#prueba/${encodeURIComponent(String(c.id))}"`
     :` onclick="openCurso(${JSON.stringify(c.id)})"`;
-  return `<${tag} class="course${isTrialChoice?' trial-choice':''}"${trialAttr}>
-    <div class="course-img" style="background-image:url('${driveImg(c.img)}')">
-      <span class="course-cat">${c.categoria||'General'}</span>
-    </div>
-    <div class="course-body">
-      <h4>${c.titulo}</h4>
-      <div class="course-meta">
-        <span>${c.clases||0} clases · ${c.nivel||'Intermedio'}</span>
-        ${member&&schedule.locked?`<span class="drip">🔒 Disponible en ${schedule.dias} día${schedule.dias===1?'':'s'}</span>`:(!member&&cursoRegalaClase(c)?`<span class="drip" style="color:#18794e">${cursoEsPruebaGratuita(c)?'Prueba gratuita':'Primera clase gratis'}</span>`:'')}
+  const esMiPrueba=!member&&String(DATA.cursoPrueba||'')===String(c.id||'');
+  const badge=schedule.locked
+    ?`<span class="cc-badge cc-badge-lock">🔒 Se desbloquea en ${schedule.dias} día${schedule.dias===1?'':'s'}</span>`
+    :(member&&prog>0?`<span class="cc-badge cc-badge-prog">${prog}%</span>`
+    :(!member&&cursoRegalaClase(c)?`<span class="cc-badge cc-badge-free">${esMiPrueba?'Tu prueba gratuita':(cursoEsPruebaGratuita(c)?'Prueba gratuita':'Primera clase gratis')}</span>`:''));
+  const showPlay=!schedule.locked&&prog>0&&(member||esMiPrueba);
+  const ctaTxt=isTrialChoice?'Elegir →':(schedule.locked?'Bloqueado':(prog>0?'Continuar':'Ver curso'));
+  const instr=String(c.instructor||'').trim()||'Equipo IMDAC';
+  const initials=instr.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'IM';
+  return `<${tag} class="course course-v2${isTrialChoice?' trial-choice':''}"${trialAttr}>
+    <div class="cc-cover" style="background-image:url('${driveImg(c.img)}')">
+      ${badge}
+      ${showPlay?`<span class="cc-play"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>`:''}
+      <div class="cc-shade"></div>
+      <div class="cc-info">
+        <h4>${c.titulo}</h4>
+        <div class="cc-meta">${c.clases||0} clases · ${c.nivel||'Intermedio'}</div>
+        <div class="cc-foot">
+          <span class="cc-instr"><span class="cc-avatar">${initials}</span>${instr}</span>
+          <span class="cc-cta${schedule.locked?' cc-cta-lock':''}">${ctaTxt}</span>
+        </div>
       </div>
-      ${member?`<div class="progress"><i style="width:${prog}%"></i></div><div class="course-prog-t"><span>${prog}%</span><span>${c.clases?`Mód. ${Math.max(1,Math.ceil(prog/100*c.clases))}/${c.clases}`:''}</span></div>`:''}
-      <span class="course-open">${_eligiendoCursoPrueba?`Elegir como prueba gratuita <b>→</b>`:(member&&schedule.locked?'Ver disponibilidad':(member&&prog>0?'Continuar curso':'Ver curso'))} </span>
     </div>
   </${tag}>`;
 }
