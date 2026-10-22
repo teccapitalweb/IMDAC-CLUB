@@ -356,7 +356,7 @@ body.logged #app{display:block}
 /* TARJETA DE CURSO v2: foto completa + degradado, como DulceLab */
 .course-v2{background:transparent;border:none;box-shadow:none}
 .course-v2:hover{transform:none;box-shadow:none}
-.cc-cover{position:relative;aspect-ratio:3/4;border-radius:var(--radius);overflow:hidden;background:var(--gris-100) center/cover;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column;justify-content:flex-end}
+.cc-cover{position:relative;aspect-ratio:3/2;border-radius:var(--radius);overflow:hidden;background:var(--gris-100) center/cover;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column;justify-content:flex-end}
 .course-v2:hover .cc-cover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
 .member-catalog-grid .cc-cover{border-radius:16px}
 .cc-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 32%,rgba(0,0,0,.58) 66%,rgba(0,0,0,.9) 100%);pointer-events:none}
@@ -368,7 +368,9 @@ body.logged #app{display:block}
 .cc-play svg{width:14px;height:14px}
 .cc-info{position:relative;z-index:2;padding:16px 16px 15px}
 .cc-info h4{font-family:var(--font-display);font-size:1rem;font-weight:700;line-height:1.25;margin-bottom:6px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.35)}
-.cc-meta{font-size:.76rem;color:rgba(255,255,255,.85);margin-bottom:12px}
+.cc-meta{font-size:.76rem;color:rgba(255,255,255,.85);margin-bottom:10px}
+.cc-bar{height:4px;background:rgba(255,255,255,.28);border-radius:50px;overflow:hidden;margin-bottom:12px}
+.cc-bar i{display:block;height:100%;background:var(--rojo);border-radius:50px}
 .cc-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .cc-instr{display:flex;align-items:center;gap:6px;font-size:.74rem;color:rgba(255,255,255,.92);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cc-avatar{flex:none;width:22px;height:22px;border-radius:50%;background:var(--rojo);color:#fff;display:grid;place-items:center;font-size:.6rem;font-weight:800}

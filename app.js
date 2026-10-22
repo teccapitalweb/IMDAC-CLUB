@@ -451,11 +451,15 @@ function courseCard(c){
     ?` href="#prueba/${encodeURIComponent(String(c.id))}"`
     :` onclick='openCurso(${JSON.stringify(c.id)})'`;
   const esMiPrueba=!member&&String(DATA.cursoPrueba||'')===String(c.id||'');
+  // puedeGuardarProgreso(c.id) sería lo ideal, pero courseCard se llama antes
+  // de que exista DATA.clasesHechas[id]; el criterio es el mismo: miembro, o
+  // tu propio curso de prueba.
+  const puedeVerProgreso=member||esMiPrueba;
   const badge=schedule.locked
     ?`<span class="cc-badge cc-badge-lock">🔒 Se desbloquea en ${schedule.dias} día${schedule.dias===1?'':'s'}</span>`
-    :(member&&prog>0?`<span class="cc-badge cc-badge-prog">${prog}%</span>`
+    :(puedeVerProgreso&&prog>0?`<span class="cc-badge cc-badge-prog">${prog}%</span>`
     :(!member&&cursoRegalaClase(c)?`<span class="cc-badge cc-badge-free">${esMiPrueba?'Tu prueba gratuita':(cursoEsPruebaGratuita(c)?'Prueba gratuita':'Primera clase gratis')}</span>`:''));
-  const showPlay=!schedule.locked&&prog>0&&(member||esMiPrueba);
+  const showPlay=!schedule.locked&&prog>0&&puedeVerProgreso;
   const ctaTxt=isTrialChoice?'Elegir →':(schedule.locked?'Bloqueado':(prog>0?'Continuar':'Ver curso'));
   const instr=String(c.instructor||'').trim()||'Equipo IMDAC';
   const initials=instr.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'IM';
@@ -467,6 +471,7 @@ function courseCard(c){
       <div class="cc-info">
         <h4>${c.titulo}</h4>
         <div class="cc-meta">${c.clases||0} clases · ${c.nivel||'Intermedio'}</div>
+        ${puedeVerProgreso&&prog>0?`<div class="cc-bar"><i style="width:${prog}%"></i></div>`:''}
         <div class="cc-foot">
           <span class="cc-instr"><span class="cc-avatar">${initials}</span>${instr}</span>
           <span class="cc-cta${schedule.locked?' cc-cta-lock':''}">${ctaTxt}</span>
