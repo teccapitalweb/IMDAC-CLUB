@@ -84,7 +84,6 @@ const NAV=[
     {id:"honorarios",label:"Calc. Honorarios",icon:'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z'},
     {id:"presupuesto",label:"Calc. Presupuesto",icon:'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2'},
     {id:"conversor",label:"Conversor de Unidades",icon:'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'},
-    {id:"precios",label:"Precios Unitarios",icon:'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'},
     {id:"normativas",label:"Guía Normativas",icon:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'},
   ]},
   {group:"Mi cuenta",items:[
@@ -187,7 +186,7 @@ function renderSection(sec){
   const R={
     inicio:renderInicio, biblioteca:renderBiblioteca, webinar:renderWebinar,
     material:renderMaterial, noticias:renderNoticias, foro:renderForo,
-    'ficha-obra':renderFichaObra, checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor, precios:renderPrecios,
+    'ficha-obra':renderFichaObra, checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor,
     normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
     perfil:renderPerfil, suscripcion:renderSuscripcion,
     logros:renderLogros, certificados:renderCertificados, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
@@ -1771,12 +1770,6 @@ function genFichaPDF(){
   });
 }
 
-function renderPrecios(){
-  const base=[['Excavación a mano en material tipo II','m³','$185.00'],["Plantilla de concreto f'c=100",'m²','$95.00'],['Cadena de cimentación 15×20 armada','ml','$420.00'],['Muro de block 15 cm asentado','m²','$540.00'],["Losa maciza 10 cm f'c=200",'m²','$980.00'],['Aplanado fino en muro','m²','$165.00'],['Piso de cerámica 30×30 colocado','m²','$310.00']];
-  const conceptos=(DATA.precios&&DATA.precios.length)?DATA.precios.map(p=>[p.concepto,p.unidad,p.precio]):base;
-  return `<h1 class="page-h">Catálogo de Precios Unitarios</h1><p class="page-sub">Referencia base de conceptos de obra; ajústalos a tu zona y fecha.</p><div class="card tbl-card"><table class="norm"><thead><tr><th>Concepto</th><th>Unidad</th><th>P.U. estimado</th></tr></thead><tbody>${conceptos.map(c=>`<tr><td>${c[0]}</td><td>${c[1]}</td><td style="font-family:var(--font-display);font-weight:700;color:var(--rojo)">${c[2]}</td></tr>`).join('')}</tbody></table></div><p style="color:var(--muted);font-size:.82rem;margin-top:14px">* Precios de referencia general. Ajusta según región, proveedor y fecha.</p>`;
-}
-
 /* Checklist de Supervisión de Obra. Complementa la Ficha de Obra con una
    revisión práctica por etapas. Esto es
    accionable: se marca en vivo y se exporta con lo marcado. No se guarda
@@ -2968,12 +2961,17 @@ async function confirmarCursoPruebaOnboarding(cursoId){
     DATA.cursoPrueba=String(data.cursoId||cursoId);
     _eligiendoCursoPrueba=false;
     completarOnboarding();
-    // No bloqueamos la entrada al curso con una segunda carga completa del
-    // catálogo. La información actual basta para abrirlo; se refresca detrás.
+    // Hay que esperar esta recarga sí o sí: el catálogo que ya teníamos se
+    // pidió ANTES de elegir el curso, así que trae isPreview=false en todas
+    // las clases (nadie tenía curso de prueba todavía). Abrir el curso con
+    // esos datos viejos mostraba el candado de membresía incluso en tu
+    // propia prueba gratuita — por eso se refrescaba "detrás" y nunca se
+    // veía el desbloqueo hasta recargar la página a mano.
+    if(confirmBtn)confirmBtn.textContent='Preparando tu curso…';
+    await loadData().catch(()=>{});
     closeModal();
     openCurso(cursoId);
     toast('¡Listo! Ya puedes ver las clases de tu curso de prueba.');
-    loadData().catch(()=>{});
   }catch(e){
     if(confirmBtn){confirmBtn.disabled=false;confirmBtn.textContent='Sí, es mi prueba gratuita';confirmBtn.style.opacity='';confirmBtn.style.cursor='';}
     toast(e.message||'No se pudo guardar tu curso de prueba',{type:'err'});
