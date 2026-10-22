@@ -449,7 +449,7 @@ function courseCard(c){
   const tag=isTrialChoice?'a':'div';
   const trialAttr=isTrialChoice
     ?` href="#prueba/${encodeURIComponent(String(c.id))}"`
-    :` onclick="openCurso(${JSON.stringify(c.id)})"`;
+    :` onclick='openCurso(${JSON.stringify(c.id)})'`;
   const esMiPrueba=!member&&String(DATA.cursoPrueba||'')===String(c.id||'');
   const badge=schedule.locked
     ?`<span class="cc-badge cc-badge-lock">🔒 Se desbloquea en ${schedule.dias} día${schedule.dias===1?'':'s'}</span>`
