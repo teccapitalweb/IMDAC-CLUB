@@ -363,7 +363,13 @@ function renderInicio(){
   const enProg=enProgList.length;
   const comp=cursosOrd.filter(c=>(DATA.progresos[c.id]||0)>=100).length;
   const member=_tieneAcceso();
-  const continuo=cursosOrd[0]?(enProgList[0]||cursosOrd[0]):null;
+  // La tarjeta de inicio debe abrir TU curso de prueba, no el primero del
+  // catalogo por "order" (ese casi siempre es el curso de entrada legado,
+  // que para un socio sin membresia esta bloqueado por completo). Si ya
+  // tiene avance en algo se respeta eso; si no, se prioriza su propio
+  // cursoPrueba antes de caer al primero del catalogo.
+  const cursoDePrueba=!member&&DATA.cursoPrueba?cursosOrd.find(c=>c.id===DATA.cursoPrueba):null;
+  const continuo=enProgList[0]||cursoDePrueba||cursosOrd[0]||null;
   const prog=continuo&&member?(DATA.progresos[continuo.id]||0):0;
   const lec=continuo?proximaLeccion(continuo,prog):null;
   const w=DATA.webinars[0];
@@ -375,7 +381,7 @@ function renderInicio(){
       <p class="dc-sub">${member?'Tu ruta avanza a tu ritmo: se habilita un curso nuevo cada 7 días.':(hayClaseGratis()?'Tu curso de prueba está disponible: mira todas sus clases excepto la última.':'Elige un curso de prueba para empezar a aprender.')}</p>
       ${continuo?`
       <div class="dc-course">
-        <div class="dc-course-label">${member?(prog>0?'Continúa tu curso':'Curso sugerido para empezar'):'Curso de entrada'}</div>
+        <div class="dc-course-label">${member?(prog>0?'Continúa tu curso':'Curso sugerido para empezar'):(cursoDePrueba?'Tu curso de prueba':'Curso de entrada')}</div>
         <h3>${continuo.titulo}</h3>
         ${lec.total?`
         <div class="dc-lesson">
