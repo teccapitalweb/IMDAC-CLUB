@@ -1,5 +1,5 @@
-/* IMDAC · Club — Service Worker v74 */
-const CACHE='imdac-club-v74';
+/* IMDAC · Club — Service Worker v75 */
+const CACHE='imdac-club-v75';
 const ASSETS=['./','./index.html','./app.js','./cert-font.js','./manifest.json',
   './assets/logo-imdac.png','./assets/pwa-192.png','./assets/pwa-512.png','./assets/apple-touch-icon.png'];
 
@@ -35,7 +35,10 @@ self.addEventListener('fetch',e=>{
     e.respondWith((async()=>{
       try{
         const pre=await e.preloadResponse;
-        const res=pre||await fetch(req);
+        // cache:'no-store' es la parte que importa: sin esto, "network-first" seguia
+        // pidiendole al navegador su copia en cache HTTP de app.js/index.html, que
+        // puede ser mas vieja que el ultimo deploy aunque la red responda al toque.
+        const res=pre||await fetch(req,{cache:'no-store'});
         if(res&&res.ok)caches.open(CACHE).then(c=>c.put(req,res.clone()));
         return res;
       }catch(err){
