@@ -131,7 +131,7 @@ function renderMobNav(){
 
 /* ====== 4. ROUTER ====== */
 let currentSection="inicio";
-const MEMBER_ONLY_SECTIONS=new Set(['foro','canal','logros','certificados']);
+const MEMBER_ONLY_SECTIONS=new Set(['foro','canal']);
 /* Sin historial, el boton atras de Android sale de la app desde cualquier
    seccion: con la barra inferior eso es un callejon sin salida. El hash tambien
    hace que los accesos directos del manifest lleguen a su seccion. */
@@ -1587,6 +1587,11 @@ function renderCertificados(){
     <h1>Certificados</h1>
     <p>Descarga la constancia oficial de cada curso que completes en el Club IMDAC, con folio y código QR de verificación.</p>
   </div>
+  ${_tieneAcceso()?'':`<div class="dir-visitor-banner">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span>Puedes ver tu avance aquí. <b>Descargar tu certificado</b> requiere una membresía vigente (la última clase de cada curso se desbloquea con la membresía).</span>
+    <button onclick="renderPaywall('Los certificados son exclusivos para miembros.')">Activar membresía</button>
+  </div>`}
   ${completados.length?completados.map(c=>{
     const ya=descargados.has(c.id);
     return `<div class="cert-row">
@@ -1776,17 +1781,22 @@ function emptyState(sec,title,desc){
 
 /* ====== 6. HERRAMIENTAS DE OBRA ====== */
 function renderFichaObra(){
+  // Capturar datos es la parte de pago, no solo generar el PDF -- antes estos
+  // campos no llamaban a requiereMembresiaAccion y un visitante podia escribir
+  // libremente toda la ficha, solo se topaba con el muro hasta darle a
+  // "Generar PDF". El aviso debe salir desde que intenta escribir.
+  const fg=`onfocus="requiereMembresiaAccion('Generar y descargar fichas de obra requiere membresía.')"`;
   return `<h1 class="page-h">Ficha de Obra</h1><p class="page-sub">Genera una ficha técnica de obra en PDF lista para imprimir.</p>
   ${bannerHerramientaPro()}
   <div class="card" style="padding:30px;max-width:760px"><div class="form-grid">
-    <div class="field form-full"><label>Nombre de la obra</label><input id="fo-obra" placeholder="Ej. Casa habitación dos niveles"></div>
-    <div class="field"><label>Cliente / Propietario</label><input id="fo-cliente" placeholder="Nombre"></div>
-    <div class="field"><label>Ubicación</label><input id="fo-ubic" placeholder="Calle, colonia, ciudad"></div>
-    <div class="field"><label>Superficie (m²)</label><input id="fo-sup" type="number" placeholder="0"></div>
-    <div class="field"><label>Tipo de obra</label><input id="fo-tipo" placeholder="Residencial / Comercial / Industrial"></div>
-    <div class="field"><label>Responsable (DRO)</label><input id="fo-dro" placeholder="Director Responsable de Obra"></div>
-    <div class="field"><label>Fecha de inicio</label><input id="fo-inicio" type="date"></div>
-    <div class="field form-full"><label>Descripción / Alcances</label><textarea id="fo-desc" rows="3" placeholder="Detalle de la obra..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
+    <div class="field form-full"><label>Nombre de la obra</label><input id="fo-obra" ${fg} placeholder="Ej. Casa habitación dos niveles"></div>
+    <div class="field"><label>Cliente / Propietario</label><input id="fo-cliente" ${fg} placeholder="Nombre"></div>
+    <div class="field"><label>Ubicación</label><input id="fo-ubic" ${fg} placeholder="Calle, colonia, ciudad"></div>
+    <div class="field"><label>Superficie (m²)</label><input id="fo-sup" ${fg} type="number" placeholder="0"></div>
+    <div class="field"><label>Tipo de obra</label><input id="fo-tipo" ${fg} placeholder="Residencial / Comercial / Industrial"></div>
+    <div class="field"><label>Responsable (DRO)</label><input id="fo-dro" ${fg} placeholder="Director Responsable de Obra"></div>
+    <div class="field"><label>Fecha de inicio</label><input id="fo-inicio" ${fg} type="date"></div>
+    <div class="field form-full"><label>Descripción / Alcances</label><textarea id="fo-desc" ${fg} rows="3" placeholder="Detalle de la obra..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
   </div><button class="btn-primary" style="width:auto;padding:13px 30px;margin-top:8px" onclick="genFichaPDF()">📄 Generar PDF</button></div>`;
 }
 function genFichaPDF(){
@@ -1850,7 +1860,7 @@ function renderChecklist(){
   return `<h1 class="page-h">Checklist de Supervisión de Obra</h1><p class="page-sub">Marca lo que ya revisaste en cada etapa. No se guarda entre sesiones — expórtalo a PDF si necesitas conservarlo.</p>
   ${bannerHerramientaPro()}
   <div class="card" style="padding:22px 26px;max-width:760px;margin-bottom:18px">
-    <div class="field form-full" style="margin:0"><label>Nombre de la obra (para el PDF)</label><input id="chk-obra" placeholder="Ej. Casa habitación dos niveles" value="${escHtml(_chkObraNombre)}" oninput="_chkObraNombre=this.value"></div>
+    <div class="field form-full" style="margin:0"><label>Nombre de la obra (para el PDF)</label><input id="chk-obra" onfocus="requiereMembresiaAccion('El checklist está disponible para miembros.')" placeholder="Ej. Casa habitación dos niveles" value="${escHtml(_chkObraNombre)}" oninput="_chkObraNombre=this.value"></div>
   </div>
   <div class="calc-result" style="max-width:760px;margin-bottom:20px"><b id="chk-progreso">${hechos}/${total}</b><span>puntos revisados</span></div>
   ${CHECKLIST_OBRA.map((e,ei)=>`
@@ -2341,7 +2351,7 @@ function getLogoDataURL(cb){
   }catch(e){cb(null);}
 }
 async function generarCertificado(cursoId){
-  if(!_tieneAcceso())return renderPaywall('Los certificados son exclusivos para miembros.');
+  if(!requiereMembresiaAccion('Los certificados son exclusivos para miembros.'))return;
   const c=DATA.cursos.find(x=>x.id===cursoId);if(!c)return;
   try{
     await apiFetch('/certificado-elegible',{method:'POST',body:{courseId:cursoId}});
