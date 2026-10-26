@@ -486,19 +486,20 @@ function courseCard(c){
 /* Convierte un link de Google Drive a imagen directa visible.
    Acepta: .../file/d/ID/view , open?id=ID , uc?id=ID , o un ID suelto.
    Si no es de Drive, devuelve la URL tal cual. */
-function driveImg(url){
+function driveImg(url,size){
   if(!url) return '';
+  const sz=size||1000;
   url=String(url).trim();
   if(url.indexOf('drive.google.com')===-1 && url.indexOf('docs.google.com')===-1){
     // ¿es solo un ID de Drive? (33+ caracteres alfanuméricos sin / ni .)
-    if(/^[A-Za-z0-9_-]{20,}$/.test(url)) return 'https://drive.google.com/thumbnail?id='+url+'&sz=w1000';
+    if(/^[A-Za-z0-9_-]{20,}$/.test(url)) return 'https://drive.google.com/thumbnail?id='+url+'&sz=w'+sz;
     return url;
   }
   let id='';
   let m=url.match(/\/file\/d\/([A-Za-z0-9_-]+)/) || url.match(/[?&]id=([A-Za-z0-9_-]+)/) || url.match(/\/d\/([A-Za-z0-9_-]+)/);
   if(m) id=m[1];
   if(!id) return url;
-  return 'https://drive.google.com/thumbnail?id='+id+'&sz=w1000';
+  return 'https://drive.google.com/thumbnail?id='+id+'&sz=w'+sz;
 }
 function dripStatus(c){
   if(window._imdacAdmin) return {locked:false,dias:0};
@@ -680,10 +681,17 @@ function materialCard(m){
   const clase=materialClase(m);
   const formato=m.formato||'PDF';
   const hasImg=!!(m.img&&String(m.img).trim());
-  const cover=hasImg?driveImg(m.img):'';
+  // El thumbnail de Drive (sz=w1000) a veces no carga -- Drive limita las
+  // miniaturas colgadas fuera de sus propias paginas, y mas con decenas
+  // cargando a la vez en esta vista. Se pide una mas chica (mas barata para
+  // Drive, menos probable que falle) y, si aun asi falla, onerror la
+  // esconde y deja ver el icono de respaldo que ya existia para cuando no
+  // hay portada -- antes de esto una portada rota se quedaba en blanco.
+  const cover=hasImg?driveImg(m.img,400):'';
   return `<div class="material-card" onclick="abrirMaterial('${m.id}')">
-    <div class="mc-thumb ${est.locked?'locked':''}" ${hasImg?`style="background-image:url('${escHtml(cover)}')"`:''}>
-      ${hasImg?'':materialIcon(formato)}
+    <div class="mc-thumb ${est.locked?'locked':''}">
+      ${hasImg?`<img class="mc-img" src="${escHtml(cover)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+      <span class="mc-fallback-ic" style="display:${hasImg?'none':'flex'}">${materialIcon(formato)}</span>
       <span class="mc-badge">${escHtml(formato)}</span>
       ${est.curso?`<span class="mc-cat">${escHtml(est.curso.categoria||'Curso')}</span>`:''}
       ${est.locked?`<span class="mc-lock">${lockIcon}</span>`:''}
@@ -753,11 +761,12 @@ function renderMaterialDetalle(id){
   const hermanos=m.cursoId?DATA.material.filter(x=>x.cursoId===m.cursoId&&x.id!==m.id):[];
   const fav=materialEsFavorito(id);
   const hasImg=!!(m.img&&String(m.img).trim());
-  const cover=hasImg?driveImg(m.img):'';
+  const cover=hasImg?driveImg(m.img,800):'';
   return `<a class="cd-back" onclick="go('material')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Volver a Material PDF</a>
   <div class="cd-hero">
-    <div class="cd-hero-img" style="${hasImg?`background-image:url('${escHtml(cover)}')`:'background:linear-gradient(135deg,var(--negro),var(--gris-900))'};display:flex;align-items:center;justify-content:center">
-      ${hasImg?'':`<div style="width:84px;height:84px;color:#fff;opacity:.9">${materialIcon(formato)}</div>`}
+    <div class="cd-hero-img" style="position:relative;overflow:hidden;background:linear-gradient(135deg,var(--negro),var(--gris-900));display:flex;align-items:center;justify-content:center">
+      ${hasImg?`<img class="mc-img" src="${escHtml(cover)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+      <div style="width:84px;height:84px;color:#fff;opacity:.9;display:${hasImg?'none':'flex'};align-items:center;justify-content:center;position:relative;z-index:1">${materialIcon(formato)}</div>
     </div>
     <div class="cd-hero-body">
       <div class="cat">${est.curso?escHtml(est.curso.categoria||'Curso'):'Material'}</div>
