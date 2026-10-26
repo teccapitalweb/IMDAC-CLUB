@@ -131,7 +131,7 @@ function renderMobNav(){
 
 /* ====== 4. ROUTER ====== */
 let currentSection="inicio";
-const MEMBER_ONLY_SECTIONS=new Set(['foro','canal']);
+const MEMBER_ONLY_SECTIONS=new Set([]);
 /* Sin historial, el boton atras de Android sale de la app desde cualquier
    seccion: con la barra inferior eso es un callejon sin salida. El hash tambien
    hace que los accesos directos del manifest lleguen a su seccion. */
@@ -808,10 +808,15 @@ function renderForo(){
     <h1>Foro IMDAC</h1>
     <p>Comparte dudas, casos de obra y experiencia con la comunidad de arquitectos e ingenieros del Club. Publica, comenta y reacciona.</p>
   </div>
+  ${_tieneAcceso()?'':`<div class="dir-visitor-banner">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span>Puedes leer las publicaciones del foro. <b>Publicar, comentar y reaccionar</b> se activa con tu membresía.</span>
+    <button onclick="renderPaywall('Publicar, comentar y reaccionar en el foro requiere una membresía vigente.')">Activar membresía</button>
+  </div>`}
   <div class="foro-composer">
     <div class="fc-row">
       <div class="fc-av">${puedePublicar?initials():'?'}</div>
-      <div class="fc-body"><textarea id="nt-texto" rows="2" maxlength="1500" placeholder="¿Qué caso traes hoy? Comparte una pregunta o experiencia..." oninput="actualizarContadorForo()"></textarea></div>
+      <div class="fc-body"><textarea id="nt-texto" rows="2" maxlength="1500" placeholder="¿Qué caso traes hoy? Comparte una pregunta o experiencia..." onfocus="requiereMembresiaAccion('Publicar en el foro requiere una membresía vigente.')" oninput="actualizarContadorForo()"></textarea></div>
     </div>
     <div class="fc-foot">
       <button class="fc-img-btn" onclick="toast('Las imágenes en el foro estarán disponibles pronto')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Imagen</button>
@@ -834,6 +839,7 @@ function actualizarContadorForo(){
 function setForoTab(tab){_foroTab=tab;renderSection('foro');}
 function publicarTema(){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){toast('Inicia sesión para publicar');return;}
+  if(!requiereMembresiaAccion('Publicar en el foro requiere una membresía vigente.'))return;
   const texto=(document.getElementById('nt-texto').value||'').trim();
   if(!texto){toast('Escribe algo para publicar');return;}
   const titulo=texto.length>70?texto.slice(0,70).trim()+'…':texto;
@@ -883,10 +889,11 @@ function renderTemaPanel(id){
       ${esMio?`<button class="fa-btn" onclick="editarTema('${id}')">✏️ Editar</button><button class="fa-btn" onclick="borrarTema('${id}')">🗑️ Borrar</button>`:''}
     </div>
     <div id="cm-${id}"><div style="color:var(--muted);font-size:.85rem;padding:6px 0">Cargando comentarios…</div></div>
-    <div class="coment-input"><input id="ci-${id}" placeholder="Escribe un comentario..." onkeydown="if(event.key==='Enter')comentar('${id}')"><button class="fa-btn" style="background:var(--rojo);color:#fff;border-color:var(--rojo)" onclick="comentar('${id}')">Comentar</button></div>`;
+    <div class="coment-input"><input id="ci-${id}" placeholder="Escribe un comentario..." onfocus="requiereMembresiaAccion('Comentar en el foro requiere una membresía vigente.')" onkeydown="if(event.key==='Enter')comentar('${id}')"><button class="fa-btn" style="background:var(--rojo);color:#fff;border-color:var(--rojo)" onclick="comentar('${id}')">Comentar</button></div>`;
 }
 function toggleLike(id){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return toast('Inicia sesión para reaccionar');
+  if(!requiereMembresiaAccion('Reaccionar a publicaciones del foro requiere una membresía vigente.'))return;
   const t=DATA.foro.find(x=>x.id===id); if(!t)return;
   const uid=CURRENT_USER.uid; t.likedBy=t.likedBy||[];
   const i=t.likedBy.indexOf(uid);
@@ -914,6 +921,7 @@ function renderComent(temaId,c){
 }
 function toggleLikeComent(temaId,cId){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return toast('Inicia sesión para reaccionar');
+  if(!requiereMembresiaAccion('Reaccionar a comentarios del foro requiere una membresía vigente.'))return;
   const arr=_comentarios[temaId]||[]; const c=arr.find(x=>x.id===cId); if(!c)return;
   const uid=CURRENT_USER.uid; c.likedBy=c.likedBy||[];
   const i=c.likedBy.indexOf(uid);
@@ -925,6 +933,7 @@ function toggleLikeComent(temaId,cId){
 }
 function comentar(id){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return toast('Inicia sesión para comentar');
+  if(!requiereMembresiaAccion('Comentar en el foro requiere una membresía vigente.'))return;
   const inp=document.getElementById('ci-'+id); const texto=(inp.value||'').trim(); if(!texto)return;
   const c={texto,autor:CURRENT_USER.displayName||'Miembro',autorUid:CURRENT_USER.uid,fecha:new Date().toLocaleDateString('es-MX'),creado:firebase.firestore.FieldValue.serverTimestamp()};
   db.collection('foro_temas').doc(id).collection('comentarios').add(c).then(()=>{inp.value='';cargarComentarios(id);}).catch(()=>toast('No se pudo comentar'));
