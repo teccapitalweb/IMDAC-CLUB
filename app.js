@@ -175,7 +175,7 @@ function go(sec){
   if(!_desdeHash && hashActual()!==sec){ try{location.hash=sec;}catch(e){} }
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
   document.querySelectorAll('.mob-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
-  if(window.innerWidth<=900) toggleSidebar(false);
+  if(window.innerWidth<=1100) toggleSidebar(false);
   renderSection(sec);
   document.getElementById('content').scrollTop=0;
   window.scrollTo(0,0);

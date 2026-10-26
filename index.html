@@ -1167,6 +1167,28 @@ a,button,input,select,textarea,.sb-item,.filter,.mob-item{-webkit-tap-highlight-
     backdrop-filter:blur(18px) saturate(165%);-webkit-backdrop-filter:blur(18px) saturate(165%)}
 }
 
+/* Ventana angosta en escritorio (p.ej. dos apps a media pantalla en un
+   monitor normal, ~900-1100px): la sidebar fija ya no cabe comoda junto
+   al contenido. Antes el corte a sidebar-oculta+barra-inferior era en
+   900px -- mucho mas angosto que DulceLab (1100px) -- asi que a media
+   pantalla la sidebar se quedaba fija ocupando espacio y no aparecia la
+   barra inferior. Se repite aqui el mismo patron drawer+mob-nav. */
+@media(min-width:901px) and (max-width:1100px){
+  .tb-menu{display:grid}
+  .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);z-index:200;
+    width:min(86vw,300px);overscroll-behavior:contain}
+  .sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
+  .sb-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:190}
+  .sb-backdrop.open{display:block}
+  .content{padding-bottom:calc(var(--mobile-nav-h) + 30px)}
+  .mob-nav{display:grid;position:fixed;z-index:180;left:10px;right:10px;bottom:8px;
+    grid-template-columns:repeat(5,minmax(0,1fr));align-items:center;padding:5px;
+    border:1px solid var(--line);border-radius:21px;
+    background:color-mix(in srgb,var(--surface) 92%,transparent);
+    box-shadow:0 14px 42px rgba(13,13,13,.18);
+    backdrop-filter:blur(18px) saturate(165%);-webkit-backdrop-filter:blur(18px) saturate(165%)}
+}
+
 /* Pantallas estrechas: el rótulo de la barra estorba más que ayuda. */
 @media(max-width:360px){
   .topbar{gap:8px}
