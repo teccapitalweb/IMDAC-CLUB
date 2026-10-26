@@ -131,7 +131,7 @@ function renderMobNav(){
 
 /* ====== 4. ROUTER ====== */
 let currentSection="inicio";
-const MEMBER_ONLY_SECTIONS=new Set(['foro','canal','directorio','logros','certificados']);
+const MEMBER_ONLY_SECTIONS=new Set(['foro','canal','logros','certificados']);
 /* Sin historial, el boton atras de Android sale de la app desde cualquier
    seccion: con la barra inferior eso es un callejon sin salida. El hash tambien
    hace que los accesos directos del manifest lleguen a su seccion. */
@@ -1078,9 +1078,15 @@ function directorioFiltrado(){
 function dirCard(c){
   const uid=CURRENT_USER&&CURRENT_USER.uid;
   const esMio=c.uid===uid;
+  const member=_tieneAcceso();
   const av=(c.nombre||'Miembro').trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   const cover=COVER_COLORS[Number(c.colorPortada)||0];
   const links=cardContactIcons(c);
+  // Ver el directorio es libre; contactar (y los datos de contacto en sí)
+  // es exclusivo de membresía, igual que en DulceLab.
+  const contactBlock=esMio||member
+    ?(links.length?`<div class="dcard-contact">${links.map(([href,svg,label])=>`<a href="${href}" target="_blank" rel="noopener" title="${label}" onclick="event.stopPropagation()">${svg}</a>`).join('')}</div>`:'<div class="dcard-empty">Sin datos de contacto</div>')
+    :`<button class="dcard-contact-locked" onclick="event.stopPropagation();renderPaywall('Contactar a los miembros del directorio requiere una membresía vigente.')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> Contactar</button>`;
   return `<div class="dir-card" ${esMio?'onclick="abrirMiTarjeta()" style="cursor:pointer"':''}>
     ${esMio?'<span class="dcard-me">● TÚ</span>':''}
     <div class="dcard-cover" style="background:${cover}"></div>
@@ -1090,7 +1096,7 @@ function dirCard(c){
       <div class="dcard-role">${escHtml(c.puesto||'Miembro IMDAC')}${c.empresa?' · '+escHtml(c.empresa):''}</div>
       ${c.sector?`<span class="dcard-sector">${escHtml(c.sector)}</span>`:''}
       ${c.bio?`<p class="dcard-bio">${escHtml(c.bio)}</p>`:''}
-      ${links.length?`<div class="dcard-contact">${links.map(([href,svg,label])=>`<a href="${href}" target="_blank" rel="noopener" title="${label}" onclick="event.stopPropagation()">${svg}</a>`).join('')}</div>`:'<div class="dcard-empty">Sin datos de contacto</div>'}
+      ${contactBlock}
     </div>
   </div>`;
 }
@@ -1100,12 +1106,18 @@ function renderDirectorio(){
   const mia=miTarjeta();
   const otros=directorioFiltrado().filter(c=>c.uid!==uid);
   const sectorChips=['Todos',...SECTORES_DIRECTORIO].map(s=>`<button class="filter ${_dirSector===s?'active':''}" onclick="setDirSector('${s.replace(/'/g,"\\'")}')">${s}</button>`).join('');
+  const member=_tieneAcceso();
   return `
   <div class="dir-hero">
     <div class="dir-pill">Networking profesional</div>
     <h1>Directorio IMDAC</h1>
     <p>Conecta con la comunidad del Club. Crea tu tarjeta profesional y descubre a otros arquitectos, ingenieros y constructores.</p>
   </div>
+  ${member?'':`<div class="dir-visitor-banner">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span>Estás viendo el directorio como visitante. <b>Contactar a los miembros</b> se activa con tu membresía.</span>
+    <button onclick="renderPaywall('Contactar a los miembros del directorio requiere una membresía vigente.')">Activar membresía</button>
+  </div>`}
   <div class="dir-cta">
     <div class="dc-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>
     <div class="dc-body"><b>Destaca con tu tarjeta profesional</b><span>Comparte tu experiencia y permite que otros socios conozcan tu trabajo.</span></div>
