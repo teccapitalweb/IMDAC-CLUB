@@ -1777,6 +1777,7 @@ function emptyState(sec,title,desc){
 /* ====== 6. HERRAMIENTAS DE OBRA ====== */
 function renderFichaObra(){
   return `<h1 class="page-h">Ficha de Obra</h1><p class="page-sub">Genera una ficha técnica de obra en PDF lista para imprimir.</p>
+  ${bannerHerramientaPro()}
   <div class="card" style="padding:30px;max-width:760px"><div class="form-grid">
     <div class="field form-full"><label>Nombre de la obra</label><input id="fo-obra" placeholder="Ej. Casa habitación dos niveles"></div>
     <div class="field"><label>Cliente / Propietario</label><input id="fo-cliente" placeholder="Nombre"></div>
@@ -1847,6 +1848,7 @@ function renderChecklist(){
   const total=CHECKLIST_OBRA.reduce((s,e)=>s+e.items.length,0);
   const hechos=Object.values(_chkState).filter(Boolean).length;
   return `<h1 class="page-h">Checklist de Supervisión de Obra</h1><p class="page-sub">Marca lo que ya revisaste en cada etapa. No se guarda entre sesiones — expórtalo a PDF si necesitas conservarlo.</p>
+  ${bannerHerramientaPro()}
   <div class="card" style="padding:22px 26px;max-width:760px;margin-bottom:18px">
     <div class="field form-full" style="margin:0"><label>Nombre de la obra (para el PDF)</label><input id="chk-obra" placeholder="Ej. Casa habitación dos niveles" value="${escHtml(_chkObraNombre)}" oninput="_chkObraNombre=this.value"></div>
   </div>
@@ -1899,6 +1901,7 @@ function exportChecklistPDF(){
 
 function renderCalculadora(){
   return `<h1 class="page-h">Calculadora de Materiales</h1><p class="page-sub">Estima volúmenes y cantidades base para tu obra.</p>
+  ${bannerHerramientaPro()}
   <div class="tool-intro">
     <h3 style="font-family:var(--font-display);margin-bottom:4px">Concreto (losa / firme)</h3>
     <p style="color:var(--muted);font-size:.88rem;margin-bottom:18px">Calcula el volumen y materiales para una losa de concreto.</p>
@@ -1998,6 +2001,7 @@ function calcBlock(){
 const HONORARIOS_DEFAULT={anteproyecto:1.5,ejecutivo:5,supervision:4,dro:3,integral:10};
 function renderHonorarios(){
   return `<h1 class="page-h">Calculadora de Honorarios</h1><p class="page-sub">Estima tus honorarios profesionales como % del costo de la obra.</p>
+  ${bannerHerramientaPro()}
   <div class="tool-intro">
     <div class="tool-row">
       <div class="field"><label>Costo estimado de la obra (MXN)</label><input id="ho-costo" type="number" value="0" oninput="calcHonorarios()"></div>
@@ -2031,6 +2035,7 @@ function calcHonorarios(manual){
    de "cuánto me cuesta" a "cuánto cobro" sin trabajar a pérdida. */
 function renderPresupuesto(){
   return `<h1 class="page-h">Calculadora de Presupuesto Rápido</h1><p class="page-sub">Pasa de costo directo a precio de venta, con indirectos y utilidad.</p>
+  ${bannerHerramientaPro()}
   <div class="tool-intro">
     <div class="tool-row">
       <div class="field"><label>Costo directo (materiales + mano de obra)</label><input id="pr-directo" type="number" value="0" oninput="calcPresupuesto()"></div>
@@ -2067,6 +2072,7 @@ const CONV_PARES=[
 ];
 function renderConversor(){
   return `<h1 class="page-h">Conversor de Unidades</h1><p class="page-sub">Conversiones rápidas de uso común en obra — escribe en cualquiera de los dos campos.</p>
+  ${bannerHerramientaPro()}
   ${CONV_PARES.map(c=>`
   <div class="tool-intro">
     <h3 style="font-family:var(--font-display);margin-bottom:14px">${c.label}</h3>
@@ -2627,8 +2633,31 @@ function _tieneAcceso(){
 
 function requiereMembresiaAccion(message){
   if(_tieneAcceso())return true;
-  renderPaywall(message||'Esta acción requiere una membresía vigente.');
+  mostrarModalHerramientaPro(message);
   return false;
+}
+// Las herramientas se pueden ver sin membresia (campos, textos, resultados
+// de ejemplo); solo CAPTURAR datos, calcular o exportar requiere pagar. Por
+// eso esto es un modal que no saca de la pagina de la herramienta -- antes
+// requiereMembresiaAccion mandaba de lleno al paywall de planes y el socio
+// perdia de vista la calculadora que estaba explorando.
+function mostrarModalHerramientaPro(message){
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="text-align:center;padding:36px 30px 30px">
+    <div class="hpm-lock"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
+    <h3 style="font-family:var(--font-display);font-size:1.2rem;margin:18px 0 10px">Función exclusiva para miembros</h3>
+    <p style="color:var(--muted);line-height:1.6;margin-bottom:24px">${escHtml(message||'Esta acción requiere una membresía vigente.')}</p>
+    <button class="btn-primary" style="width:100%;margin-bottom:10px" onclick='closeModal();renderPaywall(${JSON.stringify(message||'')})'>Suscribirme ahora →</button>
+    <button class="btn-ghost" style="width:100%" onclick="closeModal()">Seguir explorando</button>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function bannerHerramientaPro(){
+  if(_tieneAcceso())return '';
+  return `<div class="dir-visitor-banner">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span><b>Vista previa de Herramientas Pro.</b> Puedes conocer cada calculadora. Para capturar datos, calcular resultados o descargar reportes, activa tu membresía.</span>
+    <button onclick="renderPaywall('Activa tu membresía para usar esta herramienta, ver sus resultados y descargar tus reportes en PDF.')">Activar membresía</button>
+  </div>`;
 }
 
 async function apiFetch(path,{method='GET',body}={}){
