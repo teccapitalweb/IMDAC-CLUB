@@ -676,6 +676,23 @@ const FORMATO_ICONS={
   'Imagen':'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 15l-5-5L5 21"/></svg>',
 };
 function materialIcon(formato){return FORMATO_ICONS[formato]||docIcon;}
+/* La miniatura de Drive no suele fallar porque la imagen no exista, sino
+   por una rafaga de peticiones simultaneas (la vista de Material pide
+   decenas a la vez) -- Drive la rechaza un instante y luego la sirve bien.
+   Reintentar un par de veces con espera aleatoria recupera la mayoria de
+   esos casos; solo se cae al icono de respaldo si de verdad no carga. */
+function matImgFail(img){
+  const tries=Number(img.dataset.tries||0);
+  if(tries<2){
+    img.dataset.tries=tries+1;
+    const base=img.dataset.src||img.src.replace(/&_r=\d+$/,'');
+    img.dataset.src=base;
+    setTimeout(()=>{img.src=base+'&_r='+Date.now();},600+Math.random()*900);
+  }else{
+    img.style.display='none';
+    if(img.nextElementSibling)img.nextElementSibling.style.display='flex';
+  }
+}
 function materialCard(m){
   const est=materialEstado(m);
   const clase=materialClase(m);
@@ -690,7 +707,7 @@ function materialCard(m){
   const cover=hasImg?driveImg(m.img,400):'';
   return `<div class="material-card" onclick="abrirMaterial('${m.id}')">
     <div class="mc-thumb ${est.locked?'locked':''}">
-      ${hasImg?`<img class="mc-img" src="${escHtml(cover)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+      ${hasImg?`<img class="mc-img" src="${escHtml(cover)}" alt="" loading="lazy" onerror="matImgFail(this)">`:''}
       <span class="mc-fallback-ic" style="display:${hasImg?'none':'flex'}">${materialIcon(formato)}</span>
       <span class="mc-badge">${escHtml(formato)}</span>
       ${est.curso?`<span class="mc-cat">${escHtml(est.curso.categoria||'Curso')}</span>`:''}
@@ -765,7 +782,7 @@ function renderMaterialDetalle(id){
   return `<a class="cd-back" onclick="go('material')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Volver a Material PDF</a>
   <div class="cd-hero">
     <div class="cd-hero-img" style="position:relative;overflow:hidden;background:linear-gradient(135deg,var(--negro),var(--gris-900));display:flex;align-items:center;justify-content:center">
-      ${hasImg?`<img class="mc-img" src="${escHtml(cover)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+      ${hasImg?`<img class="mc-img" src="${escHtml(cover)}" alt="" loading="lazy" onerror="matImgFail(this)">`:''}
       <div style="width:84px;height:84px;color:#fff;opacity:.9;display:${hasImg?'none':'flex'};align-items:center;justify-content:center;position:relative;z-index:1">${materialIcon(formato)}</div>
     </div>
     <div class="cd-hero-body">
