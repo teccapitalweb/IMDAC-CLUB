@@ -2247,7 +2247,14 @@ async function responderQuiz(opcionIndex){
     if(opcionIndex>=0){const chosen=document.getElementById('qz-op-'+opcionIndex);if(chosen)chosen.classList.add(r.correcta?'ok':'bad');}
     const correctBtn=document.getElementById('qz-op-'+r.correctaIndex);if(correctBtn)correctBtn.classList.add('ok');
     if(r.correcta){_quiz.aciertos++;_quiz.monedas+=r.monedasGanadas||0;_quiz.xp+=r.xpGanada||0;}
-    if(r.monedasGanadas)toast(`+${r.monedasGanadas} monedas · +${r.xpGanada} XP`);
+    if(r.monedasGanadas){
+      toast(`+${r.monedasGanadas} monedas · +${r.xpGanada} XP`);
+      DATA.monedas=(Number(DATA.monedas)||0)+r.monedasGanadas;
+      DATA.xp=(Number(DATA.xp)||0)+(r.xpGanada||0);
+      const saldos=document.querySelectorAll('.juegos-saldo .js-item b');
+      if(saldos[0])saldos[0].textContent=DATA.monedas;
+      if(saldos[1])saldos[1].textContent=DATA.xp;
+    }
     const esUltima=_quiz.i+1>=_quiz.preguntas.length;
     const resultado=document.getElementById('qz-resultado');
     if(resultado)resultado.innerHTML=`
