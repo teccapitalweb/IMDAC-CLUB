@@ -812,6 +812,17 @@ body.logged #app{display:block}
 .dir-visitor-banner span{flex:1;min-width:200px;font-size:.88rem;line-height:1.5}
 .dir-visitor-banner button{flex-shrink:0;background:var(--rojo);color:#fff;padding:9px 18px;border-radius:50px;font-weight:700;font-size:.84rem}
 @media(max-width:560px){.dir-visitor-banner{flex-direction:column;align-items:flex-start}.dir-visitor-banner button{width:100%}}
+.juegos-saldo{display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.js-item{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 22px;text-align:center;min-width:110px}
+.js-item b{display:block;font-family:var(--font-display);font-size:1.4rem;color:var(--rojo)}
+.js-item span{font-size:.78rem;color:var(--muted)}
+.qz-opcion{display:block;width:100%;text-align:left;padding:14px 18px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);font-weight:600;font-size:.94rem;transition:.16s;cursor:pointer}
+.qz-opcion:hover:not(:disabled){border-color:var(--rojo);background:var(--rojo-50)}
+.qz-opcion:disabled{cursor:default}
+.qz-opcion.ok{border-color:#18794e;background:#e9f7ef;color:#18794e}
+.qz-opcion.bad{border-color:var(--rojo);background:var(--rojo-50);color:var(--rojo)}
+[data-theme="dark"] .qz-opcion.ok{background:#102e20}
+[data-theme="dark"] .qz-opcion.bad{background:#2a1414}
 .hpm-lock{width:64px;height:64px;border-radius:50%;background:var(--rojo-50);color:var(--rojo);display:grid;place-items:center;margin:0 auto}
 [data-theme="dark"] .hpm-lock{background:#2a1414}
 .hpm-lock svg{width:28px;height:28px}

@@ -53,7 +53,7 @@ let CURRENT_USER=null;
 let LOADING=true;
 let BUNNY_READY=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{},xp:0,cursoPrueba:''};
+let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{},xp:0,monedas:0,cursoPrueba:''};
 let _eligiendoCursoPrueba=false;
 let activeFilter="Todos";
 let courseQuery="";
@@ -76,6 +76,9 @@ const NAV=[
   {group:"Tu progreso",items:[
     {id:"logros",label:"Logros",icon:'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'},
     {id:"certificados",label:"Certificados",icon:'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
+  ]},
+  {group:"Zona de Juegos",items:[
+    {id:"juegos",label:"Zona de Juegos",icon:'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
   ]},
   {group:"Herramientas",items:[
     {id:"ficha-obra",label:"Ficha de Obra",icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
@@ -185,7 +188,7 @@ function renderSection(sec){
   const c=document.getElementById('content');
   const R={
     inicio:renderInicio, biblioteca:renderBiblioteca, webinar:renderWebinar,
-    material:renderMaterial, noticias:renderNoticias, foro:renderForo,
+    material:renderMaterial, noticias:renderNoticias, foro:renderForo, juegos:renderJuegos,
     'ficha-obra':renderFichaObra, checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor,
     normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
     perfil:renderPerfil, suscripcion:renderSuscripcion,
@@ -195,6 +198,7 @@ function renderSection(sec){
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
   if(sec==='perfil') cargarPerfilDatos();
+  if(sec==='juegos') cargarHistorialQuiz();
 }
 let _newsRAF=null;
 function initNewsCarousel(){
@@ -2147,6 +2151,147 @@ function calcTemp(from){
   else c.value=+(((+f.value-32)*5/9).toFixed(2));
 }
 
+/* ====== Zona de Juegos — Quiz del Arquitecto (Fase 1) ======
+   Jugar y ver la explicación es libre para cualquiera (mismo patrón que
+   Herramientas/Foro/Directorio); solo ganar monedas pide membresía. El
+   servidor es quien califica y decide la recompensa -- aquí solo se pinta
+   lo que regresa /quiz-responder, nunca se calcula el puntaje en el
+   cliente. */
+const QUIZ_CATEGORIAS=['Arquitectura','Materiales','Estructuras','Procesos constructivos','Instalaciones','Seguridad','Interpretación de planos','Ingeniería civil'];
+const QUIZ_TIEMPO={facil:20,intermedio:15,dificil:10};
+let _quiz=null; // {preguntas,i,aciertos,monedas,xp,respondida,tiempoRestante,timerId}
+
+function renderJuegos(){
+  if(LOADING)return `<h1 class="page-h">Zona de Juegos</h1><p class="page-sub">Aprende jugando.</p>`+skelGrid(2);
+  const member=_tieneAcceso();
+  return `<h1 class="page-h">Zona de Juegos</h1>
+  <p class="page-sub">Pon a prueba lo que sabes de arquitectura y construcción. Responder es gratis; ganar monedas requiere membresía.</p>
+  ${member?'':`<div class="dir-visitor-banner">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span>Puedes jugar y ver las explicaciones libremente. <b>Ganar monedas</b> se activa con tu membresía.</span>
+    <button onclick="renderPaywall('Ganar monedas en el Quiz del Arquitecto requiere una membresía vigente.')">Activar membresía</button>
+  </div>`}
+  <div class="juegos-saldo">
+    <div class="js-item"><b>${DATA.monedas||0}</b><span>Monedas</span></div>
+    <div class="js-item"><b>${DATA.xp||0}</b><span>XP</span></div>
+  </div>
+  <div id="juegos-area">${renderQuizSelector()}</div>
+  <div class="sec-head" style="margin-top:30px"><h3>Historial de intentos</h3></div>
+  <div id="quiz-historial"><div class="card"><div class="empty"><b>Cargando…</b></div></div></div>`;
+}
+function renderQuizSelector(){
+  return `<div class="tool-intro">
+    <h3 style="font-family:var(--font-display);margin-bottom:4px">🏛️ Quiz del Arquitecto</h3>
+    <p style="color:var(--muted);font-size:.88rem;margin-bottom:18px">Preguntas de opción múltiple sobre arquitectura, materiales, estructuras, procesos constructivos, instalaciones, seguridad, planos e ingeniería civil.</p>
+    <div class="tool-row">
+      <div class="field"><label>Categoría</label><select id="qz-categoria"><option value="">Todas las categorías</option>${QUIZ_CATEGORIAS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Dificultad</label><select id="qz-dificultad"><option value="">Todas</option><option value="facil">Fácil</option><option value="intermedio">Intermedio</option><option value="dificil">Difícil</option></select></div>
+    </div>
+    <button class="btn-primary" style="width:auto;padding:13px 30px" onclick="iniciarQuiz()">▶ Comenzar quiz</button>
+  </div>`;
+}
+async function iniciarQuiz(){
+  const categoria=encodeURIComponent(val('qz-categoria')||'');
+  const dificultad=encodeURIComponent(val('qz-dificultad')||'');
+  const area=document.getElementById('juegos-area');
+  area.innerHTML=`<div class="card"><div class="empty"><b>Cargando preguntas…</b></div></div>`;
+  try{
+    const data=await apiFetch(`/preguntas-quiz?categoria=${categoria}&dificultad=${dificultad}&cantidad=10`);
+    if(!data.preguntas||!data.preguntas.length){
+      area.innerHTML=`<div class="card"><div class="empty"><b>No hay preguntas todavía</b><span>Prueba con otra categoría o dificultad.</span></div></div>`+`<div style="margin-top:14px">${renderQuizSelector()}</div>`;
+      return;
+    }
+    _quiz={preguntas:data.preguntas,i:0,aciertos:0,monedas:0,xp:0,respondida:false};
+    renderPreguntaQuiz();
+  }catch(e){
+    toast(e.message||'No se pudo cargar el quiz',{type:'err'});
+    area.innerHTML=renderQuizSelector();
+  }
+}
+function renderPreguntaQuiz(){
+  clearInterval(_quiz.timerId);
+  const area=document.getElementById('juegos-area'); if(!area||!_quiz)return;
+  const p=_quiz.preguntas[_quiz.i];
+  const total=_quiz.preguntas.length;
+  const dificultadLabel={facil:'Fácil',intermedio:'Intermedio',dificil:'Difícil'}[p.dificultad]||'Fácil';
+  _quiz.respondida=false;
+  _quiz.tiempoRestante=QUIZ_TIEMPO[p.dificultad]||15;
+  area.innerHTML=`<div class="card" style="padding:26px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${escHtml(p.categoria||'General')} · ${dificultadLabel}</span>
+      <span style="color:var(--muted);font-size:.84rem">Pregunta ${_quiz.i+1} de ${total}</span>
+    </div>
+    <div class="progress" style="margin-bottom:18px"><i style="width:${Math.round((_quiz.i)/total*100)}%"></i></div>
+    <div class="progress" id="qz-timer-bar" style="height:4px;margin-bottom:16px"><i id="qz-timer-fill" style="width:100%;transition:width 1s linear"></i></div>
+    <h3 style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:18px">${escHtml(p.pregunta)}</h3>
+    <div id="qz-opciones" style="display:flex;flex-direction:column;gap:10px">
+      ${p.opciones.map((o,i)=>`<button class="qz-opcion" id="qz-op-${i}" onclick="responderQuiz(${i})">${escHtml(o)}</button>`).join('')}
+    </div>
+    <div id="qz-resultado"></div>
+  </div>`;
+  const fill=document.getElementById('qz-timer-fill');
+  _quiz.timerId=setInterval(()=>{
+    _quiz.tiempoRestante--;
+    if(fill)fill.style.width=Math.max(0,_quiz.tiempoRestante/(QUIZ_TIEMPO[p.dificultad]||15)*100)+'%';
+    if(_quiz.tiempoRestante<=0){clearInterval(_quiz.timerId);if(!_quiz.respondida)responderQuiz(-1);}
+  },1000);
+}
+async function responderQuiz(opcionIndex){
+  if(!_quiz||_quiz.respondida)return;
+  _quiz.respondida=true;
+  clearInterval(_quiz.timerId);
+  document.querySelectorAll('.qz-opcion').forEach(b=>b.disabled=true);
+  const p=_quiz.preguntas[_quiz.i];
+  try{
+    const r=await apiFetch('/quiz-responder',{method:'POST',body:{preguntaId:p.id,opcionIndex}});
+    if(opcionIndex>=0){const chosen=document.getElementById('qz-op-'+opcionIndex);if(chosen)chosen.classList.add(r.correcta?'ok':'bad');}
+    const correctBtn=document.getElementById('qz-op-'+r.correctaIndex);if(correctBtn)correctBtn.classList.add('ok');
+    if(r.correcta){_quiz.aciertos++;_quiz.monedas+=r.monedasGanadas||0;_quiz.xp+=r.xpGanada||0;}
+    if(r.monedasGanadas)toast(`+${r.monedasGanadas} monedas · +${r.xpGanada} XP`);
+    const esUltima=_quiz.i+1>=_quiz.preguntas.length;
+    const resultado=document.getElementById('qz-resultado');
+    if(resultado)resultado.innerHTML=`
+      <div class="calc-result" style="margin-top:18px"><b>${r.correcta?'✅ ¡Correcto!':'❌ Incorrecto'}</b><span>${escHtml(r.explicacion||'')}</span></div>
+      ${r.motivo==='membresia_requerida'?`<p style="color:var(--rojo);font-size:.82rem;margin-top:8px">🔒 Esto habría ganado monedas con una membresía activa.</p>`:''}
+      ${r.motivo==='ya_recompensada'?`<p style="color:var(--muted);font-size:.82rem;margin-top:8px">Ya habías ganado la recompensa de esta pregunta antes.</p>`:''}
+      ${r.motivo==='limite_diario'?`<p style="color:var(--muted);font-size:.82rem;margin-top:8px">Llegaste al límite de recompensas del día — vuelve mañana por más.</p>`:''}
+      <button class="btn-primary" style="width:auto;padding:12px 26px;margin-top:14px" onclick="${esUltima?'finalizarQuiz()':'siguientePreguntaQuiz()'}">${esUltima?'Ver resultados':'Siguiente pregunta →'}</button>`;
+  }catch(e){
+    toast(e.message||'No se pudo calificar tu respuesta',{type:'err'});
+  }
+}
+function siguientePreguntaQuiz(){ _quiz.i++; renderPreguntaQuiz(); }
+function finalizarQuiz(){
+  const area=document.getElementById('juegos-area'); if(!area||!_quiz)return;
+  const total=_quiz.preguntas.length;
+  area.innerHTML=`<div class="card" style="padding:30px;text-align:center">
+    <h3 style="font-family:var(--font-display);font-size:1.3rem;margin-bottom:10px">🎉 ¡Quiz terminado!</h3>
+    <p style="color:var(--muted);margin-bottom:20px">Acertaste ${_quiz.aciertos} de ${total} preguntas.</p>
+    <div class="stats" style="justify-content:center;margin-bottom:20px">
+      ${dsStat('Monedas ganadas',_quiz.monedas)}
+      ${dsStat('XP ganada',_quiz.xp)}
+    </div>
+    <button class="btn-primary" style="width:auto;padding:13px 30px" onclick="renderSection('juegos')">Jugar de nuevo</button>
+  </div>`;
+  _quiz=null;
+  cargarHistorialQuiz();
+}
+async function cargarHistorialQuiz(){
+  const cont=document.getElementById('quiz-historial');
+  if(!CURRENT_USER||CURRENT_USER.uid==='demo'){if(cont)cont.innerHTML=`<div class="card"><div class="empty"><b>Inicia sesión</b><span>Para ver tu historial de intentos.</span></div></div>`;return;}
+  try{
+    const snap=await db.collection('progreso').doc(CURRENT_USER.uid).collection('quizIntentos').orderBy('fecha','desc').limit(20).get();
+    if(!cont)return;
+    if(snap.empty){cont.innerHTML=`<div class="card"><div class="empty"><b>Aún no has jugado</b><span>Responde tu primer quiz para ver tu historial aquí.</span></div></div>`;return;}
+    cont.innerHTML=snap.docs.map(d=>{
+      const x=d.data();
+      const fecha=x.fecha&&x.fecha.toDate?x.fecha.toDate().toLocaleDateString('es-MX'):'';
+      return `<div class="topic"><div class="topic-head"><div class="topic-who"><span class="au">${escHtml(x.categoria||'General')}</span><span class="topic-date">${fecha}</span></div></div>
+        <p>${x.correcta?'✅ Correcta':'❌ Incorrecta'}${x.monedasGanadas?` · +${x.monedasGanadas} monedas`:''}</p></div>`;
+    }).join('');
+  }catch(e){ if(cont)cont.innerHTML=`<div class="card"><div class="empty"><b>No se pudo cargar tu historial</b></div></div>`; }
+}
+
 function renderNormativas(){
   const normas=[
     ['NTC Diseño Estructuras de Concreto','Estructuras','Reglamento de Construcciones CDMX'],
@@ -2722,7 +2867,7 @@ async function apiFetch(path,{method='GET',body}={}){
 async function loadData(){
   // El catálogo premium se obtiene saneado desde el backend: las URLs privadas nunca llegan aquí.
   DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
-  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[]; DATA.xp=0; DATA.cursoPrueba='';
+  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[]; DATA.xp=0; DATA.monedas=0; DATA.cursoPrueba='';
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){
     DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
     DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos;
@@ -2749,7 +2894,7 @@ async function loadData(){
     // El saldo de bienvenida y el curso de prueba viven en el documento
     // progreso/{uid}; se leen aun sin membresía para que no desaparezcan al
     // recargar después de registrarse.
-    try{const perfilProgreso=await db.collection('progreso').doc(CURRENT_USER.uid).get();if(perfilProgreso.exists){const p=perfilProgreso.data()||{};DATA.xp=Number(p.xp)||0;DATA.cursoPrueba=String(p.cursoPrueba||DATA.cursoPrueba||'');}}catch(e){}
+    try{const perfilProgreso=await db.collection('progreso').doc(CURRENT_USER.uid).get();if(perfilProgreso.exists){const p=perfilProgreso.data()||{};DATA.xp=Number(p.xp)||0;DATA.monedas=Number(p.monedas)||0;DATA.cursoPrueba=String(p.cursoPrueba||DATA.cursoPrueba||'');}}catch(e){}
     if(_tieneAcceso()||DATA.cursoPrueba){
       try{const foro=await db.collection('foro_temas').orderBy('fecha','desc').limit(30).get();DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.foro=[];}
       try{const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0;if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});}catch(e){}
