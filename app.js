@@ -1430,7 +1430,7 @@ function renderSuscripcion(){
     const r=new Date(d);r.setMonth(r.getMonth()+1);renueva=r.toLocaleDateString('es-MX');
   }
   const m=window._miMiembro||{};
-  const estado=m.estado||'Activo';
+  const estado=m.estado||'Sin pagar';
   const esRegalo=!m.stripeSubscriptionId&&m.vigenciaHasta;
   const porCancelar=!!m.cancelaAlFinal&&estado==='Activo';
   const plan=esRegalo?'Acceso de cortesía':(m.plan?('IMDAC '+m.plan):'IMDAC Mensual');
