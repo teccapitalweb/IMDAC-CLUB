@@ -2657,7 +2657,24 @@ function marcarHechaSilencio(cursoId,i){
   guardarProgreso(cursoId,prog,arr);
   return (arr.length>=total&&!yaCompleto); // true si justo se completó el curso
 }
-function siguienteClase(cursoId,i){
+async function siguienteClase(cursoId,i){
+  const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
+  const cl=(c.listaClases||[])[i];
+  // Si esta clase tiene una actividad (ahorcado, V/F, etc.), se muestra antes
+  // de avanzar -- pero nunca bloquea: si falla la carga o el socio la salta,
+  // igual avanza (misma filosofía que el resto de Zona de Juegos: jugar es
+  // opcional, el premio es lo que requiere membresía).
+  if(cl&&cl.actividad&&cl.actividad.tipo){
+    cerrarVideoModal();
+    try{
+      const data=await apiFetch(`/clase-actividad/${cursoId}/${i}`);
+      abrirActividadClaseModal(cursoId,i,data);
+      return;
+    }catch(err){ /* sin actividad disponible: se avanza como siempre */ }
+  }
+  avanzarDespuesDeClase(cursoId,i);
+}
+function avanzarDespuesDeClase(cursoId,i){
   const c=DATA.cursos.find(x=>x.id===cursoId); if(!c)return;
   const total=(c.listaClases&&c.listaClases.length)||c.clases||0;
   const seCompleto=puedeGuardarProgreso(cursoId)?marcarHechaSilencio(cursoId,i):false;
@@ -2673,6 +2690,283 @@ function siguienteClase(cursoId,i){
     if(seCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
     else toast('Clase completada ✓');
   }
+}
+
+/* ====== Juego 6: Actividad al terminar cada clase ======
+   El admin captura 7 tipos de actividad por clase (ahorcado, V/F, opción
+   múltiple, sopa de letras, memorama, crucigrama, rompecabezas). La respuesta
+   nunca viaja hasta que se califica -- /clase-actividad/:cursoId/:claseIndex
+   entrega el contenido ya saneado según el tipo, y /responder califica contra
+   la copia real en Firestore. Jugar es opcional (se puede "saltar"); el
+   premio de monedas/XP sí requiere membresía, igual que el resto de la Zona
+   de Juegos. */
+let _actClase={};
+const ACTIVIDAD_RENDER={
+  ahorcado:renderActAhorcado, vf:renderActVF, opcion:renderActOpcion,
+  sopa:renderActSopa, memorama:renderActMemorama,
+  crucigrama:renderActCrucigrama, rompecabezas:renderActRompecabezas
+};
+function abrirActividadClaseModal(cursoId,i,data){
+  if(data.completado){
+    document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="text-align:center;padding:36px 30px 30px">
+      <button class="modal-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
+      <div style="font-size:2.6rem;margin-bottom:10px">✅</div>
+      <h2 style="font-family:var(--font-display);margin-bottom:8px">Actividad ya completada</h2>
+      <p style="color:var(--muted);margin-bottom:22px">Ganaste +${data.monedas||0} monedas · +${data.xp||0} XP la primera vez que la jugaste.</p>
+      <button class="btn-primary" style="width:100%" onclick="closeModal();avanzarDespuesDeClase('${cursoId}',${i})">Continuar a la siguiente clase →</button>
+    </div>`;
+    document.getElementById('modal').classList.add('open');
+    return;
+  }
+  const render=ACTIVIDAD_RENDER[data.tipo];
+  const html=render?render(cursoId,i,data):'<p>Actividad no disponible.</p>';
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body actividad-clase-modal">
+    <button class="modal-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
+    ${html}
+    <p style="text-align:center;margin-top:16px"><a style="color:var(--muted);font-size:.82rem;cursor:pointer" onclick="closeModal();avanzarDespuesDeClase('${cursoId}',${i})">Saltar por ahora →</a></p>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function actHeaderHTML(titulo,icono){
+  return `<div style="text-align:center;margin-bottom:16px"><div style="font-size:2.2rem">${icono}</div><h2 style="font-family:var(--font-display);margin:6px 0 2px">${titulo}</h2><p style="color:var(--muted);font-size:.84rem">Completa la actividad y gana monedas + XP.</p></div>`;
+}
+async function reintentarActividad(){
+  try{
+    const data=await apiFetch(`/clase-actividad/${_actClase.cursoId}/${_actClase.i}`);
+    abrirActividadClaseModal(_actClase.cursoId,_actClase.i,data);
+  }catch(err){toast(err.message||'No se pudo recargar la actividad');}
+}
+async function calificarActividad(payload){
+  try{
+    const r=await apiFetch(`/clase-actividad/${_actClase.cursoId}/${_actClase.i}/responder`,{method:'POST',body:payload});
+    if(r.monedasGanadas)actualizarSaldoJuegos(r.monedasGanadas,r.xpGanada);
+    renderActResultado(r);
+  }catch(err){toast(err.message||'No se pudo registrar tu resultado');}
+}
+function renderActResultado(r){
+  const exito=r.yaCompletado||r.correctas>=r.total;
+  const texto=r.yaCompletado
+    ?`¡Actividad completada! +${r.monedasGanadas||0} monedas · +${r.xpGanada||0} XP`
+    :(r.motivo==='membresia_requerida'?'¡Correcto! Ganar monedas aquí requiere una membresía activa.'
+      :(r.correctas>0?`Llevas ${r.correctas}/${r.total} correctas.${r.monedasGanadas?` +${r.monedasGanadas} monedas · +${r.xpGanada} XP`:''}`
+        :'Todavía no es correcto.'));
+  if(r.yaCompletado&&r.monedasGanadas)confetti();
+  const botones=r.yaCompletado
+    ?`<button class="btn-primary" style="width:100%;margin-top:14px" onclick="closeModal();avanzarDespuesDeClase('${_actClase.cursoId}',${_actClase.i})">Continuar a la siguiente clase →</button>`
+    :`<div style="display:flex;gap:10px;margin-top:14px"><button class="btn-ghost" style="flex:1" onclick="reintentarActividad()">Intentar de nuevo</button><button class="btn-primary" style="flex:1" onclick="closeModal();avanzarDespuesDeClase('${_actClase.cursoId}',${_actClase.i})">Continuar →</button></div>`;
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body actividad-clase-modal" style="text-align:center;padding:30px 26px">
+    <button class="modal-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
+    <div style="font-size:2.4rem;margin-bottom:8px">${exito?'🎉':'🤔'}</div>
+    <p style="color:var(--muted)">${texto}</p>
+    ${botones}
+  </div>`;
+}
+
+/* --- Ahorcado: el servidor nunca manda la palabra, solo confirma letra por letra --- */
+function renderActAhorcado(cursoId,i,data){
+  _actClase={cursoId,i,tipo:'ahorcado',longitud:data.longitud,reveladas:Array(data.longitud).fill(''),intentos:0,maxIntentos:6};
+  return `${actHeaderHTML('Ahorcado','🔤')}
+    <p style="text-align:center;color:var(--muted);margin-bottom:10px"><b>Pista:</b> ${escHtml(data.pista)}</p>
+    <div id="ahorcado-palabra" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:14px">${ahorcadoCasillasHTML()}</div>
+    <div id="ahorcado-estado" style="text-align:center;color:var(--muted);font-size:.84rem;margin-bottom:12px">Intentos fallidos: 0 / 6</div>
+    <div id="ahorcado-teclado" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:420px;margin:0 auto">${ahorcadoTecladoHTML()}</div>
+    <div id="ahorcado-resultado" style="margin-top:16px;text-align:center"></div>`;
+}
+function ahorcadoCasillasHTML(){
+  return _actClase.reveladas.map(ch=>`<span style="width:26px;height:32px;border-bottom:3px solid var(--rojo);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.05rem">${ch||''}</span>`).join('');
+}
+function ahorcadoTecladoHTML(){
+  return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l=>`<button type="button" class="btn-ghost" data-letra="${l}" style="width:30px;height:30px;padding:0;font-weight:700" onclick="ahorcadoProbarLetra('${l}',this)">${l}</button>`).join('');
+}
+async function ahorcadoProbarLetra(letra,btn){
+  if(btn.disabled)return; btn.disabled=true; btn.style.opacity=.35;
+  try{
+    const data=await apiFetch(`/clase-actividad/${_actClase.cursoId}/${_actClase.i}/letra`,{method:'POST',body:{letra}});
+    if(data.acierto){
+      data.posiciones.forEach(p=>_actClase.reveladas[p]=letra);
+      document.getElementById('ahorcado-palabra').innerHTML=ahorcadoCasillasHTML();
+      if(!_actClase.reveladas.includes(''))ahorcadoFinalizar(true);
+    }else{
+      _actClase.intentos++;
+      const estadoEl=document.getElementById('ahorcado-estado');
+      if(estadoEl)estadoEl.textContent=`Intentos fallidos: ${_actClase.intentos} / ${_actClase.maxIntentos}`;
+      if(_actClase.intentos>=_actClase.maxIntentos)ahorcadoFinalizar(false);
+    }
+  }catch(err){toast(err.message||'No se pudo revisar la letra');}
+}
+function ahorcadoFinalizar(gano){
+  document.querySelectorAll('#ahorcado-teclado button').forEach(b=>b.disabled=true);
+  if(!gano){
+    document.getElementById('ahorcado-resultado').innerHTML=`<p style="color:var(--muted)">Se acabaron los intentos. <a style="color:var(--rojo);cursor:pointer;font-weight:700" onclick="reintentarActividad()">Intentar de nuevo</a></p>`;
+    return;
+  }
+  calificarActividad({palabra:_actClase.reveladas.join('')});
+}
+
+/* --- Verdadero o falso --- */
+function renderActVF(cursoId,i,data){
+  _actClase={cursoId,i,tipo:'vf'};
+  return `${actHeaderHTML('Verdadero o falso','✅')}
+    <p style="text-align:center;font-weight:700;margin-bottom:22px;font-size:1.05rem">${escHtml(data.enunciado)}</p>
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button class="btn-primary" style="flex:1;max-width:160px" onclick="calificarActividad({respuesta:true})">Verdadero</button>
+      <button class="btn-ghost" style="flex:1;max-width:160px" onclick="calificarActividad({respuesta:false})">Falso</button>
+    </div>`;
+}
+
+/* --- Opción múltiple --- */
+function renderActOpcion(cursoId,i,data){
+  _actClase={cursoId,i,tipo:'opcion'};
+  return `${actHeaderHTML('Opción múltiple','📝')}
+    <p style="text-align:center;font-weight:700;margin-bottom:18px;font-size:1.05rem">${escHtml(data.pregunta)}</p>
+    <div style="display:grid;gap:10px">${(data.opciones||[]).map((o,idx)=>`<button type="button" class="card" style="text-align:left;padding:14px;cursor:pointer" onclick="calificarActividad({indice:${idx}})">${String.fromCharCode(65+idx)}. ${escHtml(o)}</button>`).join('')}</div>`;
+}
+
+/* --- Sopa de letras: grid generado en el cliente (las palabras no son
+   secreto, hay que verlas para buscarlas), el servidor solo confirma que
+   todas las encontradas sean de verdad las palabras reales --- */
+function sopaGenerarGrid(palabras){
+  const N=Math.max(10,Math.max(...palabras.map(w=>w.length))+2);
+  const grid=Array.from({length:N},()=>Array(N).fill(''));
+  const dirs=[[0,1],[1,0],[1,1],[1,-1],[0,-1],[-1,0],[-1,-1],[-1,1]];
+  palabras.forEach(w=>{
+    for(let intento=0;intento<250;intento++){
+      const [dx,dy]=dirs[Math.floor(Math.random()*dirs.length)];
+      const r0=Math.floor(Math.random()*N), c0=Math.floor(Math.random()*N);
+      const r1=r0+dx*(w.length-1), c1=c0+dy*(w.length-1);
+      if(r1<0||r1>=N||c1<0||c1>=N)continue;
+      let cabe=true;
+      for(let k=0;k<w.length;k++){const r=r0+dx*k,c=c0+dy*k;const ex=grid[r][c];if(ex&&ex!==w[k]){cabe=false;break;}}
+      if(!cabe)continue;
+      for(let k=0;k<w.length;k++){const r=r0+dx*k,c=c0+dy*k;grid[r][c]=w[k];}
+      break;
+    }
+  });
+  const ABC='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!grid[r][c])grid[r][c]=ABC[Math.floor(Math.random()*ABC.length)];
+  return {grid,N};
+}
+function renderActSopa(cursoId,i,data){
+  const palabras=data.palabras||[];
+  const {grid,N}=sopaGenerarGrid(palabras);
+  _actClase={cursoId,i,tipo:'sopa',palabras,grid,N,encontradas:[],sel:null};
+  return `${actHeaderHTML('Sopa de letras','🔎')}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:14px">${palabras.map(w=>`<span id="sopa-chip-${escHtml(w)}" class="tag gray" style="font-size:.74rem">${escHtml(w)}</span>`).join('')}</div>
+    <div id="sopa-grid" style="display:grid;grid-template-columns:repeat(${N},22px);gap:2px;justify-content:center;margin:0 auto;max-width:100%;overflow-x:auto">${sopaGridHTML()}</div>
+    <p style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:10px">Toca la primera letra de una palabra y luego la última (en línea recta).</p>`;
+}
+function sopaGridHTML(){
+  let html='';
+  for(let r=0;r<_actClase.N;r++)for(let c=0;c<_actClase.N;c++){
+    html+=`<span data-r="${r}" data-c="${c}" onclick="sopaClickCelda(${r},${c})" style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;border-radius:4px;cursor:pointer;background:#f1f1f1">${_actClase.grid[r][c]}</span>`;
+  }
+  return html;
+}
+function sopaMarcarCelda(r,c,on){const el=document.querySelector(`#sopa-grid [data-r="${r}"][data-c="${c}"]`);if(el)el.style.outline=on?'2px solid var(--rojo)':'none';}
+function sopaClickCelda(r,c){
+  if(!_actClase.sel){_actClase.sel={r,c};sopaMarcarCelda(r,c,true);return;}
+  const {r:r0,c:c0}=_actClase.sel;
+  sopaMarcarCelda(r0,c0,false);
+  const dr=Math.sign(r-r0),dc=Math.sign(c-c0);
+  const len=Math.max(Math.abs(r-r0),Math.abs(c-c0))+1;
+  const esLinea=(dr!==0||dc!==0)&&(r-r0)===dr*(len-1)&&(c-c0)===dc*(len-1);
+  _actClase.sel=null;
+  if(!esLinea)return;
+  let str='';const celdas=[];
+  for(let k=0;k<len;k++){const rr=r0+dr*k,cc=c0+dc*k;str+=_actClase.grid[rr][cc];celdas.push([rr,cc]);}
+  const rev=str.split('').reverse().join('');
+  const match=_actClase.palabras.find(w=>!_actClase.encontradas.includes(w)&&(w===str||w===rev));
+  if(!match)return;
+  _actClase.encontradas.push(match);
+  celdas.forEach(([rr,cc])=>{const el=document.querySelector(`#sopa-grid [data-r="${rr}"][data-c="${cc}"]`);if(el)el.style.background='#c8f7c5';});
+  const chip=document.getElementById('sopa-chip-'+match); if(chip){chip.classList.remove('gray');chip.style.textDecoration='line-through';}
+  if(_actClase.encontradas.length===_actClase.palabras.length)calificarActividad({encontradas:_actClase.encontradas});
+}
+
+/* --- Memorama: pares término/definición, no hay secreto (encontrar los
+   pares es el juego en sí) --- */
+function renderActMemorama(cursoId,i,data){
+  const parejas=data.parejas||[];
+  const cards=[];
+  parejas.forEach((p,idx)=>{cards.push({par:idx,texto:p.termino});cards.push({par:idx,texto:p.definicion});});
+  for(let k=cards.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[cards[k],cards[j]]=[cards[j],cards[k]];}
+  _actClase={cursoId,i,tipo:'memorama',cards,flip:[],matched:[]};
+  return `${actHeaderHTML('Memorama','🎴')}
+    <div id="memo-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px">${cards.map((c,pos)=>memoCardHTML(pos)).join('')}</div>`;
+}
+function memoCardHTML(pos){
+  const c=_actClase.cards[pos];
+  const volteada=_actClase.flip.includes(pos)||_actClase.matched.includes(c.par);
+  return `<button type="button" data-pos="${pos}" onclick="memoClick(${pos})" style="min-height:64px;padding:8px;font-size:.76rem;font-weight:700;border-radius:10px;border:none;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;background:${volteada?'#fff':'var(--rojo)'};color:${volteada?'#111':'#fff'};box-shadow:0 1px 4px rgba(0,0,0,.12)">${volteada?escHtml(c.texto):'?'}</button>`;
+}
+function memoRepintar(){document.getElementById('memo-grid').innerHTML=_actClase.cards.map((c,p)=>memoCardHTML(p)).join('');}
+function memoClick(pos){
+  if(_actClase.flip.includes(pos)||_actClase.matched.includes(_actClase.cards[pos].par)||_actClase.flip.length>=2)return;
+  _actClase.flip.push(pos);
+  memoRepintar();
+  if(_actClase.flip.length===2){
+    const [a,b]=_actClase.flip;
+    if(_actClase.cards[a].par===_actClase.cards[b].par){
+      _actClase.matched.push(_actClase.cards[a].par);
+      _actClase.flip=[];
+      memoRepintar();
+      if(_actClase.matched.length===_actClase.cards.length/2)calificarActividad({completado:true});
+    }else{
+      setTimeout(()=>{_actClase.flip=[];memoRepintar();},900);
+    }
+  }
+}
+
+/* --- Crucigrama: lista de pistas con una casilla por letra (sin grid de
+   intersecciones) --- */
+function renderActCrucigrama(cursoId,i,data){
+  const pistas=data.pistas||[];
+  _actClase={cursoId,i,tipo:'crucigrama'};
+  return `${actHeaderHTML('Crucigrama','🧩')}
+    <div style="display:grid;gap:12px">${pistas.map((p,idx)=>`
+      <div><label style="display:block;font-size:.82rem;margin-bottom:4px"><b>${idx+1}.</b> ${escHtml(p.clue)} <span style="color:var(--muted)">(${p.longitud} letras)</span></label>
+      <input id="cruci-${idx}" maxlength="${p.longitud}" style="width:100%;text-transform:uppercase;padding:10px;border:1px solid #ddd;border-radius:8px;font-weight:700;letter-spacing:.08em;box-sizing:border-box"></div>`).join('')}</div>
+    <button type="button" class="btn-primary" style="width:100%;margin-top:18px" onclick="crucigramaEnviar(${pistas.length})">Revisar respuestas</button>`;
+}
+function crucigramaEnviar(n){
+  const respuestas={};
+  for(let idx=0;idx<n;idx++){const el=document.getElementById('cruci-'+idx);respuestas[idx]=el?el.value:'';}
+  calificarActividad({respuestas});
+}
+
+/* --- Rompecabezas: imagen cortada en piezas con CSS (background-position),
+   arrastrar y soltar para reordenar; se envían las posiciones finales --- */
+function renderActRompecabezas(cursoId,i,data){
+  const filas=data.filas||3, columnas=data.columnas||3;
+  const n=filas*columnas;
+  const orden=Array.from({length:n},(_,k)=>k);
+  for(let k=orden.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[orden[k],orden[j]]=[orden[j],orden[k]];}
+  _actClase={cursoId,i,tipo:'rompecabezas',orden,filas,columnas,imgUrl:driveImg(data.imagen,800)};
+  return `${actHeaderHTML('Rompecabezas','🧩')}
+    ${data.instruccion?`<p style="text-align:center;color:var(--muted);margin-bottom:10px">${escHtml(data.instruccion)}</p>`:''}
+    <div id="puzzle-grid" style="display:grid;grid-template-columns:repeat(${columnas},1fr);gap:2px;max-width:320px;aspect-ratio:1;margin:0 auto">${puzzleTilesHTML()}</div>
+    <p style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:10px">Arrastra las piezas para armar la imagen.</p>`;
+}
+function puzzleTilesHTML(){
+  const {orden,filas,columnas,imgUrl}=_actClase;
+  return orden.map((piezaId,pos)=>{
+    const fr=Math.floor(piezaId/columnas), fc=piezaId%columnas;
+    const bgX=columnas>1?(fc*100/(columnas-1)):0, bgY=filas>1?(fr*100/(filas-1)):0;
+    return `<div class="puzzle-tile" draggable="true" data-pos="${pos}" ondragstart="puzzleDragStart(event)" ondragover="event.preventDefault()" ondrop="puzzleDrop(event)"
+      style="aspect-ratio:1;background-image:url('${imgUrl}');background-size:${columnas*100}% ${filas*100}%;background-position:${bgX}% ${bgY}%;cursor:grab;border-radius:4px"></div>`;
+  }).join('');
+}
+let _puzzleDragPos=null;
+function puzzleDragStart(e){_puzzleDragPos=Number(e.currentTarget.dataset.pos);}
+function puzzleDrop(e){
+  e.preventDefault();
+  const destPos=Number(e.currentTarget.dataset.pos);
+  if(_puzzleDragPos===null||destPos===_puzzleDragPos)return;
+  const o=_actClase.orden;
+  [o[_puzzleDragPos],o[destPos]]=[o[destPos],o[_puzzleDragPos]];
+  _puzzleDragPos=null;
+  document.getElementById('puzzle-grid').innerHTML=puzzleTilesHTML();
+  if(o.every((v,idx)=>v===idx))calificarActividad({orden:o});
 }
 function abrirVideoModal(src,titulo,cursoId,i){
   let m=document.getElementById('video-modal');

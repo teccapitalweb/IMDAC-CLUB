@@ -1,5 +1,5 @@
-/* IMDAC · Club — Service Worker v76 */
-const CACHE='imdac-club-v76';
+/* IMDAC · Club — Service Worker v77 */
+const CACHE='imdac-club-v77';
 const ASSETS=['./','./index.html','./app.js','./cert-font.js','./manifest.json',
   './assets/logo-imdac.png','./assets/pwa-192.png','./assets/pwa-512.png','./assets/apple-touch-icon.png'];
 
