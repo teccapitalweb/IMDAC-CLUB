@@ -1430,15 +1430,21 @@ function renderSuscripcion(){
     const r=new Date(d);r.setMonth(r.getMonth()+1);renueva=r.toLocaleDateString('es-MX');
   }
   const m=window._miMiembro||{};
-  const estado=m.estado||'Sin pagar';
+  const estado=m.estado||'';
   const esRegalo=!m.stripeSubscriptionId&&m.vigenciaHasta;
+  const sinMembresia=!esRegalo&&estado!=='Activo';
   const porCancelar=!!m.cancelaAlFinal&&estado==='Activo';
-  const plan=esRegalo?'Acceso de cortesía':(m.plan?('IMDAC '+m.plan):'IMDAC Mensual');
-  const renuevaReal=esRegalo?(m.vigenciaHasta||'—'):(m.renovacion||renueva);
-  const precioTxt=m.plan==='Anual'?'':(`$${IMDAC.precio||499} <span>MXN / mes</span>`);
+  // Sin estado==='Activo' ni regalo, no hay plan/precio/renovación real que
+  // mostrar -- antes esto se rellenaba con valores por default ("IMDAC
+  // Mensual", fecha de alta+1 mes) que aparentaban una suscripción pagada
+  // que nunca existió.
+  const plan=esRegalo?'Acceso de cortesía':(sinMembresia?'Sin membresía activa':(m.plan?('IMDAC '+m.plan):'IMDAC Mensual'));
+  const renuevaReal=esRegalo?(m.vigenciaHasta||'—'):(sinMembresia?'—':(m.renovacion||renueva));
+  const precioTxt=sinMembresia?'':(m.plan==='Anual'?'':(`$${IMDAC.precio||499} <span>MXN / mes</span>`));
   const badge=porCancelar
     ?`<span class="sub-status" style="background:#fff3e0;color:#b86b00">Finaliza el ${renuevaReal}</span>`
-    :`<span class="sub-status" style="${estado!=='Activo'?'background:#fde8e8;color:#c0392b':''}">${estado==='Activo'?'Activa':estado}</span>`;
+    :sinMembresia?`<span class="sub-status" style="background:#fde8e8;color:#c0392b">Sin membresía</span>`
+    :`<span class="sub-status">${estado==='Activo'?'Activa':estado}</span>`;
   return `<h1 class="page-h">Mi Suscripción</h1><p class="page-sub">Detalles de tu plan y beneficios activos.</p>
   <div class="sub-card">
     <div class="sub-top"><span class="sub-badge">✦ Premium</span>${badge}</div>
@@ -1448,17 +1454,19 @@ function renderSuscripcion(){
     <div class="sub-meta2">
       <div><div class="ml">Miembro desde</div><div class="mv">${alta}</div></div>
       <div><div class="ml">${esRegalo?'Acceso hasta':(porCancelar?'Acceso hasta':'Próxima renovación')}</div><div class="mv">${renuevaReal}</div></div>
-      <div><div class="ml">Método de pago</div><div class="mv">${esRegalo?'Cortesía IMDAC':'Stripe'}</div></div>
+      <div><div class="ml">Método de pago</div><div class="mv">${esRegalo?'Cortesía IMDAC':(sinMembresia?'—':'Stripe')}</div></div>
     </div>
     ${porCancelar?`<p style="color:#b86b00;font-size:.88rem;margin-top:12px">Tu suscripción está cancelada: no se te cobrará de nuevo y conservas el acceso hasta el ${renuevaReal}.</p>`:''}
     <div class="sub-actions">
-      ${esRegalo?'' : porCancelar
+      ${esRegalo?'' : sinMembresia
+        ?`<button class="btn-primary" style="width:auto" onclick="renderPaywall('')">Suscribirme ahora →</button>`
+        : porCancelar
         ?`<button class="btn-manage" onclick="reactivarSub()">Reactivar suscripción</button>`
         :`<button class="btn-cancel" onclick="cancelarSub()">Cancelar suscripción</button>`}
     </div>
   </div>
   <h3 class="plan-section-title">Lo que incluye tu plan</h3>
-  <p class="plan-section-sub">Todo esto viene con tu membresía activa.</p>
+  <p class="plan-section-sub">${sinMembresia?'Esto se activa en cuanto tengas tu membresía.':'Todo esto viene con tu membresía activa.'}</p>
   <div class="plan-grid">
     ${incluye.map(i=>`<div class="plan-item"><div class="pic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${i[2]}"/></svg></div><b>${i[0]}</b><span>${i[1]}</span></div>`).join('')}
   </div>
