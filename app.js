@@ -79,6 +79,7 @@ const NAV=[
   ]},
   {group:"Zona de Juegos",items:[
     {id:"juegos",label:"Zona de Juegos",icon:'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
+    {id:"tienda",label:"Tienda de Recompensas",icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'},
   ]},
   {group:"Herramientas",items:[
     {id:"ficha-obra",label:"Ficha de Obra",icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
@@ -188,7 +189,7 @@ function renderSection(sec){
   const c=document.getElementById('content');
   const R={
     inicio:renderInicio, biblioteca:renderBiblioteca, webinar:renderWebinar,
-    material:renderMaterial, noticias:renderNoticias, foro:renderForo, juegos:renderJuegos,
+    material:renderMaterial, noticias:renderNoticias, foro:renderForo, juegos:renderJuegos, tienda:renderTienda,
     'ficha-obra':renderFichaObra, checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor,
     normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
     perfil:renderPerfil, suscripcion:renderSuscripcion,
@@ -199,6 +200,7 @@ function renderSection(sec){
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
   if(sec==='perfil') cargarPerfilDatos();
   if(sec==='juegos') cargarHistorialQuiz();
+  if(sec==='tienda') cargarTienda();
 }
 let _newsRAF=null;
 function initNewsCarousel(){
@@ -2227,12 +2229,31 @@ async function cargarRetosVisuales(){const a=document.getElementById('juegos-are
 function abrirRetoVisual(id){const r=_retosVisuales.find(x=>x.id===id);if(!r)return;_retoVisual={...r,encontradas:[],inicio:Date.now(),pista:false};renderRetoVisual();}
 function renderRetoVisual(){const a=document.getElementById('juegos-area'),r=_retoVisual;if(!a||!r)return;a.innerHTML=`<div class="sec-head"><h3>${escHtml(r.titulo)}</h3><button class="btn-ghost" onclick="cargarRetosVisuales()">← Escenarios</button></div><div class="card" style="padding:20px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px"><span class="pill">${escHtml(r.categoria)} · ${escHtml(r.dificultad)}</span><span id="reto-contador">${r.encontradas.length}/${r.zonas.length} puntos identificados</span></div><p style="color:var(--muted);margin-bottom:14px">Haz clic en la fotografía sobre los aspectos que requieren revisión. La respuesta es educativa: confirma siempre las condiciones reales en sitio.</p><div id="reto-imagen" style="position:relative;max-width:980px;margin:auto;cursor:crosshair;line-height:0"><img src="${driveImg(r.imagen)}" alt="${escHtml(r.titulo)}" style="display:block;width:100%;max-height:560px;object-fit:contain;background:#111;border-radius:14px" onclick="responderRetoVisual(event)">${r.encontradas.map(z=>`<i style="position:absolute;left:${z.x+z.w/2}%;top:${z.y+z.h/2}%;width:26px;height:26px;border-radius:50%;background:#20a35b;border:3px solid #fff;transform:translate(-50%,-50%);box-shadow:0 1px 5px #000"></i>`).join('')}</div><div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn-ghost" onclick="mostrarPistaReto()">💡 Mostrar pista</button><span id="reto-pista" style="color:var(--muted);align-self:center"></span></div><p style="font-size:.78rem;color:var(--muted);margin-top:14px">Fuente de la imagen: <a href="${escHtml(r.fuente)}" target="_blank" rel="noopener">${escHtml(r.credito||r.fuente||'ver fuente')}</a></p></div>`;}
 function mostrarPistaReto(){if(!_retoVisual)return;const e=document.getElementById('reto-pista');if(e)e.textContent=_retoVisual.pista||'Revisa bordes, accesos, protecciones colectivas y el orden de la zona de trabajo.';}
-async function responderRetoVisual(ev){const r=_retoVisual,img=ev.currentTarget;if(!r||!img)return;const b=img.getBoundingClientRect(),x=(ev.clientX-b.left)/b.width*100,y=(ev.clientY-b.top)/b.height*100;try{const out=await apiFetch(`/retos-visuales/${encodeURIComponent(r.id)}/responder`,{method:'POST',body:{x,y}});if(!out.correcta){toast(out.feedback);return;}if(r.encontradas.some(z=>z.id===out.zonaId)){toast('Ese punto ya fue identificado.');return;}const z=r.zonas.find(q=>q.id===out.zonaId);if(z)r.encontradas.push(z);toast(`✓ ${out.titulo}: ${out.feedback}`);renderRetoVisual();if(r.encontradas.length===r.zonas.length)toast('¡Escenario completado!');}catch(e){toast(e.message||'No se pudo revisar el punto');}}
-/* ====== Juego 3: Construye tu proyecto ======
-   Simulación educativa local: las cifras y recompensas no son presupuestos
-   certificados ni modifican saldos reales del miembro. */
+async function responderRetoVisual(ev){const r=_retoVisual,img=ev.currentTarget;if(!r||!img)return;const b=img.getBoundingClientRect(),x=(ev.clientX-b.left)/b.width*100,y=(ev.clientY-b.top)/b.height*100;try{const out=await apiFetch(`/retos-visuales/${encodeURIComponent(r.id)}/responder`,{method:'POST',body:{x,y}});if(!out.correcta){toast(out.feedback);return;}if(r.encontradas.some(z=>z.id===out.zonaId)){toast('Ese punto ya fue identificado.');return;}const z=r.zonas.find(q=>q.id===out.zonaId);if(z)r.encontradas.push(z);
+  if(out.monedasGanadas){
+    toast(`✓ ${out.titulo} · +${out.monedasGanadas} monedas · +${out.xpGanada} XP`);
+    actualizarSaldoJuegos(out.monedasGanadas,out.xpGanada);
+  }else{
+    toast(`✓ ${out.titulo}: ${out.feedback}${out.motivo==='membresia_requerida'?' 🔒 Esto habría ganado monedas con una membresía activa.':''}`);
+  }
+  renderRetoVisual();if(r.encontradas.length===r.zonas.length)toast('¡Escenario completado!');}catch(e){toast(e.message||'No se pudo revisar el punto');}}
+function actualizarSaldoJuegos(monedas,xp){
+  if(monedas)DATA.monedas=(Number(DATA.monedas)||0)+monedas;
+  if(xp)DATA.xp=(Number(DATA.xp)||0)+xp;
+  const saldos=document.querySelectorAll('.juegos-saldo .js-item b');
+  if(saldos[0])saldos[0].textContent=DATA.monedas;
+  if(saldos[1])saldos[1].textContent=DATA.xp;
+}
+/* ====== Juego 3: Construye tu proyecto + monedas ======
+   El costo/calidad/días/seguridad de cada opción se ve completo ANTES de
+   elegir -- no es un quiz con respuesta oculta, es una decisión informada.
+   Por eso la simulación corre aquí sin pedir nada al servidor en cada
+   etapa; solo al terminar se manda la secuencia de decisiones a
+   /simulador-completar, que la recalcula con su propia copia de las etapas
+   y paga monedas/XP reales (una vez al día) -- el cliente nunca decide su
+   propia recompensa. */
 function iniciarSimulador(){
-  _simulador={etapa:0,presupuestoInicial:500000,costo:0,dias:0,calidad:50,seguridad:50,correctas:0,decisiones:[],seleccion:null};
+  _simulador={etapa:0,presupuestoInicial:500000,costo:0,dias:0,calidad:50,seguridad:50,correctas:0,decisiones:[],indices:[],seleccion:null};
   renderSimulador();
 }
 function formatoMoneda(n){return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0}).format(n||0);}
@@ -2254,11 +2275,25 @@ function renderSimulador(){
 }
 function elegirDecisionSimulador(indice){
   const s=_simulador,e=SIM_ETAPAS[s.etapa],o=e.opciones[indice];if(!s||s.seleccion!==null)return;
-  s.seleccion=indice;s.costo+=o.costo;s.dias+=o.dias;s.calidad=Math.max(0,Math.min(100,s.calidad+o.calidad));s.seguridad=Math.max(0,Math.min(100,s.seguridad+o.seguridad));if(o.buena)s.correctas++;s.decisiones.push({etapa:e.nombre,...o});renderSimulador();
+  s.seleccion=indice;s.costo+=o.costo;s.dias+=o.dias;s.calidad=Math.max(0,Math.min(100,s.calidad+o.calidad));s.seguridad=Math.max(0,Math.min(100,s.seguridad+o.seguridad));if(o.buena)s.correctas++;s.decisiones.push({etapa:e.nombre,...o});s.indices.push(indice);renderSimulador();
 }
 function renderDecisionSimulador(o){const s=_simulador,restante=s.presupuestoInicial-s.costo;return `<div class="card" style="padding:17px;border-left:4px solid ${o.buena?'#20a35b':'#e89e28'}"><b>${o.buena?'✓ Decisión con buen control':'! Decisión con áreas de mejora'}</b><p style="color:var(--muted);margin:8px 0">${o.buena?'La decisión prioriza planeación, calidad y seguridad.':'La opción reduce el costo inmediato, pero impacta los indicadores del proyecto.'}</p><p style="font-size:.88rem"><b>Costo:</b> ${formatoMoneda(o.costo)} · <b>Tiempo:</b> ${o.dias} días · <b>Presupuesto restante:</b> ${formatoMoneda(restante)}</p><button class="btn-primary" style="width:auto;margin-top:5px" onclick="siguienteEtapaSimulador()">${s.etapa===SIM_ETAPAS.length-1?'Ver entrega del proyecto':'Continuar a la siguiente etapa'} →</button></div>`;}
 function siguienteEtapaSimulador(){if(!_simulador)return;_simulador.etapa++;_simulador.seleccion=null;renderSimulador();}
-function renderResultadoSimulador(){const a=document.getElementById('juegos-area'),s=_simulador;if(!a||!s)return;const variacion=s.costo-s.presupuestoInicial,recompensas=s.correctas*15+Math.round(s.calidad/10),mejoras=s.decisiones.filter(d=>!d.buena).map(d=>d.etapa);a.innerHTML=`<div class="sec-head"><h3>🏁 Entrega del proyecto</h3><button class="btn-ghost" onclick="iniciarSimulador()">↻ Nuevo proyecto</button></div><div class="card" style="padding:25px"><div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center"><img src="assets/simulador-vivienda-isometrica.png" alt="Proyecto virtual terminado" style="width:min(100%,430px);height:260px;object-fit:contain;filter:saturate(1.1)"><div style="flex:1;min-width:240px"><span class="pill">SIMULACIÓN COMPLETADA</span><h2 style="font-family:var(--font-display);margin:8px 0">Resumen profesional</h2><p style="color:var(--muted)">Terminaste las siete etapas de la vivienda virtual.</p><div style="display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:10px;margin-top:14px"><div class="card" style="padding:12px"><small>Presupuesto inicial</small><b style="display:block">${formatoMoneda(s.presupuestoInicial)}</b></div><div class="card" style="padding:12px"><small>Costo final</small><b style="display:block">${formatoMoneda(s.costo)}</b></div><div class="card" style="padding:12px"><small>Variación</small><b style="display:block;color:${variacion>0?'#d33':'#20a35b'}">${variacion>0?'+':''}${formatoMoneda(variacion)}</b></div><div class="card" style="padding:12px"><small>Tiempo utilizado</small><b style="display:block">${s.dias} días</b></div><div class="card" style="padding:12px"><small>Calidad obtenida</small><b style="display:block">${s.calidad}%</b></div><div class="card" style="padding:12px"><small>Seguridad</small><b style="display:block">${s.seguridad}%</b></div></div></div></div><hr style="border:0;border-top:1px solid var(--border);margin:20px 0"><p><b>Decisiones con buen control:</b> ${s.correctas} de ${SIM_ETAPAS.length}</p><p><b>Áreas de mejora:</b> ${mejoras.length?escHtml(mejoras.join(', ')): 'Ninguna decisión crítica pendiente en esta simulación.'}</p><p><b>Recompensa educativa:</b> ${recompensas} XP simulados</p><small style="color:var(--muted)">Las recompensas, costos y resultados son simulados; no modifican tus monedas o XP reales.</small></div>`;}
+async function renderResultadoSimulador(){
+  const a=document.getElementById('juegos-area'),s=_simulador;if(!a||!s)return;
+  const variacion=s.costo-s.presupuestoInicial,mejoras=s.decisiones.filter(d=>!d.buena).map(d=>d.etapa);
+  a.innerHTML=`<div class="card"><div class="empty"><b>Calificando tu proyecto…</b></div></div>`;
+  let premio={monedasGanadas:0,xpGanada:0,motivo:'error'};
+  try{ premio=await apiFetch('/simulador-completar',{method:'POST',body:{decisiones:s.indices}}); }
+  catch(e){ toast(e.message||'No se pudo registrar tu resultado',{type:'err'}); }
+  if(premio.monedasGanadas)actualizarSaldoJuegos(premio.monedasGanadas,premio.xpGanada);
+  const premioTexto=premio.motivo==='recompensada'
+    ? `+${premio.monedasGanadas} monedas · +${premio.xpGanada} XP`
+    : premio.motivo==='membresia_requerida' ? 'Esto habría ganado monedas con una membresía activa 🔒'
+    : premio.motivo==='limite_diario' ? 'Ya canjeaste este juego hoy — vuelve mañana por más'
+    : 'No se pudo calcular tu recompensa';
+  a.innerHTML=`<div class="sec-head"><h3>🏁 Entrega del proyecto</h3><button class="btn-ghost" onclick="iniciarSimulador()">↻ Nuevo proyecto</button></div><div class="card" style="padding:25px"><div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center"><img src="assets/simulador-vivienda-isometrica.png" alt="Proyecto virtual terminado" style="width:min(100%,430px);height:260px;object-fit:contain;filter:saturate(1.1)"><div style="flex:1;min-width:240px"><span class="pill">SIMULACIÓN COMPLETADA</span><h2 style="font-family:var(--font-display);margin:8px 0">Resumen profesional</h2><p style="color:var(--muted)">Terminaste las siete etapas de la vivienda virtual.</p><div style="display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:10px;margin-top:14px"><div class="card" style="padding:12px"><small>Presupuesto inicial</small><b style="display:block">${formatoMoneda(s.presupuestoInicial)}</b></div><div class="card" style="padding:12px"><small>Costo final</small><b style="display:block">${formatoMoneda(s.costo)}</b></div><div class="card" style="padding:12px"><small>Variación</small><b style="display:block;color:${variacion>0?'#d33':'#20a35b'}">${variacion>0?'+':''}${formatoMoneda(variacion)}</b></div><div class="card" style="padding:12px"><small>Tiempo utilizado</small><b style="display:block">${s.dias} días</b></div><div class="card" style="padding:12px"><small>Calidad obtenida</small><b style="display:block">${s.calidad}%</b></div><div class="card" style="padding:12px"><small>Seguridad</small><b style="display:block">${s.seguridad}%</b></div></div></div></div><hr style="border:0;border-top:1px solid var(--border);margin:20px 0"><p><b>Decisiones con buen control:</b> ${s.correctas} de ${SIM_ETAPAS.length}</p><p><b>Áreas de mejora:</b> ${mejoras.length?escHtml(mejoras.join(', ')): 'Ninguna decisión crítica pendiente en esta simulación.'}</p><div class="calc-result" style="margin-top:10px"><b>Recompensa</b><span>${premioTexto}</span></div><small style="color:var(--muted)">Los montos y días son ficticios; no sustituyen un presupuesto ni supervisión profesional. Solo cuenta una recompensa por día en este juego.</small></div>`;
+}
 /* ====== Juego 5: Arma el plano ======
    Arrastre mediante Pointer Events (mouse y táctil) y alternativa accesible:
    seleccionar una pieza y después una celda con clic o teclado. */
@@ -2272,7 +2307,20 @@ function colocarSeleccionPlano(celda,idForzado){const p=_plano,id=idForzado||p&&
 function iniciarArrastrePlano(ev,id){if(!_plano)return;_plano.seleccion=id;const ghost=document.createElement('div');ghost.id='plano-arrastre';ghost.textContent=_plano.nivel.piezas.find(x=>x.id===id).nombre;ghost.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:#ff3135;color:#fff;padding:8px 10px;border-radius:8px;font-weight:700;font-size:12px;transform:translate(10px,10px)';document.body.appendChild(ghost);const mover=e=>{ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';};const soltar=e=>{document.removeEventListener('pointermove',mover);document.removeEventListener('pointerup',soltar);ghost.remove();const destino=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-plano-celda]');if(destino)colocarSeleccionPlano(Number(destino.dataset.planoCelda),id);else{_plano.mensaje='Pieza seleccionada. Pulsa una celda para colocarla.';renderPlano();}};mover(ev);document.addEventListener('pointermove',mover);document.addEventListener('pointerup',soltar,{once:true});}
 function pistaPlano(){const p=_plano;if(!p)return;const libre=p.nivel.piezas.find(x=>p.ubicaciones[x.id]===undefined);if(!libre){p.mensaje='Ya colocaste todos los elementos. Valida la propuesta.';}else{const c=libre.objetivo;p.mensaje=`Pista: ${libre.nombre} debe ir en ${etiquetaCeldaPlano(c)} (celda ${c+1}).`;}renderPlano();}
 function reiniciarPlano(){if(!_plano)return;iniciarPlano(_plano.indice);}
-function validarPlano(){const p=_plano;if(!p)return;const correctas=p.nivel.piezas.filter(x=>p.ubicaciones[x.id]===x.objetivo);const errores=p.nivel.piezas.filter(x=>p.ubicaciones[x.id]!==x.objetivo);p.mensaje=errores.length?`Resultado: ${correctas.length}/${p.nivel.piezas.length} ubicaciones cumplen las reglas. Revisa: ${errores.map(x=>x.nombre).join(', ')}.`:`✓ Plano validado: todas las ubicaciones responden a las reglas del ejercicio.`;renderPlano();}
+async function validarPlano(){
+  const p=_plano;if(!p)return;
+  const errores=p.nivel.piezas.filter(x=>p.ubicaciones[x.id]!==x.objetivo);
+  p.mensaje='Calificando tu plano…';renderPlano();
+  let premio={monedasGanadas:0,xpGanada:0,motivo:'error',correctas:0,total:p.nivel.piezas.length};
+  try{ premio=await apiFetch('/plano-completar',{method:'POST',body:{nivelIndice:p.indice,ubicaciones:p.ubicaciones}}); }
+  catch(e){ toast(e.message||'No se pudo registrar tu resultado',{type:'err'}); }
+  if(premio.monedasGanadas)actualizarSaldoJuegos(premio.monedasGanadas,premio.xpGanada);
+  const premioTexto=premio.motivo==='recompensada'?` +${premio.monedasGanadas} monedas · +${premio.xpGanada} XP.`
+    :premio.motivo==='membresia_requerida'?' Esto habría ganado monedas con una membresía activa 🔒.'
+    :premio.motivo==='limite_diario'?' Ya canjeaste este nivel hoy — vuelve mañana por más.':'';
+  p.mensaje=(errores.length?`Resultado: ${premio.correctas}/${premio.total} ubicaciones cumplen las reglas. Revisa: ${errores.map(x=>x.nombre).join(', ')}.`:`✓ Plano validado: todas las ubicaciones responden a las reglas del ejercicio.`)+premioTexto;
+  renderPlano();
+}
 function renderQuizSelector(){
   return `<div class="tool-intro">
     <h3 style="font-family:var(--font-display);margin-bottom:4px">🏛️ Quiz del Arquitecto</h3>
@@ -2391,6 +2439,80 @@ async function cargarHistorialQuiz(){
         <p>${x.correcta?'✅ Correcta':'❌ Incorrecta'}${x.monedasGanadas?` · +${x.monedasGanadas} monedas`:''}</p></div>`;
     }).join('');
   }catch(e){ if(cont)cont.innerHTML=`<div class="card"><div class="empty"><b>No se pudo cargar tu historial</b></div></div>`; }
+}
+
+/* ====== Tienda de recompensas ======
+   Las monedas se ganan en la Zona de Juegos y se gastan aquí: plantillas
+   reales para descargar, o un desbloqueo anticipado (de un solo uso por
+   cuenta) del curso que esté esperando el goteo de 7 días. El archivo real
+   solo se conoce después de canjear -- el listado nunca trae la URL. */
+let _tienda=null;
+function renderTienda(){
+  if(LOADING)return `<h1 class="page-h">Tienda de Recompensas</h1><p class="page-sub">Canjea tus monedas.</p>`+skelGrid(3);
+  const member=_tieneAcceso();
+  return `<h1 class="page-h">Tienda de Recompensas</h1>
+  <p class="page-sub">Cambia las monedas que ganas en la Zona de Juegos por plantillas reales o por adelantar tu próximo curso.</p>
+  ${member?'':`<div class="dir-visitor-banner">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span>Puedes ver la tienda libremente. <b>Canjear</b> requiere tu membresía activa.</span>
+    <button onclick="renderPaywall('Canjear en la tienda de recompensas requiere una membresía vigente.')">Activar membresía</button>
+  </div>`}
+  <div class="juegos-saldo"><div class="js-item"><b>${DATA.monedas||0}</b><span>Monedas</span></div><div class="js-item"><b>${DATA.xp||0}</b><span>XP</span></div></div>
+  <div id="tienda-area" style="margin-top:18px"><div class="card"><div class="empty"><b>Cargando tienda…</b></div></div></div>`;
+}
+async function cargarTienda(){
+  const cont=document.getElementById('tienda-area'); if(!cont)return;
+  try{
+    const data=await apiFetch('/tienda-articulos');
+    _tienda={articulos:Array.isArray(data.articulos)?data.articulos:[],monedas:Number(data.monedas)||0};
+    cont.innerHTML=renderArticulosTienda();
+  }catch(e){ cont.innerHTML=`<div class="card"><div class="empty"><b>No se pudo cargar la tienda</b></div></div>`; }
+}
+function renderArticulosTienda(){
+  if(!_tienda||!_tienda.articulos.length)return `<div class="card"><div class="empty"><b>Aún no hay artículos</b><span>El equipo IMDAC está preparando las primeras recompensas.</span></div></div>`;
+  return `<div class="course-grid">${_tienda.articulos.map(tiendaArticuloCardHTML).join('')}</div>`;
+}
+function tiendaArticuloCardHTML(a){
+  const puede=_tienda.monedas>=a.costoMonedas;
+  if(a.tipo==='curso_anticipado'){
+    return `<div class="card" style="padding:18px"><span class="pill">📚 Curso</span><h4 style="margin:8px 0">${escHtml(a.nombre)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(a.descripcion)}</p><b style="display:block;margin:10px 0">${a.costoMonedas} monedas</b>
+      ${a.usado?`<span style="color:var(--muted);font-size:.84rem">Ya usaste tu desbloqueo anticipado.</span>`
+        :`<button class="btn-primary" style="width:auto" ${puede?'':'disabled'} onclick="abrirSelectorCursoAnticipado('${a.id}')">${puede?'Elegir curso a desbloquear':'Te faltan monedas'}</button>`}
+    </div>`;
+  }
+  return `<div class="card" style="padding:18px"><span class="pill">📄 Archivo</span><h4 style="margin:8px 0">${escHtml(a.nombre)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(a.descripcion)}</p><b style="display:block;margin:10px 0">${a.comprado?'Ya es tuyo':a.costoMonedas+' monedas'}</b>
+    ${a.comprado?`<button class="btn-ghost" style="width:auto" onclick="descargarArticuloTienda('${a.id}')">Descargar de nuevo</button>`
+      :`<button class="btn-primary" style="width:auto" ${puede?'':'disabled'} onclick="canjearArticuloTienda('${a.id}')">${puede?'Canjear':'Te faltan monedas'}</button>`}
+  </div>`;
+}
+function cursosBloqueadosPorGoteo(){ return (DATA.cursos||[]).filter(c=>dripStatus(c).locked); }
+function abrirSelectorCursoAnticipado(articuloId){
+  const bloqueados=cursosBloqueadosPorGoteo();
+  if(!bloqueados.length)return toast('No tienes ningún curso esperando el goteo de 7 días — no hay nada que adelantar todavía.');
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body">
+    <button class="modal-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
+    <h3 style="font-family:var(--font-display);margin-bottom:6px">Elige el curso a desbloquear</h3>
+    <p style="color:var(--muted);font-size:.86rem;margin-bottom:14px">Solo puedes hacer esto una vez en tu cuenta — elige con cuidado.</p>
+    <div style="display:grid;gap:10px">${bloqueados.map(c=>`<button class="card" style="text-align:left;padding:14px;cursor:pointer" onclick="canjearArticuloTienda('${articuloId}','${escHtml(c.id)}');closeModal()"><b>${escHtml(c.titulo)}</b><p style="color:var(--muted);font-size:.84rem;margin-top:4px">Se desbloquea en ${dripStatus(c).dias} día${dripStatus(c).dias===1?'':'s'}</p></button>`).join('')}</div>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+async function canjearArticuloTienda(articuloId,courseId){
+  try{
+    const out=await apiFetch('/tienda-canjear',{method:'POST',body:{articuloId,courseId:courseId||''}});
+    if(out.url)window.open(out.url,'_blank','noopener');
+    DATA.monedas=Number(out.monedasRestantes)||0;
+    document.querySelectorAll('.juegos-saldo .js-item b')[0]&&(document.querySelectorAll('.juegos-saldo .js-item b')[0].textContent=DATA.monedas);
+    toast(out.yaComprado?'Ya tenías este artículo — aquí está de nuevo':'¡Canjeado!');
+    if(courseId)loadData().then(()=>{ if(currentSection==='tienda')cargarTienda(); });
+    else cargarTienda();
+  }catch(e){
+    if(e.code==='membership_required')return renderPaywall('Canjear en la tienda de recompensas requiere una membresía vigente.');
+    toast(e.message||'No se pudo completar el canje',{type:'err'});
+  }
+}
+function descargarArticuloTienda(id){
+  apiFetch(`/tienda-descarga/${encodeURIComponent(id)}`).then(d=>{ if(d.url)window.open(d.url,'_blank','noopener'); }).catch(e=>toast(e.message||'No se pudo abrir tu descarga'));
 }
 
 function renderNormativas(){
@@ -2968,7 +3090,7 @@ async function apiFetch(path,{method='GET',body}={}){
 async function loadData(){
   // El catálogo premium se obtiene saneado desde el backend: las URLs privadas nunca llegan aquí.
   DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
-  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[]; DATA.xp=0; DATA.monedas=0; DATA.cursoPrueba='';
+  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[]; DATA.xp=0; DATA.monedas=0; DATA.cursoPrueba=''; DATA.desbloqueoAnticipadoUsado=false;
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){
     DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
     DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos;
@@ -2995,7 +3117,7 @@ async function loadData(){
     // El saldo de bienvenida y el curso de prueba viven en el documento
     // progreso/{uid}; se leen aun sin membresía para que no desaparezcan al
     // recargar después de registrarse.
-    try{const perfilProgreso=await db.collection('progreso').doc(CURRENT_USER.uid).get();if(perfilProgreso.exists){const p=perfilProgreso.data()||{};DATA.xp=Number(p.xp)||0;DATA.monedas=Number(p.monedas)||0;DATA.cursoPrueba=String(p.cursoPrueba||DATA.cursoPrueba||'');}}catch(e){}
+    try{const perfilProgreso=await db.collection('progreso').doc(CURRENT_USER.uid).get();if(perfilProgreso.exists){const p=perfilProgreso.data()||{};DATA.xp=Number(p.xp)||0;DATA.monedas=Number(p.monedas)||0;DATA.cursoPrueba=String(p.cursoPrueba||DATA.cursoPrueba||'');DATA.desbloqueoAnticipadoUsado=Boolean(p.desbloqueoAnticipadoUsado);}}catch(e){}
     if(_tieneAcceso()||DATA.cursoPrueba){
       try{const foro=await db.collection('foro_temas').orderBy('fecha','desc').limit(30).get();DATA.foro=foro.docs.map(d=>({id:d.id,...d.data()}));}catch(e){DATA.foro=[];}
       try{const prog=await db.collection('progreso').where('uid','==',CURRENT_USER.uid).get();prog.forEach(d=>{const x=d.data();DATA.progresos[x.cursoId]=x.porcentaje||0;if(Array.isArray(x.clases))DATA.clasesHechas[x.cursoId]=x.clases;});}catch(e){}
