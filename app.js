@@ -3191,20 +3191,93 @@ function memoClick(pos){
   }
 }
 
-/* --- Crucigrama: lista de pistas con una casilla por letra (sin grid de
-   intersecciones) --- */
-function renderActCrucigrama(cursoId,i,data){
-  const pistas=data.pistas||[];
-  _actClase={cursoId,i,tipo:'crucigrama'};
-  return `${actHeaderHTML('Crucigrama','🧩')}
-    <div style="display:grid;gap:12px">${pistas.map((p,idx)=>`
-      <div><label style="display:block;font-size:.82rem;margin-bottom:4px"><b>${idx+1}.</b> ${escHtml(p.clue)} <span style="color:var(--muted)">(${p.longitud} letras)</span></label>
-      <input id="cruci-${idx}" maxlength="${p.longitud}" style="width:100%;text-transform:uppercase;padding:10px;border:1px solid #ddd;border-radius:8px;font-weight:700;letter-spacing:.08em;box-sizing:border-box"></div>`).join('')}</div>
-    <button type="button" class="btn-primary" style="width:100%;margin-top:18px" onclick="crucigramaEnviar(${pistas.length})">Revisar respuestas</button>`;
+/* --- Crucigrama: cuadrícula real con intersecciones. El servidor calcula
+   fila/columna/orientación de cada palabra (es el único que tiene las
+   palabras reales) y aquí solo se arma la cuadrícula visual a partir de esa
+   geometría -- ninguna letra llega al cliente hasta que el socio la escribe
+   y se envía a calificar. Cuando dos palabras se cruzan comparten la MISMA
+   casilla/input, igual que en un crucigrama real. */
+function cruciCeldasDe(w){
+  const celdas=[];
+  for(let k=0;k<w.longitud;k++){
+    celdas.push(w.orientacion==='H'?[w.fila,w.columna+k]:[w.fila+k,w.columna]);
+  }
+  return celdas;
 }
-function crucigramaEnviar(n){
+function renderActCrucigrama(cursoId,i,data){
+  const cw=data.crucigrama||{filas:0,columnas:0,palabras:[]};
+  const palabras=cw.palabras||[];
+  if(!palabras.length){
+    _actClase={cursoId,i,tipo:'crucigrama',palabras:[]};
+    return `${actHeaderHTML('Crucigrama','🧩')}<p style="text-align:center;color:var(--muted)">Esta actividad todavía no tiene pistas cargadas.</p>`;
+  }
+  _actClase={cursoId,i,tipo:'crucigrama',palabras};
+
+  // numera cada casilla que sea inicio de alguna palabra, en orden de
+  // lectura (arriba->abajo, izquierda->derecha); si una casilla es inicio de
+  // una horizontal Y una vertical a la vez, comparten el mismo número.
+  const inicioKeys=new Set(palabras.map(w=>w.fila+','+w.columna));
+  const numeroPorCelda=new Map();
+  let siguienteNumero=1;
+  for(let r=0;r<cw.filas;r++)for(let c=0;c<cw.columnas;c++){
+    const key=r+','+c;
+    if(inicioKeys.has(key))numeroPorCelda.set(key,siguienteNumero++);
+  }
+
+  const celdasActivas=new Set();
+  palabras.forEach(w=>cruciCeldasDe(w).forEach(([r,c])=>celdasActivas.add(r+','+c)));
+
+  let gridHtml='';
+  for(let r=0;r<cw.filas;r++)for(let c=0;c<cw.columnas;c++){
+    const key=r+','+c;
+    if(celdasActivas.has(key)){
+      const n=numeroPorCelda.get(key);
+      gridHtml+=`<div class="cruci-cell">${n?`<span class="cruci-num">${n}</span>`:''}<input maxlength="1" data-r="${r}" data-c="${c}" oninput="cruciInput(this)" onkeydown="cruciKeydown(event,this)"></div>`;
+    }else{
+      gridHtml+=`<div class="cruci-cell cruci-blank"></div>`;
+    }
+  }
+
+  const horizontales=[],verticales=[];
+  palabras.forEach(w=>{
+    const n=numeroPorCelda.get(w.fila+','+w.columna)||'';
+    const li=`<li><b>${n}.</b> ${escHtml(w.clue||'')} <span class="cruci-letras">(${w.longitud})</span></li>`;
+    (w.orientacion==='H'?horizontales:verticales).push(li);
+  });
+
+  return `${actHeaderHTML('Crucigrama','🧩')}
+    <div class="cruci-scroll"><div class="cruci-grid" style="grid-template-columns:repeat(${cw.columnas},28px)">${gridHtml}</div></div>
+    <div class="cruci-pistas">
+      ${horizontales.length?`<div><h4>Horizontales</h4><ul>${horizontales.join('')}</ul></div>`:''}
+      ${verticales.length?`<div><h4>Verticales</h4><ul>${verticales.join('')}</ul></div>`:''}
+    </div>
+    <button type="button" class="btn-primary" style="width:100%;margin-top:18px" onclick="crucigramaEnviar()">Revisar respuestas</button>`;
+}
+function cruciInput(el){
+  el.value=(el.value||'').toUpperCase().replace(/[^A-ZÑ]/g,'').slice(0,1);
+  if(!el.value)return;
+  const r=Number(el.dataset.r),c=Number(el.dataset.c);
+  const siguiente=document.querySelector(`.cruci-cell input[data-r="${r}"][data-c="${c+1}"]`)
+    ||document.querySelector(`.cruci-cell input[data-r="${r+1}"][data-c="${c}"]`);
+  if(siguiente)siguiente.focus();
+}
+function cruciKeydown(ev,el){
+  if(ev.key!=='Backspace'||el.value)return;
+  const r=Number(el.dataset.r),c=Number(el.dataset.c);
+  const anterior=document.querySelector(`.cruci-cell input[data-r="${r}"][data-c="${c-1}"]`)
+    ||document.querySelector(`.cruci-cell input[data-r="${r-1}"][data-c="${c}"]`);
+  if(anterior)anterior.focus();
+}
+function crucigramaEnviar(){
   const respuestas={};
-  for(let idx=0;idx<n;idx++){const el=document.getElementById('cruci-'+idx);respuestas[idx]=el?el.value:'';}
+  (_actClase.palabras||[]).forEach(w=>{
+    let texto='';
+    cruciCeldasDe(w).forEach(([r,c])=>{
+      const input=document.querySelector(`.cruci-cell input[data-r="${r}"][data-c="${c}"]`);
+      texto+=input?(input.value||''):'';
+    });
+    respuestas[w.indice]=texto;
+  });
   calificarActividad({respuestas});
 }
 
