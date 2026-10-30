@@ -2692,14 +2692,14 @@ function avanzarDespuesDeClase(cursoId,i){
   }
 }
 
-/* ====== Juego 6: Actividad al terminar cada clase ======
+/* ====== Actividad de refuerzo al terminar cada clase ======
    El admin captura 7 tipos de actividad por clase (ahorcado, V/F, opción
-   múltiple, sopa de letras, memorama, crucigrama, rompecabezas). La respuesta
-   nunca viaja hasta que se califica -- /clase-actividad/:cursoId/:claseIndex
-   entrega el contenido ya saneado según el tipo, y /responder califica contra
-   la copia real en Firestore. Jugar es opcional (se puede "saltar"); el
-   premio de monedas/XP sí requiere membresía, igual que el resto de la Zona
-   de Juegos. */
+   múltiple, sopa de letras, memorama, crucigrama, rompecabezas). Son
+   refuerzo de lo visto en la clase -- NO dan monedas ni XP, eso solo se
+   gana en Zona de Juegos (Quiz, retos, etc.). La respuesta nunca viaja
+   hasta que se califica -- /clase-actividad/:cursoId/:claseIndex entrega
+   el contenido ya saneado según el tipo, y /responder califica contra la
+   copia real en Firestore. Jugar es opcional (se puede "saltar"). */
 let _actClase={};
 const ACTIVIDAD_RENDER={
   ahorcado:renderActAhorcado, vf:renderActVF, opcion:renderActOpcion,
@@ -2712,7 +2712,7 @@ function abrirActividadClaseModal(cursoId,i,data){
       <button class="modal-x" onclick="closeModal()" aria-label="Cerrar">✕</button>
       <div style="font-size:2.6rem;margin-bottom:10px">✅</div>
       <h2 style="font-family:var(--font-display);margin-bottom:8px">Actividad ya completada</h2>
-      <p style="color:var(--muted);margin-bottom:22px">Ganaste +${data.monedas||0} monedas · +${data.xp||0} XP la primera vez que la jugaste.</p>
+      <p style="color:var(--muted);margin-bottom:22px">Ya resolviste esta actividad de refuerzo.</p>
       <button class="btn-primary" style="width:100%" onclick="closeModal();avanzarDespuesDeClase('${cursoId}',${i})">Continuar a la siguiente clase →</button>
     </div>`;
     document.getElementById('modal').classList.add('open');
@@ -2728,7 +2728,7 @@ function abrirActividadClaseModal(cursoId,i,data){
   document.getElementById('modal').classList.add('open');
 }
 function actHeaderHTML(titulo,icono){
-  return `<div style="text-align:center;margin-bottom:16px"><div style="font-size:2.2rem">${icono}</div><h2 style="font-family:var(--font-display);margin:6px 0 2px">${titulo}</h2><p style="color:var(--muted);font-size:.84rem">Completa la actividad y gana monedas + XP.</p></div>`;
+  return `<div style="text-align:center;margin-bottom:16px"><div style="font-size:2.2rem">${icono}</div><h2 style="font-family:var(--font-display);margin:6px 0 2px">${titulo}</h2><p style="color:var(--muted);font-size:.84rem">Refuerza lo que acabas de ver en la clase.</p></div>`;
 }
 async function reintentarActividad(){
   try{
@@ -2739,19 +2739,14 @@ async function reintentarActividad(){
 async function calificarActividad(payload){
   try{
     const r=await apiFetch(`/clase-actividad/${_actClase.cursoId}/${_actClase.i}/responder`,{method:'POST',body:payload});
-    if(r.monedasGanadas)actualizarSaldoJuegos(r.monedasGanadas,r.xpGanada);
     renderActResultado(r);
   }catch(err){toast(err.message||'No se pudo registrar tu resultado');}
 }
 function renderActResultado(r){
-  const exito=r.yaCompletado||r.correctas>=r.total;
-  const texto=r.yaCompletado
-    ?`¡Actividad completada! +${r.monedasGanadas||0} monedas · +${r.xpGanada||0} XP`
-    :(r.motivo==='membresia_requerida'?'¡Correcto! Ganar monedas aquí requiere una membresía activa.'
-      :(r.correctas>0?`Llevas ${r.correctas}/${r.total} correctas.${r.monedasGanadas?` +${r.monedasGanadas} monedas · +${r.xpGanada} XP`:''}`
-        :'Todavía no es correcto.'));
-  if(r.yaCompletado&&r.monedasGanadas)confetti();
-  const botones=r.yaCompletado
+  const exito=r.completo||r.correctas>=r.total;
+  const texto=exito?'¡Actividad completada!':(r.correctas>0?`Llevas ${r.correctas}/${r.total} correctas.`:'Todavía no es correcto.');
+  if(exito)confetti();
+  const botones=exito
     ?`<button class="btn-primary" style="width:100%;margin-top:14px" onclick="closeModal();avanzarDespuesDeClase('${_actClase.cursoId}',${_actClase.i})">Continuar a la siguiente clase →</button>`
     :`<div style="display:flex;gap:10px;margin-top:14px"><button class="btn-ghost" style="flex:1" onclick="reintentarActividad()">Intentar de nuevo</button><button class="btn-primary" style="flex:1" onclick="closeModal();avanzarDespuesDeClase('${_actClase.cursoId}',${_actClase.i})">Continuar →</button></div>`;
   document.getElementById('modal-content').innerHTML=`<div class="modal-body actividad-clase-modal" style="text-align:center;padding:30px 26px">
