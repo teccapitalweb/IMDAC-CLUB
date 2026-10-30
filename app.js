@@ -199,7 +199,7 @@ function renderSection(sec){
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
   if(sec==='perfil') cargarPerfilDatos();
-  if(sec==='juegos') cargarHistorialQuiz();
+  if(sec==='juegos'){ cargarHistorialQuiz(); cargarProgresoMisiones(); }
   if(sec==='tienda') cargarTienda();
 }
 let _newsRAF=null;
@@ -2231,7 +2231,185 @@ function renderJuegos(){
   <div class="sec-head" style="margin-top:30px"><h3>Historial de intentos</h3></div>
   <div id="quiz-historial"><div class="card"><div class="empty"><b>Cargando…</b></div></div></div>`;
 }
-function renderSelectorJuegos(){return `<div class="tool-row" style="align-items:stretch"><div class="tool-intro" style="flex:1;margin:0"><h3 style="font-family:var(--font-display);margin-bottom:6px">🏛️ Quiz del Arquitecto</h3><p style="color:var(--muted);font-size:.88rem">Preguntas de opción múltiple para practicar conceptos.</p><button class="btn-primary" style="width:auto" onclick="mostrarQuizSelector()">Jugar quiz</button></div><div class="tool-intro" style="flex:1;margin:0"><h3 style="font-family:var(--font-display);margin-bottom:6px">🔎 Detecta el error</h3><p style="color:var(--muted);font-size:.88rem">Analiza una fotografía real y marca los puntos que requieren revisión.</p><button class="btn-ghost" style="width:auto" onclick="cargarRetosVisuales()">Ver retos visuales</button></div><div class="tool-intro" style="flex:1;margin:0"><h3 style="font-family:var(--font-display);margin-bottom:6px">🏗️ Construye tu proyecto</h3><p style="color:var(--muted);font-size:.88rem">Administra una vivienda virtual: presupuesto, plazo, calidad y seguridad.</p><button class="btn-primary" style="width:auto" onclick="iniciarSimulador()">Construir proyecto</button></div><div class="tool-intro" style="flex:1;margin:0"><h3 style="font-family:var(--font-display);margin-bottom:6px">📐 Arma el plano</h3><p style="color:var(--muted);font-size:.88rem">Coloca accesos, ventanas, divisiones y mobiliario con reglas espaciales.</p><button class="btn-ghost" style="width:auto" onclick="mostrarNivelesPlano()">Armar plano</button></div></div>`;}
+/* ====== Tarjetas de misión (portada de Zona de Retos) ======
+   Inspirado en el panel VIP de un sitio de referencia que mostró el usuario:
+   4 tarjetas con franja de color + insignia "MISIÓN 0X", descripción corta,
+   meta y una barra de progreso delgada abajo. Quiz y Detecta el error abren
+   "Tu camino" (timeline de ítems individuales); Construye tu proyecto y Arma
+   el plano abren su flujo de siempre sin cambios -- son de una sola sesión
+   diaria, no tienen muchos ítems que listar en un timeline. */
+const MISIONES_JUEGOS=[
+  {id:'quiz',n:1,icono:'🏛️',titulo:'Quiz del Arquitecto',desc:'Preguntas rápidas de opción múltiple para repasar conceptos clave de tus cursos.',grad:'linear-gradient(135deg,#2b2b2e,#4a1c1c)',onclick:'abrirCaminoQuiz()'},
+  {id:'retos',n:2,icono:'🔎',titulo:'Detecta el error',desc:'Observa una fotografía real de obra e identifica los riesgos antes de que sea tarde.',grad:'linear-gradient(135deg,#7a1f1f,#ff2c2c)',onclick:'abrirCaminoRetos()'},
+  {id:'simulador',n:3,icono:'🏗️',titulo:'Construye tu proyecto',desc:'Administra una vivienda virtual: presupuesto, plazo, calidad y seguridad.',grad:'linear-gradient(135deg,#1f3a2b,#20a35b)',onclick:'iniciarSimulador()'},
+  {id:'plano',n:4,icono:'📐',titulo:'Arma el plano',desc:'Coloca accesos, ventanas, divisiones y mobiliario con reglas espaciales.',grad:'linear-gradient(135deg,#1f2a3a,#3d83d8)',onclick:'mostrarNivelesPlano()'}
+];
+function renderSelectorJuegos(){
+  return `<div class="mision-grid">${MISIONES_JUEGOS.map(m=>`
+    <button type="button" class="mision-card" data-mision="${m.id}" onclick="${m.onclick}">
+      <div class="mision-top" style="background:${m.grad}">
+        <span class="mision-badge">MISIÓN 0${m.n}</span>
+        <span class="mision-open">↗</span>
+        <span class="mision-icono">${m.icono}</span>
+      </div>
+      <div class="mision-body">
+        <h3>${m.titulo}</h3>
+        <p>${m.desc}</p>
+        <span class="mision-meta" data-mision-meta>Cargando…</span>
+      </div>
+      <div class="progress" style="margin:0"><i data-mision-prog style="width:0%"></i></div>
+    </button>`).join('')}
+  </div>`;
+}
+/* Progreso real de cada tarjeta -- se calcula aparte y se pinta encima una
+   vez que llega, mismo patrón de mejora progresiva que el resto del sitio
+   (ej. cargarHistorialQuiz). Nunca bloquea el primer pintado de la página. */
+async function cargarProgresoMisiones(){
+  const uid=CURRENT_USER&&CURRENT_USER.uid;
+  const pintar=(id,metaTxt,pct)=>{
+    const card=document.querySelector(`.mision-card[data-mision="${id}"]`);if(!card)return;
+    const meta=card.querySelector('[data-mision-meta]'),prog=card.querySelector('[data-mision-prog]');
+    if(meta)meta.textContent=metaTxt;
+    if(prog&&pct!=null)prog.style.width=Math.max(0,Math.min(100,pct))+'%';
+  };
+  if(!uid||uid==='demo'){
+    pintar('quiz','Inicia sesión para ver tu avance',0);
+    pintar('retos','Inicia sesión para ver tu avance',0);
+    pintar('simulador','Disponible hoy',0);
+    pintar('plano','Disponible hoy',0);
+    return;
+  }
+  try{
+    const [preguntasData,resueltasSnap]=await Promise.all([
+      apiFetch('/preguntas-quiz?cantidad=40'),
+      db.collection('progreso').doc(uid).collection('quizRecompensas').get()
+    ]);
+    const total=(preguntasData.preguntas||[]).length;
+    pintar('quiz',`${resueltasSnap.size}/${total} preguntas resueltas`,total?resueltasSnap.size/total*100:0);
+  }catch(e){ pintar('quiz','Preguntas de opción múltiple',0); }
+  try{
+    const [retosData,recompensasSnap]=await Promise.all([
+      apiFetch('/retos-visuales'),
+      db.collection('progreso').doc(uid).collection('retosRecompensas').get()
+    ]);
+    const totalZonas=(retosData.retos||[]).reduce((n,r)=>n+(Array.isArray(r.zonas)?r.zonas.length:0),0);
+    pintar('retos',`${recompensasSnap.size}/${totalZonas} casos identificados`,totalZonas?recompensasSnap.size/totalZonas*100:0);
+  }catch(e){ pintar('retos','Fotografías reales de obra',0); }
+  try{
+    const hoy=new Date().toISOString().slice(0,10);
+    const simHoy=await db.collection('progreso').doc(uid).collection('simuladorDiario').doc(hoy).get();
+    pintar('simulador',simHoy.exists?'Ya jugado hoy':'Disponible hoy',simHoy.exists?100:0);
+  }catch(e){ pintar('simulador','Disponible hoy',0); }
+  try{
+    const hoy=new Date().toISOString().slice(0,10);
+    const planoHoy=await Promise.all(PLANO_NIVELES.map((_,i)=>db.collection('progreso').doc(uid).collection('planoDiario').doc(`${hoy}_n${i}`).get()));
+    const jugados=planoHoy.filter(s=>s.exists).length;
+    pintar('plano',jugados>=PLANO_NIVELES.length?'Ya jugado hoy':`${jugados}/${PLANO_NIVELES.length} niveles hoy`,jugados/PLANO_NIVELES.length*100);
+  }catch(e){ pintar('plano','Disponible hoy',0); }
+}
+/* ====== "Tu camino": timeline de ítems individuales (Quiz y Detecta el error) ======
+   Mismo concepto en los dos: se listan TODOS los ítems disponibles en orden,
+   cada uno con su estado (Resuelto / Recomendado / Por resolver) según lo que
+   ya está en Firestore (quizRecompensas / retosRecompensas), y se puede abrir
+   cualquiera en el orden que el socio prefiera -- no es obligatorio ir en
+   secuencia, solo se sugiere el siguiente pendiente. */
+let _caminoQuiz=null, _caminoRetos=null;
+function caminoBannerHTML(titulo,resueltos,total){
+  const pct=total?Math.round(resueltos/total*100):0;
+  return `<div class="camino-banner">
+    <span class="camino-eyebrow">⚡ TU CAMINO</span>
+    <h2>${escHtml(titulo)}</h2>
+    <p>Elige el reto que quieras, en el orden que prefieras. Cada uno da XP la primera vez que lo resuelves y puedes repasar los que ya hiciste.</p>
+    <div class="progress" style="background:rgba(255,255,255,.18);margin-top:14px"><i style="width:${pct}%;background:#fff"></i></div>
+    <small>${resueltos} de ${total} completados</small>
+  </div>`;
+}
+function caminoTimelineHTML(items){
+  let primerPendiente=true;
+  return `<div class="camino-timeline">${items.map((it,i)=>{
+    let estado='pendiente',etiqueta='Por resolver';
+    if(it.resuelto){estado='resuelto';etiqueta='Resuelto';}
+    else if(primerPendiente){estado='recomendado';etiqueta='Recomendado';primerPendiente=false;}
+    return `<div class="camino-item camino-${estado}" onclick="${it.onclick}">
+      <div class="camino-dot">${it.resuelto?'✓':i+1}</div>
+      <div class="camino-info"><b>${escHtml(it.titulo)}</b><span>${escHtml(it.subtitulo)}</span></div>
+      <span class="camino-tag camino-tag-${estado}">${etiqueta}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+async function abrirCaminoQuiz(){
+  const a=document.getElementById('juegos-area');if(!a)return;
+  a.innerHTML=`<div class="card"><div class="empty"><b>Cargando tu camino…</b></div></div>`;
+  try{
+    const uid=CURRENT_USER&&CURRENT_USER.uid;
+    const [data,resueltasSnap]=await Promise.all([
+      apiFetch('/preguntas-quiz?cantidad=40'),
+      (uid&&uid!=='demo')?db.collection('progreso').doc(uid).collection('quizRecompensas').get():Promise.resolve({docs:[]})
+    ]);
+    const resueltas=new Set(resueltasSnap.docs.map(d=>d.id));
+    _caminoQuiz={preguntas:data.preguntas||[],resueltas};
+    renderCaminoQuiz();
+  }catch(e){ a.innerHTML=`<div class="card"><div class="empty"><b>No se pudo cargar el quiz</b></div></div><div style="margin-top:14px"><button class="btn-ghost" onclick="renderSection('juegos')">← Zona de Retos</button></div>`; }
+}
+function renderCaminoQuiz(){
+  const a=document.getElementById('juegos-area'),c=_caminoQuiz;if(!a||!c)return;
+  const items=c.preguntas.map((p,i)=>({titulo:p.pregunta,subtitulo:'Quiz del Arquitecto',resuelto:c.resueltas.has(p.id),onclick:`abrirPreguntaCamino(${i})`}));
+  const resueltos=items.filter(x=>x.resuelto).length;
+  a.innerHTML=`<div class="sec-head"><h3>🏛️ Quiz del Arquitecto</h3><button class="btn-ghost" onclick="renderSection('juegos')">← Zona de Retos</button></div>
+    ${caminoBannerHTML('Quiz del Arquitecto',resueltos,items.length)}
+    ${items.length?caminoTimelineHTML(items):`<div class="card"><div class="empty"><b>No hay preguntas todavía</b></div></div>`}
+    <p style="text-align:center;margin-top:16px"><a style="color:var(--muted);font-size:.82rem;cursor:pointer" onclick="mostrarQuizSelector()">¿Prefieres practicar por categoría o dificultad? →</a></p>`;
+}
+function abrirPreguntaCamino(idx){
+  const c=_caminoQuiz;if(!c)return;
+  const p=c.preguntas[idx];if(!p)return;
+  _quiz={preguntas:[p],i:0,aciertos:0,monedas:0,xp:0,respondida:false,modoCamino:true};
+  renderPreguntaQuiz();
+}
+async function volverACaminoQuiz(){
+  _quiz=null;
+  if(_caminoQuiz){
+    try{
+      const uid=CURRENT_USER&&CURRENT_USER.uid;
+      if(uid&&uid!=='demo'){
+        const snap=await db.collection('progreso').doc(uid).collection('quizRecompensas').get();
+        _caminoQuiz.resueltas=new Set(snap.docs.map(d=>d.id));
+      }
+    }catch(e){}
+    renderCaminoQuiz();
+  }else{ renderSection('juegos'); }
+}
+async function abrirCaminoRetos(){
+  const a=document.getElementById('juegos-area');if(!a)return;
+  a.innerHTML=`<div class="card"><div class="empty"><b>Cargando tu camino…</b></div></div>`;
+  try{
+    const uid=CURRENT_USER&&CURRENT_USER.uid;
+    const [data,recompensasSnap]=await Promise.all([
+      apiFetch('/retos-visuales'),
+      (uid&&uid!=='demo')?db.collection('progreso').doc(uid).collection('retosRecompensas').get():Promise.resolve({docs:[]})
+    ]);
+    _retosVisuales=Array.isArray(data.retos)?data.retos:[];
+    const resueltas=new Set(recompensasSnap.docs.map(d=>d.id));
+    _caminoRetos={resueltas};
+    renderCaminoRetos();
+  }catch(e){ a.innerHTML=`<div class="card"><div class="empty"><b>No se pudieron cargar los retos</b></div></div><div style="margin-top:14px"><button class="btn-ghost" onclick="renderSection('juegos')">← Zona de Retos</button></div>`; }
+}
+function renderCaminoRetos(){
+  const a=document.getElementById('juegos-area'),c=_caminoRetos;if(!a||!c)return;
+  if(!_retosVisuales.length){
+    a.innerHTML=`<div class="sec-head"><h3>🔎 Detecta el error</h3><button class="btn-ghost" onclick="renderSection('juegos')">← Zona de Retos</button></div><div class="card"><div class="empty"><b>Próximamente</b><span>El equipo IMDAC está preparando fotografías técnicas verificadas para este juego.</span></div></div>`;
+    return;
+  }
+  const items=[];
+  _retosVisuales.forEach(r=>(r.zonas||[]).forEach(z=>items.push({
+    titulo:z.titulo||r.titulo,subtitulo:'Detecta el error',
+    resuelto:c.resueltas.has(`${r.id}_${z.id}`),onclick:`abrirRetoVisual('${escHtml(r.id)}')`
+  })));
+  const resueltos=items.filter(x=>x.resuelto).length;
+  a.innerHTML=`<div class="sec-head"><h3>🔎 Detecta el error</h3><button class="btn-ghost" onclick="renderSection('juegos')">← Zona de Retos</button></div>
+    ${caminoBannerHTML('Detecta el error',resueltos,items.length)}
+    ${caminoTimelineHTML(items)}`;
+}
 function mostrarQuizSelector(){const a=document.getElementById('juegos-area');if(a)a.innerHTML=renderQuizSelector();}
 async function cargarRetosVisuales(){const a=document.getElementById('juegos-area');if(!a)return;a.innerHTML=`<div class="card"><div class="empty"><b>Cargando retos…</b></div></div>`;try{const d=await apiFetch('/retos-visuales');_retosVisuales=Array.isArray(d.retos)?d.retos:[];if(!_retosVisuales.length){a.innerHTML=`<div class="card"><div class="empty"><b>Próximamente</b><span>El equipo IMDAC está preparando fotografías técnicas verificadas para este juego.</span></div></div><div style="margin-top:14px"><button class="btn-ghost" onclick="mostrarQuizSelector()">← Volver</button></div>`;return;}a.innerHTML=`<div class="sec-head"><h3>Detecta el error</h3><button class="btn-ghost" onclick="renderSection('juegos')">← Juegos</button></div><div class="course-grid">${_retosVisuales.map(r=>`<button class="course" style="text-align:left" onclick="abrirRetoVisual('${escHtml(r.id)}')"><div class="course-img" style="background-image:url('${driveImg(r.imagen)}')"></div><div class="course-body"><span class="pill">${escHtml(r.categoria)} · ${escHtml(r.dificultad)}</span><h4>${escHtml(r.titulo)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(r.descripcion)}</p><span class="course-open">Abrir escenario <b>→</b></span></div></button>`).join('')}</div>`;}catch(e){a.innerHTML=`<div class="card"><div class="empty"><b>No se pudieron cargar los retos</b><span>Inténtalo de nuevo.</span></div></div>`;}}
 function abrirRetoVisual(id){const r=_retosVisuales.find(x=>x.id===id);if(!r)return;_retoVisual={...r,encontradas:[],inicio:Date.now(),pista:false};renderRetoVisual();}
@@ -2369,9 +2547,9 @@ function renderPreguntaQuiz(){
   area.innerHTML=`<div class="card" style="padding:26px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <span class="pill" style="background:var(--rojo-50);color:var(--rojo)">${escHtml(p.categoria||'General')} · ${dificultadLabel}</span>
-      <span style="color:var(--muted);font-size:.84rem">Pregunta ${_quiz.i+1} de ${total}</span>
+      <span style="color:var(--muted);font-size:.84rem">${_quiz.modoCamino?'Pregunta de tu camino':`Pregunta ${_quiz.i+1} de ${total}`}</span>
     </div>
-    <div class="progress" style="margin-bottom:18px"><i style="width:${Math.round((_quiz.i)/total*100)}%"></i></div>
+    ${_quiz.modoCamino?'':`<div class="progress" style="margin-bottom:18px"><i style="width:${Math.round((_quiz.i)/total*100)}%"></i></div>`}
     <div class="progress" id="qz-timer-bar" style="height:4px;margin-bottom:16px"><i id="qz-timer-fill" style="width:100%;transition:width 1s linear"></i></div>
     <h3 style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:18px">${escHtml(p.pregunta)}</h3>
     <div id="qz-opciones" style="display:flex;flex-direction:column;gap:10px">
@@ -2412,7 +2590,7 @@ async function responderQuiz(opcionIndex){
       ${r.motivo==='membresia_requerida'?`<p style="color:var(--rojo);font-size:.82rem;margin-top:8px">🔒 Esto habría ganado monedas con una membresía activa.</p>`:''}
       ${r.motivo==='ya_recompensada'?`<p style="color:var(--muted);font-size:.82rem;margin-top:8px">Ya habías ganado la recompensa de esta pregunta antes.</p>`:''}
       ${r.motivo==='limite_diario'?`<p style="color:var(--muted);font-size:.82rem;margin-top:8px">Llegaste al límite de recompensas del día — vuelve mañana por más.</p>`:''}
-      <button class="btn-primary" style="width:auto;padding:12px 26px;margin-top:14px" onclick="${esUltima?'finalizarQuiz()':'siguientePreguntaQuiz()'}">${esUltima?'Ver resultados':'Siguiente pregunta →'}</button>`;
+      <button class="btn-primary" style="width:auto;padding:12px 26px;margin-top:14px" onclick="${_quiz.modoCamino?'volverACaminoQuiz()':(esUltima?'finalizarQuiz()':'siguientePreguntaQuiz()')}">${_quiz.modoCamino?'Volver a tu camino →':(esUltima?'Ver resultados':'Siguiente pregunta →')}</button>`;
   }catch(e){
     toast(e.message||'No se pudo calificar tu respuesta',{type:'err'});
   }
