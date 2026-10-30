@@ -77,8 +77,8 @@ const NAV=[
     {id:"logros",label:"Logros",icon:'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'},
     {id:"certificados",label:"Certificados",icon:'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
   ]},
-  {group:"Zona de Juegos",items:[
-    {id:"juegos",label:"Zona de Juegos",icon:'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
+  {group:"Zona de Retos",items:[
+    {id:"juegos",label:"Zona de Retos",icon:'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
     {id:"tienda",label:"Tienda de Recompensas",icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'},
   ]},
   {group:"Herramientas",items:[
@@ -2161,7 +2161,7 @@ function calcTemp(from){
   else c.value=+(((+f.value-32)*5/9).toFixed(2));
 }
 
-/* ====== Zona de Juegos — Quiz del Arquitecto (Fase 1) ======
+/* ====== Zona de Retos — Quiz del Arquitecto (Fase 1) ======
    Jugar y ver la explicación es libre para cualquiera (mismo patrón que
    Herramientas/Foro/Directorio); solo ganar monedas pide membresía. El
    servidor es quien califica y decide la recompensa -- aquí solo se pinta
@@ -2214,9 +2214,9 @@ const SIM_ETAPAS=[
 ];
 
 function renderJuegos(){
-  if(LOADING)return `<h1 class="page-h">Zona de Juegos</h1><p class="page-sub">Aprende jugando.</p>`+skelGrid(2);
+  if(LOADING)return `<h1 class="page-h">Zona de Retos</h1><p class="page-sub">Aprende jugando.</p>`+skelGrid(2);
   const member=_tieneAcceso();
-  return `<h1 class="page-h">Zona de Juegos</h1>
+  return `<h1 class="page-h">Zona de Retos</h1>
   <p class="page-sub">Pon a prueba lo que sabes de arquitectura y construcción. Responder es gratis; ganar monedas requiere membresía.</p>
   ${member?'':`<div class="dir-visitor-banner">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
@@ -2450,7 +2450,7 @@ async function cargarHistorialQuiz(){
 }
 
 /* ====== Tienda de recompensas ======
-   Las monedas se ganan en la Zona de Juegos y se gastan aquí: plantillas
+   Las monedas se ganan en la Zona de Retos y se gastan aquí: plantillas
    reales para descargar, o un desbloqueo anticipado (de un solo uso por
    cuenta) del curso que esté esperando el goteo de 7 días. El archivo real
    solo se conoce después de canjear -- el listado nunca trae la URL. */
@@ -2459,7 +2459,7 @@ function renderTienda(){
   if(LOADING)return `<h1 class="page-h">Tienda de Recompensas</h1><p class="page-sub">Canjea tus monedas.</p>`+skelGrid(3);
   const member=_tieneAcceso();
   return `<h1 class="page-h">Tienda de Recompensas</h1>
-  <p class="page-sub">Cambia las monedas que ganas en la Zona de Juegos por plantillas reales o por adelantar tu próximo curso.</p>
+  <p class="page-sub">Cambia las monedas que ganas en la Zona de Retos por plantillas reales o por adelantar tu próximo curso.</p>
   ${member?'':`<div class="dir-visitor-banner">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
     <span>Puedes ver la tienda libremente. <b>Canjear</b> requiere tu membresía activa.</span>
@@ -2662,7 +2662,7 @@ async function siguienteClase(cursoId,i){
   const cl=(c.listaClases||[])[i];
   // Si esta clase tiene una actividad (ahorcado, V/F, etc.), se muestra antes
   // de avanzar -- pero nunca bloquea: si falla la carga o el socio la salta,
-  // igual avanza (misma filosofía que el resto de Zona de Juegos: jugar es
+  // igual avanza (misma filosofía que el resto de Zona de Retos: jugar es
   // opcional, el premio es lo que requiere membresía).
   if(cl&&cl.actividad&&cl.actividad.tipo){
     cerrarVideoModal();
@@ -2696,7 +2696,7 @@ function avanzarDespuesDeClase(cursoId,i){
    El admin captura 7 tipos de actividad por clase (ahorcado, V/F, opción
    múltiple, sopa de letras, memorama, crucigrama, rompecabezas). Son
    refuerzo de lo visto en la clase -- NO dan monedas ni XP, eso solo se
-   gana en Zona de Juegos (Quiz, retos, etc.). La respuesta nunca viaja
+   gana en Zona de Retos (Quiz, retos, etc.). La respuesta nunca viaja
    hasta que se califica -- /clase-actividad/:cursoId/:claseIndex entrega
    el contenido ya saneado según el tipo, y /responder califica contra la
    copia real en Firestore. Jugar es opcional (se puede "saltar"). */
