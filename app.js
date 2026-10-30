@@ -2657,18 +2657,26 @@ function renderArticulosTienda(){
   if(!_tienda||!_tienda.articulos.length)return `<div class="card"><div class="empty"><b>Aún no hay artículos</b><span>El equipo IMDAC está preparando las primeras recompensas.</span></div></div>`;
   return `<div class="course-grid">${_tienda.articulos.map(tiendaArticuloCardHTML).join('')}</div>`;
 }
+function tiendaArticuloThumbHTML(a){
+  const hasImg=!!(a.img&&String(a.img).trim());
+  const cover=hasImg?driveImg(a.img,400):'';
+  return `<div class="mc-thumb">
+    ${hasImg?`<img class="mc-img" src="${escHtml(cover)}" alt="" loading="lazy" onerror="matImgFail(this)">`:''}
+    <span class="mc-fallback-ic" style="display:${hasImg?'none':'flex'}">${a.tipo==='curso_anticipado'?'📚':'📄'}</span>
+  </div>`;
+}
 function tiendaArticuloCardHTML(a){
   const puede=_tienda.monedas>=a.costoMonedas;
   if(a.tipo==='curso_anticipado'){
-    return `<div class="card" style="padding:18px"><span class="pill">📚 Curso</span><h4 style="margin:8px 0">${escHtml(a.nombre)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(a.descripcion)}</p><b style="display:block;margin:10px 0">${a.costoMonedas} monedas</b>
+    return `<div class="material-card" style="cursor:default">${tiendaArticuloThumbHTML(a)}<div class="mc-body"><span class="pill">📚 Curso</span><h4 style="margin:8px 0">${escHtml(a.nombre)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(a.descripcion)}</p><b style="display:block;margin:10px 0">${a.costoMonedas} monedas</b>
       ${a.usado?`<span style="color:var(--muted);font-size:.84rem">Ya usaste tu desbloqueo anticipado.</span>`
         :`<button class="btn-primary" style="width:auto" ${puede?'':'disabled'} onclick="abrirSelectorCursoAnticipado('${a.id}')">${puede?'Elegir curso a desbloquear':'Te faltan monedas'}</button>`}
-    </div>`;
+    </div></div>`;
   }
-  return `<div class="card" style="padding:18px"><span class="pill">📄 Archivo</span><h4 style="margin:8px 0">${escHtml(a.nombre)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(a.descripcion)}</p><b style="display:block;margin:10px 0">${a.comprado?'Ya es tuyo':a.costoMonedas+' monedas'}</b>
+  return `<div class="material-card" style="cursor:default">${tiendaArticuloThumbHTML(a)}<div class="mc-body"><span class="pill">📄 Archivo</span><h4 style="margin:8px 0">${escHtml(a.nombre)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(a.descripcion)}</p><b style="display:block;margin:10px 0">${a.comprado?'Ya es tuyo':a.costoMonedas+' monedas'}</b>
     ${a.comprado?`<button class="btn-ghost" style="width:auto" onclick="descargarArticuloTienda('${a.id}')">Descargar de nuevo</button>`
       :`<button class="btn-primary" style="width:auto" ${puede?'':'disabled'} onclick="canjearArticuloTienda('${a.id}')">${puede?'Canjear':'Te faltan monedas'}</button>`}
-  </div>`;
+  </div></div>`;
 }
 function cursosBloqueadosPorGoteo(){ return (DATA.cursos||[]).filter(c=>dripStatus(c).locked); }
 function abrirSelectorCursoAnticipado(articuloId){
