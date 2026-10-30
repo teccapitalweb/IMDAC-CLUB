@@ -388,6 +388,29 @@ body.logged #app{display:block}
 .camino-tag-resuelto{background:#e4f7ea;color:#16834a}
 @media(max-width:560px){.camino-info b{white-space:normal}}
 
+/* DETECTA EL ERROR: formato "caso de investigación" */
+.reto-eyebrow{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--rojo)}
+.reto-headrow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:6px 0 4px}
+.reto-title{font-family:var(--font-display);font-size:1.4rem;font-weight:700;margin:0}
+.reto-contador{flex-shrink:0;background:var(--gris-100);color:var(--muted);font-weight:800;font-size:.84rem;padding:6px 14px;border-radius:50px}
+.reto-instruccion{color:var(--muted);font-size:.88rem;margin-bottom:16px}
+.reto-stage{position:relative;max-width:980px;margin:0 auto;cursor:crosshair;line-height:0;border-radius:14px;overflow:hidden}
+.reto-stage img{display:block;width:100%;max-height:560px;object-fit:contain;background:#111}
+.reto-inspect-badge{position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:6px;background:rgba(10,10,10,.72);color:#fff;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:6px 12px;border-radius:50px;pointer-events:none}
+.reto-marker{position:absolute;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;transform:translate(-50%,-50%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);font-weight:800;color:#fff;font-size:.9rem;pointer-events:none}
+.reto-marker-ok{background:#20a35b}
+.reto-marker-err{background:#d33;animation:retoErrFade 1.6s ease forwards}
+@keyframes retoErrFade{0%,70%{opacity:1}100%{opacity:0}}
+.reto-feedback{margin-top:16px;padding:14px 16px;border-radius:12px;background:var(--gris-100);color:var(--muted);font-size:.86rem;border:1px solid var(--line)}
+.reto-feedback.ok{background:#e4f7ea;color:#16834a;border-color:#bfe8cd}
+.reto-feedback.err{background:#fdeeea;color:#a83c20;border-color:#f6cfc2}
+.reto-hallazgos{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:14px}
+.reto-hallazgo{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+.reto-hallazgo.found{background:#e4f7ea;border-color:#bfe8cd}
+.reto-hallazgo b{display:block;font-size:.84rem;margin-bottom:3px}
+.reto-hallazgo span{font-size:.78rem;color:var(--muted)}
+.reto-hallazgo.found span{color:#16834a}
+
 /* TARJETA DE CURSO v2: foto completa + degradado, como DulceLab */
 .course-v2{background:transparent;border:none;box-shadow:none}
 .course-v2:hover{transform:none;box-shadow:none}

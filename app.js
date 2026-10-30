@@ -2412,16 +2412,80 @@ function renderCaminoRetos(){
 function mostrarQuizSelector(){const a=document.getElementById('juegos-area');if(a)a.innerHTML=renderQuizSelector();}
 async function cargarRetosVisuales(){const a=document.getElementById('juegos-area');if(!a)return;a.innerHTML=`<div class="card"><div class="empty"><b>Cargando retos…</b></div></div>`;try{const d=await apiFetch('/retos-visuales');_retosVisuales=Array.isArray(d.retos)?d.retos:[];if(!_retosVisuales.length){a.innerHTML=`<div class="card"><div class="empty"><b>Próximamente</b><span>El equipo IMDAC está preparando fotografías técnicas verificadas para este juego.</span></div></div><div style="margin-top:14px"><button class="btn-ghost" onclick="mostrarQuizSelector()">← Volver</button></div>`;return;}a.innerHTML=`<div class="sec-head"><h3>Detecta el error</h3><button class="btn-ghost" onclick="renderSection('juegos')">← Juegos</button></div><div class="course-grid">${_retosVisuales.map(r=>`<button class="course" style="text-align:left" onclick="abrirRetoVisual('${escHtml(r.id)}')"><div class="course-img" style="background-image:url('${driveImg(r.imagen)}')"></div><div class="course-body"><span class="pill">${escHtml(r.categoria)} · ${escHtml(r.dificultad)}</span><h4>${escHtml(r.titulo)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(r.descripcion)}</p><span class="course-open">Abrir escenario <b>→</b></span></div></button>`).join('')}</div>`;}catch(e){a.innerHTML=`<div class="card"><div class="empty"><b>No se pudieron cargar los retos</b><span>Inténtalo de nuevo.</span></div></div>`;}}
 function abrirRetoVisual(id){const r=_retosVisuales.find(x=>x.id===id);if(!r)return;_retoVisual={...r,encontradas:[],inicio:Date.now(),pista:false};renderRetoVisual();}
-function renderRetoVisual(){const a=document.getElementById('juegos-area'),r=_retoVisual;if(!a||!r)return;a.innerHTML=`<div class="sec-head"><h3>${escHtml(r.titulo)}</h3><button class="btn-ghost" onclick="cargarRetosVisuales()">← Escenarios</button></div><div class="card" style="padding:20px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px"><span class="pill">${escHtml(r.categoria)} · ${escHtml(r.dificultad)}</span><span id="reto-contador">${r.encontradas.length}/${r.zonas.length} puntos identificados</span></div><p style="color:var(--muted);margin-bottom:14px">Haz clic en la fotografía sobre los aspectos que requieren revisión. La respuesta es educativa: confirma siempre las condiciones reales en sitio.</p><div id="reto-imagen" style="position:relative;max-width:980px;margin:auto;cursor:crosshair;line-height:0"><img src="${driveImg(r.imagen)}" alt="${escHtml(r.titulo)}" style="display:block;width:100%;max-height:560px;object-fit:contain;background:#111;border-radius:14px" onclick="responderRetoVisual(event)">${r.encontradas.map(z=>`<i style="position:absolute;left:${z.x+z.w/2}%;top:${z.y+z.h/2}%;width:26px;height:26px;border-radius:50%;background:#20a35b;border:3px solid #fff;transform:translate(-50%,-50%);box-shadow:0 1px 5px #000"></i>`).join('')}</div><div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn-ghost" onclick="mostrarPistaReto()">💡 Mostrar pista</button><span id="reto-pista" style="color:var(--muted);align-self:center"></span></div><p style="font-size:.78rem;color:var(--muted);margin-top:14px">Fuente de la imagen: <a href="${escHtml(r.fuente)}" target="_blank" rel="noopener">${escHtml(r.credito||r.fuente||'ver fuente')}</a></p></div>`;}
+/* Formato "caso de investigación" (inspirado en una referencia que mostró el
+   usuario): encabezado con el número de reto, contador X/N, insignia sobre
+   la foto, marcador fijo verde al acertar / rojo temporal al fallar, caja de
+   retroalimentación con el último resultado, y una tarjeta por cada hallazgo
+   esperado. El servidor sigue siendo la única fuente de verdad: el título y
+   el feedback de cada zona NUNCA llegan al cliente hasta que acierta esa
+   zona -- por eso las tarjetas "pendientes" usan un texto genérico, nunca el
+   título real (eso filtraría la respuesta antes de tiempo). */
+function retoNumero(r){const i=_retosVisuales.findIndex(x=>x.id===r.id);return i>=0?i+1:1;}
+function retoMarkersHTML(r){
+  let html=r.encontradas.map(z=>`<span class="reto-marker reto-marker-ok" style="left:${z.x+z.w/2}%;top:${z.y+z.h/2}%">✓</span>`).join('');
+  if(r._errorMarcador)html+=`<span class="reto-marker reto-marker-err" style="left:${r._errorMarcador.x}%;top:${r._errorMarcador.y}%">✕</span>`;
+  return html;
+}
+function retoHallazgoCardHTML(r,idx){
+  const zonaId=r.zonas[idx].id,encontrada=r.encontradas.find(e=>e.id===zonaId);
+  if(encontrada)return `<div class="reto-hallazgo found"><b>✓ ${escHtml(encontrada.titulo||('Hallazgo '+(idx+1)))}</b><span>${escHtml(encontrada.feedback||'')}</span></div>`;
+  return `<div class="reto-hallazgo"><b>${idx+1}. Hallazgo pendiente</b><span>Busca una condición insegura en la escena.</span></div>`;
+}
+function retoFeedbackHTML(r){
+  const f=r._feedback;
+  if(!f)return `<div class="reto-feedback">Los hallazgos aparecerán aquí después de identificarlos.</div>`;
+  return `<div class="reto-feedback ${f.ok?'ok':'err'}">${f.ok?'Hallazgo correcto.':'Selección incorrecta.'} ${escHtml(f.texto||'')}</div>`;
+}
+function renderRetoVisual(){
+  const a=document.getElementById('juegos-area'),r=_retoVisual;if(!a||!r)return;
+  const total=r.zonas.length;
+  a.innerHTML=`<div class="sec-head"><h3>🔎 Detecta el error</h3><button class="btn-ghost" onclick="cargarRetosVisuales()">← Escenarios</button></div>
+  <div class="card" style="padding:22px">
+    <div class="reto-eyebrow">Detecta el error · Reto ${retoNumero(r)} · ${escHtml(r.titulo)}</div>
+    <div class="reto-headrow"><h2 class="reto-title">Encuentra ${total} riesgo${total===1?'':'s'} en la imagen</h2><span class="reto-contador">${r.encontradas.length}/${total}</span></div>
+    <p class="reto-instruccion">Analiza la escena y toca directamente el objeto o la condición que representa un peligro.</p>
+    <div class="reto-stage">
+      <span class="reto-inspect-badge">🔍 Haz clic para inspeccionar</span>
+      <img src="${driveImg(r.imagen)}" alt="${escHtml(r.titulo)}" onclick="responderRetoVisual(event)">
+      ${retoMarkersHTML(r)}
+    </div>
+    ${retoFeedbackHTML(r)}
+    <div class="reto-hallazgos">${r.zonas.map((z,i)=>retoHallazgoCardHTML(r,i)).join('')}</div>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn-ghost" onclick="mostrarPistaReto()">💡 Mostrar pista</button><span id="reto-pista" style="color:var(--muted);align-self:center"></span></div>
+    <p style="font-size:.78rem;color:var(--muted);margin-top:14px">Fuente de la imagen: <a href="${escHtml(r.fuente)}" target="_blank" rel="noopener">${escHtml(r.credito||r.fuente||'ver fuente')}</a></p>
+  </div>`;
+}
 function mostrarPistaReto(){if(!_retoVisual)return;const e=document.getElementById('reto-pista');if(e)e.textContent=_retoVisual.pista||'Revisa bordes, accesos, protecciones colectivas y el orden de la zona de trabajo.';}
-async function responderRetoVisual(ev){const r=_retoVisual,img=ev.currentTarget;if(!r||!img)return;const b=img.getBoundingClientRect(),x=(ev.clientX-b.left)/b.width*100,y=(ev.clientY-b.top)/b.height*100;try{const out=await apiFetch(`/retos-visuales/${encodeURIComponent(r.id)}/responder`,{method:'POST',body:{x,y}});if(!out.correcta){toast(out.feedback);return;}if(r.encontradas.some(z=>z.id===out.zonaId)){toast('Ese punto ya fue identificado.');return;}const z=r.zonas.find(q=>q.id===out.zonaId);if(z)r.encontradas.push(z);
-  if(out.monedasGanadas){
-    toast(`✓ ${out.titulo} · +${out.monedasGanadas} monedas · +${out.xpGanada} XP`);
-    actualizarSaldoJuegos(out.monedasGanadas,out.xpGanada);
-  }else{
-    toast(`✓ ${out.titulo}: ${out.feedback}${out.motivo==='membresia_requerida'?' 🔒 Esto habría ganado monedas con una membresía activa.':''}`);
-  }
-  renderRetoVisual();if(r.encontradas.length===r.zonas.length)toast('¡Escenario completado!');}catch(e){toast(e.message||'No se pudo revisar el punto');}}
+async function responderRetoVisual(ev){
+  const r=_retoVisual,img=ev.currentTarget;if(!r||!img)return;
+  const b=img.getBoundingClientRect(),x=(ev.clientX-b.left)/b.width*100,y=(ev.clientY-b.top)/b.height*100;
+  try{
+    const out=await apiFetch(`/retos-visuales/${encodeURIComponent(r.id)}/responder`,{method:'POST',body:{x,y}});
+    if(!out.correcta){
+      r._feedback={ok:false,texto:out.feedback};
+      r._errorMarcador={x,y};
+      renderRetoVisual();
+      setTimeout(()=>{ if(_retoVisual===r){ r._errorMarcador=null; renderRetoVisual(); } },1600);
+      return;
+    }
+    if(r.encontradas.some(z=>z.id===out.zonaId)){
+      r._feedback={ok:true,texto:'Ese punto ya fue identificado.'};
+      renderRetoVisual();
+      return;
+    }
+    const z=r.zonas.find(q=>q.id===out.zonaId);
+    if(z)r.encontradas.push({...z,titulo:out.titulo,feedback:out.feedback});
+    r._feedback={ok:true,texto:out.feedback};
+    if(out.monedasGanadas){
+      toast(`+${out.monedasGanadas} monedas · +${out.xpGanada} XP`);
+      actualizarSaldoJuegos(out.monedasGanadas,out.xpGanada);
+    }else if(out.motivo==='membresia_requerida'){
+      toast('🔒 Esto habría ganado monedas con una membresía activa.');
+    }
+    renderRetoVisual();
+    if(r.encontradas.length===r.zonas.length)toast('¡Escenario completado!');
+  }catch(e){ toast(e.message||'No se pudo revisar el punto'); }
+}
 function actualizarSaldoJuegos(monedas,xp){
   if(monedas)DATA.monedas=(Number(DATA.monedas)||0)+monedas;
   if(xp)DATA.xp=(Number(DATA.xp)||0)+xp;
