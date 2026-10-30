@@ -744,18 +744,17 @@ function renderMaterial(){
   cursosConMaterial.forEach(c=>{
     const mats=porCurso[c.id];
     const lista=c.listaClases||[];
-    const porClase={}; const generales=[];
-    mats.forEach(m=>{
-      const i=m.claseId?lista.findIndex(l=>l.lessonId===m.claseId):-1;
-      if(i>=0)(porClase[i]=porClase[i]||[]).push(m); else generales.push(m);
+    // Un solo grid por curso, ordenado por clase (y lo sin-clase al final) --
+    // cada tarjeta ya muestra "Clase N: ..." en su pie, así que separar en
+    // una sección aparte por cada clase solo lograba que, con un material
+    // por clase, se viera apilado en una sola columna en vez de fluir en
+    // filas como el resto de las cuadrículas del sitio.
+    const items=mats.slice().sort((a,b)=>{
+      const ia=a.claseId?lista.findIndex(l=>l.lessonId===a.claseId):-1;
+      const ib=b.claseId?lista.findIndex(l=>l.lessonId===b.claseId):-1;
+      return (ia<0?Infinity:ia)-(ib<0?Infinity:ib);
     });
-    let bloques='';
-    lista.forEach((l,i)=>{
-      const items=porClase[i]; if(!items||!items.length)return;
-      bloques+=`<div class="sec-head" style="margin:18px 0 12px"><h4 style="font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--muted)">Clase ${i+1}: ${escHtml(l.titulo||'')}</h4></div><div class="course-grid">${items.map(materialCard).join('')}</div>`;
-    });
-    if(generales.length)bloques+=`<div class="sec-head" style="margin:18px 0 12px"><h4 style="font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--muted)">General del curso</h4></div><div class="course-grid">${generales.map(materialCard).join('')}</div>`;
-    secciones+=`<div class="sec-head" style="margin-top:30px"><h3>📁 ${escHtml(c.titulo)}</h3></div>${bloques}`;
+    secciones+=`<div class="sec-head" style="margin-top:30px"><h3>📁 ${escHtml(c.titulo)}</h3></div><div class="course-grid">${items.map(materialCard).join('')}</div>`;
   });
   if(sinCurso.length)secciones+=`<div class="sec-head" style="margin-top:30px"><h3>📄 Material general</h3></div><div class="course-grid">${ordenarMaterial(sinCurso).map(materialCard).join('')}</div>`;
 
