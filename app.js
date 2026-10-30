@@ -2463,7 +2463,8 @@ function renderRetoVisual(){
     <p class="reto-instruccion">Analiza la escena y toca directamente el objeto o la condición que representa un peligro.</p>
     <div class="reto-stage">
       <span class="reto-inspect-badge">🔍 Haz clic para inspeccionar</span>
-      <img src="${driveImg(r.imagen)}" alt="${escHtml(r.titulo)}" onclick="responderRetoVisual(event)">
+      <img src="${driveImg(r.imagen)}" alt="${escHtml(r.titulo)}" onclick="responderRetoVisual(event)" onerror="retoImgFail(this)">
+      <div class="reto-img-error" style="display:none">⚠️ No se pudo cargar la imagen.<br><a onclick="renderRetoVisual()">Reintentar</a></div>
       ${retoMarkersHTML(r)}
     </div>
     ${retoFeedbackHTML(r)}
@@ -2471,6 +2472,11 @@ function renderRetoVisual(){
     <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn-ghost" onclick="mostrarPistaReto()">💡 Mostrar pista</button><span id="reto-pista" style="color:var(--muted);align-self:center"></span></div>
     <p style="font-size:.78rem;color:var(--muted);margin-top:14px">Fuente de la imagen: <a href="${escHtml(r.fuente)}" target="_blank" rel="noopener">${escHtml(r.credito||r.fuente||'ver fuente')}</a></p>
   </div>`;
+}
+function retoImgFail(img){
+  img.style.display='none';
+  const err=img.nextElementSibling;
+  if(err&&err.classList.contains('reto-img-error'))err.style.display='flex';
 }
 function mostrarPistaReto(){if(!_retoVisual)return;const e=document.getElementById('reto-pista');if(e)e.textContent=_retoVisual.pista||'Revisa bordes, accesos, protecciones colectivas y el orden de la zona de trabajo.';}
 async function responderRetoVisual(ev){
