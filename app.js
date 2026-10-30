@@ -2410,7 +2410,24 @@ function renderCaminoRetos(){
     ${caminoTimelineHTML(items)}`;
 }
 function mostrarQuizSelector(){const a=document.getElementById('juegos-area');if(a)a.innerHTML=renderQuizSelector();}
-async function cargarRetosVisuales(){const a=document.getElementById('juegos-area');if(!a)return;a.innerHTML=`<div class="card"><div class="empty"><b>Cargando retos…</b></div></div>`;try{const d=await apiFetch('/retos-visuales');_retosVisuales=Array.isArray(d.retos)?d.retos:[];if(!_retosVisuales.length){a.innerHTML=`<div class="card"><div class="empty"><b>Próximamente</b><span>El equipo IMDAC está preparando fotografías técnicas verificadas para este juego.</span></div></div><div style="margin-top:14px"><button class="btn-ghost" onclick="mostrarQuizSelector()">← Volver</button></div>`;return;}a.innerHTML=`<div class="sec-head"><h3>Detecta el error</h3><button class="btn-ghost" onclick="renderSection('juegos')">← Juegos</button></div><div class="course-grid">${_retosVisuales.map(r=>`<button class="course" style="text-align:left" onclick="abrirRetoVisual('${escHtml(r.id)}')"><div class="course-img" style="background-image:url('${driveImg(r.imagen)}')"></div><div class="course-body"><span class="pill">${escHtml(r.categoria)} · ${escHtml(r.dificultad)}</span><h4>${escHtml(r.titulo)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(r.descripcion)}</p><span class="course-open">Abrir escenario <b>→</b></span></div></button>`).join('')}</div>`;}catch(e){a.innerHTML=`<div class="card"><div class="empty"><b>No se pudieron cargar los retos</b><span>Inténtalo de nuevo.</span></div></div>`;}}
+async function cargarRetosVisuales(){
+  const a=document.getElementById('juegos-area');if(!a)return;
+  a.innerHTML=`<div class="card"><div class="empty"><b>Cargando retos…</b></div></div>`;
+  try{
+    const uid=CURRENT_USER&&CURRENT_USER.uid;
+    const [d,recompensasSnap]=await Promise.all([
+      apiFetch('/retos-visuales'),
+      (uid&&uid!=='demo')?db.collection('progreso').doc(uid).collection('retosRecompensas').get():Promise.resolve({docs:[]})
+    ]);
+    _retosVisuales=Array.isArray(d.retos)?d.retos:[];
+    if(!_retosVisuales.length){a.innerHTML=`<div class="card"><div class="empty"><b>Próximamente</b><span>El equipo IMDAC está preparando fotografías técnicas verificadas para este juego.</span></div></div><div style="margin-top:14px"><button class="btn-ghost" onclick="mostrarQuizSelector()">← Volver</button></div>`;return;}
+    const resueltas=new Set(recompensasSnap.docs.map(x=>x.id));
+    a.innerHTML=`<div class="sec-head"><h3>Detecta el error</h3><button class="btn-ghost" onclick="renderSection('juegos')">← Juegos</button></div><div class="course-grid">${_retosVisuales.map(r=>{
+      const completo=r.zonas.length>0&&r.zonas.every(z=>resueltas.has(`${r.id}_${z.id}`));
+      return `<button class="course" style="text-align:left" onclick="abrirRetoVisual('${escHtml(r.id)}')"><div class="course-img" style="background-image:url('${driveImg(r.imagen)}')">${completo?'<span class="cc-badge cc-badge-free" style="left:auto;right:12px">✓ Resuelto</span>':''}</div><div class="course-body"><span class="pill">${escHtml(r.categoria)} · ${escHtml(r.dificultad)}</span><h4>${escHtml(r.titulo)}</h4><p style="color:var(--muted);font-size:.86rem">${escHtml(r.descripcion)}</p><span class="course-open">${completo?'Repasar escenario':'Abrir escenario'} <b>→</b></span></div></button>`;
+    }).join('')}</div>`;
+  }catch(e){a.innerHTML=`<div class="card"><div class="empty"><b>No se pudieron cargar los retos</b><span>Inténtalo de nuevo.</span></div></div>`;}
+}
 function abrirRetoVisual(id){const r=_retosVisuales.find(x=>x.id===id);if(!r)return;_retoVisual={...r,encontradas:[],inicio:Date.now(),pista:false};renderRetoVisual();}
 /* Formato "caso de investigación" (inspirado en una referencia que mostró el
    usuario): encabezado con el número de reto, contador X/N, insignia sobre
@@ -2483,7 +2500,14 @@ async function responderRetoVisual(ev){
       toast('🔒 Esto habría ganado monedas con una membresía activa.');
     }
     renderRetoVisual();
-    if(r.encontradas.length===r.zonas.length)toast('¡Escenario completado!');
+    if(r.encontradas.length===r.zonas.length){
+      toast('¡Escenario completado!');
+      if(typeof confetti==='function')confetti();
+      // Se queda el tiempo justo para que se vea el último hallazgo marcado y
+      // el toast, luego regresa solo a la lista -- ya no hay nada más que
+      // hacer aquí, y reabrir este mismo reto ya no vuelve a dar monedas.
+      setTimeout(()=>{ if(_retoVisual===r)cargarRetosVisuales(); },1800);
+    }
   }catch(e){ toast(e.message||'No se pudo revisar el punto'); }
 }
 function actualizarSaldoJuegos(monedas,xp){
