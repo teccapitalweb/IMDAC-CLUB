@@ -4052,15 +4052,16 @@ async function mostrarModalRegaloOnboarding(){
   let data;
   try{ data=await apiFetch('/regalo-bienvenida',{method:'POST'}); }
   catch(e){ return siguientePasoOnboarding(); } // si falla, no se traba el onboarding por esto
+  DATA.monedas=Number(data.monedas)||(Number(DATA.monedas)||0);
   document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="text-align:center;padding:32px 26px">
     <div style="width:62px;height:62px;border-radius:18px;background:var(--rojo-50);display:grid;place-items:center;margin:0 auto 14px;position:relative">
       <svg width="28" height="28" fill="none" stroke="var(--rojo)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12v10H4V12M2 7h20v5H2V7zm10 0v15M12 7a2.5 2.5 0 11-2.5-2.5h2.5v2.5zm0 0a2.5 2.5 0 102.5-2.5H12v2.5z"/></svg>
       <span style="position:absolute;top:-8px;right:-14px;background:var(--rojo);color:#fff;font-size:.68rem;font-weight:800;padding:3px 7px;border-radius:50px">+${data.regalo}</span>
     </div>
     <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Regalo de bienvenida</div>
-    <h3 style="font-family:var(--font-display);font-size:1.25rem;margin-bottom:10px">¡Tienes ${data.regalo} XP de regalo!</h3>
-    <p style="color:var(--muted);font-size:.86rem;line-height:1.55;margin-bottom:18px">Te los damos por unirte al Club IMDAC. Ya están en tu saldo y sirven para desbloquear material de la biblioteca más adelante — necesitas tu membresía activa para poder canjearlos. Sigue el Club para ganar más.</p>
-    <div class="calc-result" style="margin-bottom:18px"><b>${data.xp} XP</b><span>Tu saldo actual</span></div>
+    <h3 style="font-family:var(--font-display);font-size:1.25rem;margin-bottom:10px">¡Tienes ${data.regalo} monedas de regalo!</h3>
+    <p style="color:var(--muted);font-size:.86rem;line-height:1.55;margin-bottom:18px">Te las damos por unirte al Club IMDAC. Ya están en tu saldo, pero necesitas tu membresía activa para poder canjearlas en la Tienda de Recompensas. Sigue el Club para ganar más.</p>
+    <div class="calc-result" style="margin-bottom:18px"><b>${data.monedas} monedas</b><span>Tu saldo actual</span></div>
     <div style="display:flex;gap:10px">
       <button class="btn-ghost" style="flex:1" onclick="closeModal();siguientePasoOnboarding()">Más tarde</button>
       <button class="btn-primary" style="flex:1" onclick="closeModal();siguientePasoOnboarding()">Elegir mi curso →</button>
