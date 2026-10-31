@@ -2247,8 +2247,8 @@ const MISIONES_JUEGOS=[
 function renderSelectorJuegos(){
   return `<div class="mision-grid">${MISIONES_JUEGOS.map(m=>`
     <button type="button" class="mision-card" data-mision="${m.id}" onclick="${m.onclick}">
-      <div class="mision-top" style="background-image:linear-gradient(180deg,rgba(8,8,10,.08),rgba(8,8,10,.16)),url('${m.portada}')">
-        ${m.portada?'':`<span class="mision-badge">MISIÓN 0${m.n}</span>`}
+      <div class="mision-top">
+        <img class="mision-cover" src="${m.portada}" alt="Portada de ${m.titulo}">
         <span class="mision-open">↗</span>
       </div>
       <div class="mision-body">
