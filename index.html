@@ -144,7 +144,12 @@ body.logged #app{display:block}
 .sb-brand .bs{font-size:.66rem;color:var(--muted);letter-spacing:.04em;margin-top:3px}
 .sb-nav{flex:1;padding:6px 12px 20px}
 .sb-group{margin-top:18px}
-.sb-group-t{font-size:.68rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:0 12px 8px}
+.sb-group-t{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:.68rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:0 12px 8px}
+.sb-group-t-toggle{cursor:pointer;user-select:none}
+.sb-group-t-toggle:hover{color:var(--text)}
+.sb-group-arrow{width:12px;height:12px;flex-shrink:0;transition:transform .18s}
+.sb-group.collapsed .sb-group-arrow{transform:rotate(-90deg)}
+.sb-group.collapsed .sb-group-items{display:none}
 .sb-item{display:flex;align-items:center;gap:13px;padding:10px 12px;border-radius:11px;color:var(--gris-500);font-weight:500;font-size:.93rem;transition:.16s;cursor:pointer;margin-bottom:2px}
 .sb-item svg{width:19px;height:19px;flex-shrink:0;stroke-width:1.8}
 .sb-item:hover{background:var(--base);color:var(--text)}
