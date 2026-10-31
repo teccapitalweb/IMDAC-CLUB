@@ -2239,18 +2239,17 @@ function renderJuegos(){
    el plano abren su flujo de siempre sin cambios -- son de una sola sesión
    diaria, no tienen muchos ítems que listar en un timeline. */
 const MISIONES_JUEGOS=[
-  {id:'quiz',n:1,icono:'🏛️',titulo:'Quiz del Arquitecto',desc:'Preguntas rápidas de opción múltiple para repasar conceptos clave de tus cursos.',grad:'linear-gradient(135deg,#2b2b2e,#4a1c1c)',onclick:'abrirCaminoQuiz()'},
-  {id:'retos',n:2,icono:'🔎',titulo:'Detecta el error',desc:'Observa una fotografía real de obra e identifica los riesgos antes de que sea tarde.',grad:'linear-gradient(135deg,#7a1f1f,#ff2c2c)',onclick:'abrirCaminoRetos()'},
-  {id:'simulador',n:3,icono:'🏗️',titulo:'Construye tu proyecto',desc:'Administra una vivienda virtual: presupuesto, plazo, calidad y seguridad.',grad:'linear-gradient(135deg,#1f3a2b,#20a35b)',onclick:'iniciarSimulador()'},
-  {id:'plano',n:4,icono:'📐',titulo:'Arma el plano',desc:'Coloca accesos, ventanas, divisiones y mobiliario con reglas espaciales.',grad:'linear-gradient(135deg,#1f2a3a,#3d83d8)',onclick:'mostrarNivelesPlano()'}
+  {id:'quiz',n:1,icono:'🏛️',titulo:'Quiz del Arquitecto',desc:'Preguntas rápidas de opción múltiple para repasar conceptos clave de tus cursos.',portada:'assets/retos/mision-01.png',onclick:'abrirCaminoQuiz()'},
+  {id:'retos',n:2,icono:'🔎',titulo:'Detecta el error',desc:'Observa una fotografía real de obra e identifica los riesgos antes de que sea tarde.',portada:'assets/retos/mision-02.png',onclick:'abrirCaminoRetos()'},
+  {id:'simulador',n:3,icono:'🏗️',titulo:'Construye tu proyecto',desc:'Administra una vivienda virtual: presupuesto, plazo, calidad y seguridad.',portada:'assets/retos/mision-03.png',onclick:'iniciarSimulador()'},
+  {id:'plano',n:4,icono:'📐',titulo:'Arma el plano',desc:'Coloca accesos, ventanas, divisiones y mobiliario con reglas espaciales.',portada:'assets/retos/mision-04.png',onclick:'mostrarNivelesPlano()'}
 ];
 function renderSelectorJuegos(){
   return `<div class="mision-grid">${MISIONES_JUEGOS.map(m=>`
     <button type="button" class="mision-card" data-mision="${m.id}" onclick="${m.onclick}">
-      <div class="mision-top" style="background:${m.grad}">
-        <span class="mision-badge">MISIÓN 0${m.n}</span>
+      <div class="mision-top" style="background-image:linear-gradient(180deg,rgba(8,8,10,.08),rgba(8,8,10,.16)),url('${m.portada}')">
+        ${m.portada?'':`<span class="mision-badge">MISIÓN 0${m.n}</span>`}
         <span class="mision-open">↗</span>
-        <span class="mision-icono">${m.icono}</span>
       </div>
       <div class="mision-body">
         <h3>${m.titulo}</h3>
