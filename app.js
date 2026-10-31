@@ -3931,15 +3931,21 @@ const TOUR_PASOS=[
   {sel:'.sb-item[data-sec="biblioteca"]',titulo:'Tus cursos',texto:'Todos los cursos del Club, con tu avance y las clases que vayas completando.'},
   {sel:'.sb-item[data-sec="webinar"]',titulo:'Clases en vivo',texto:'Sesiones en vivo con expertos — y sus grabaciones, si no llegas a tiempo.'},
   {sel:'.sb-item[data-sec="material"]',titulo:'PDFs y material',texto:'Guías, planos tipo y documentos descargables del Club IMDAC.'},
+  {sel:'.sb-item[data-sec="foro"]',titulo:'Comunidad',texto:'El foro, el directorio VIP y el canal privado para conectar con otros socios del Club.'},
+  {sel:'.sb-item[data-sec="logros"]',titulo:'Tus logros',texto:'Tu avance, insignias y certificados quedan registrados aquí.'},
+  {sel:'.sb-item[data-sec="juegos"]',titulo:'Zona de Retos',texto:'Quiz, retos y simuladores — aquí es donde en verdad ganas monedas y XP.'},
   {sel:'.sb-item[data-sec="ficha-obra"]',titulo:'Tus herramientas',texto:'Aquí están tus herramientas de obra: ficha, checklist, calculadoras y conversores.'},
-  {sel:'.sb-item[data-sec="certificados"]',titulo:'Tus certificados',texto:'Cuando termines un curso, tu certificado con folio queda disponible aquí.'},
+  {sel:'.sb-item[data-sec="perfil"]',titulo:'Mi cuenta',texto:'Tu perfil, tu suscripción y la configuración del Club, todo desde aquí.'},
+  {sel:'#help-btn',titulo:'Vuelve a consultar esta guía',texto:'Cuando necesites recordar dónde está algo, pulsa este botón de ayuda para repetir el recorrido.'},
 ];
 let _tourPaso=0;
+let _tourForzado=false;
 function tourKey(){return 'imdac_tour_v1_'+((CURRENT_USER&&CURRENT_USER.uid)||'anon');}
 function tourVisto(){try{return localStorage.getItem(tourKey())==='1';}catch(e){return false;}}
 function marcarTourVisto(){try{localStorage.setItem(tourKey(),'1');}catch(e){}}
 function iniciarTour(forzado){
   if(!forzado&&tourVisto())return siguientePasoOnboarding();
+  _tourForzado=!!forzado;
   _tourPaso=0;
   mostrarPasoTour();
 }
@@ -3947,6 +3953,10 @@ function cerrarTour(){
   document.getElementById('tour-spot')?.remove();
   document.getElementById('tour-card')?.remove();
   marcarTourVisto();
+  // Reabierto a mano desde el botón de ayuda (fuera del registro): solo se
+  // cierra, sin seguir con nombre/perfil/regalo/curso de prueba -- esos
+  // pasos ya se completaron hace tiempo para un socio existente.
+  if(_tourForzado){_tourForzado=false;return;}
   siguientePasoOnboarding();
 }
 function mostrarPasoTour(){
