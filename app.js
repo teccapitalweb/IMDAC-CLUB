@@ -183,6 +183,7 @@ function go(sec){
   renderSection(sec);
   document.getElementById('content').scrollTop=0;
   window.scrollTo(0,0);
+  imdacTrack(navLabel(sec)||sec);
 }
 
 function renderSection(sec){
@@ -3683,6 +3684,36 @@ function cargarNoticiasAuto(){
 const WEBHOOK_URL='https://imdac-club-webhook-production.up.railway.app'; // candado ENCENDIDO
 const CANDADO_ON=()=>WEBHOOK_URL.indexOf('REEMPLAZAR')===-1;
 window._miMiembro={};
+
+/* ====== Métricas de visitas (panel admin > Métricas) ======
+   Registro anónimo y ligero de páginas vistas. Nunca bloquea la app: si
+   falla (sin internet, bloqueador de rastreo, etc.) se ignora en silencio.
+   Si hay sesión, se manda el token para que el webhook pueda marcar
+   esAdmin y excluirlo del conteo con el checkbox del panel. */
+function _imdacVid(){
+  try{
+    let v=localStorage.getItem('imdac_vid');
+    if(!v){v=(crypto.randomUUID?crypto.randomUUID():'v-'+Date.now()+'-'+Math.random().toString(16).slice(2));localStorage.setItem('imdac_vid',v);}
+    return v;
+  }catch(e){return 'anon-'+Math.random().toString(16).slice(2);}
+}
+function _imdacDispositivo(){
+  const ua=navigator.userAgent||'';
+  if(/Tablet|iPad/i.test(ua))return 'tablet';
+  if(/Mobi|Android|iPhone/i.test(ua))return 'movil';
+  return 'computadora';
+}
+function imdacTrack(pagina){
+  try{
+    const body={vid:_imdacVid(),ruta:location.pathname+location.hash,pagina:pagina||document.title||location.pathname,dispositivo:_imdacDispositivo(),referrer:document.referrer||'',origen:'club'};
+    const tokenP=(CURRENT_USER&&CURRENT_USER.uid!=='demo'&&typeof CURRENT_USER.getIdToken==='function')?CURRENT_USER.getIdToken().catch(()=>null):Promise.resolve(null);
+    tokenP.then(token=>{
+      const headers={'Content-Type':'application/json'};
+      if(token)headers['Authorization']='Bearer '+token;
+      fetch(WEBHOOK_URL+'/track',{method:'POST',headers,body:JSON.stringify(body),keepalive:true}).catch(()=>{});
+    });
+  }catch(e){}
+}
 function _tieneAcceso(){
   if(window._imdacAdmin)return true;
   const m=window._miMiembro||{};
@@ -4258,7 +4289,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     auth.onAuthStateChanged(u=>{
       bootDone();
       if(u){CURRENT_USER=u;onLogged();}
-      else{document.body.classList.remove('logged');document.getElementById('login').classList.remove('hidden');}
+      else{document.body.classList.remove('logged');document.getElementById('login').classList.remove('hidden');imdacTrack('Inicio de sesión');}
     });
   }else{
     // Modo demo (Firebase aún sin credenciales reales)
