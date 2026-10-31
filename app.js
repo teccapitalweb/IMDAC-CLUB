@@ -68,7 +68,7 @@ const NAV=[
     {id:"webinar",label:"Clases en vivo",icon:'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'},
     {id:"material",label:"Material PDF",icon:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},
   ]},
-  {group:"Zona de Retos",items:[
+  {group:"Zona de Retos",collapsible:true,items:[
     {id:"juegos",label:"Zona de Retos",icon:'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
     {id:"tienda",label:"Tienda de Recompensas",icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'},
   ]},
@@ -85,7 +85,7 @@ const NAV=[
     {id:"conversor",label:"Conversor de Unidades",icon:'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'},
     {id:"normativas",label:"Guía Normativas",icon:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'},
   ]},
-  {group:"Comunidad",items:[
+  {group:"Comunidad",collapsible:true,items:[
     {id:"foro",label:"Foro",icon:'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z'},
     {id:"directorio",label:"Directorio VIP",icon:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'},
     {id:"canal",label:"Canal Privado",icon:'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z'},
@@ -3957,10 +3957,10 @@ const TOUR_PASOS=[
   {sel:'.sb-item[data-sec="biblioteca"]',titulo:'Tus cursos',texto:'Todos los cursos del Club, con tu avance y las clases que vayas completando.'},
   {sel:'.sb-item[data-sec="webinar"]',titulo:'Clases en vivo',texto:'Sesiones en vivo con expertos — y sus grabaciones, si no llegas a tiempo.'},
   {sel:'.sb-item[data-sec="material"]',titulo:'PDFs y material',texto:'Guías, planos tipo y documentos descargables del Club IMDAC.'},
-  {sel:'.sb-item[data-sec="juegos"]',titulo:'Zona de Retos',texto:'Quiz, retos y simuladores — aquí es donde en verdad ganas monedas y XP.'},
+  {sel:'.sb-group[data-group="Zona de Retos"] .sb-group-t',titulo:'Zona de Retos',texto:'Quiz, retos y simuladores — aquí es donde en verdad ganas monedas y XP. Pulsa la flechita para desplegarlos.'},
   {sel:'.sb-item[data-sec="logros"]',titulo:'Tus logros',texto:'Tu avance, insignias y certificados quedan registrados aquí.'},
   {sel:'.sb-group[data-group="Herramientas"] .sb-group-t',titulo:'Tus herramientas',texto:'Ficha, checklist, calculadoras y conversores. Pulsa la flechita para desplegarlas.'},
-  {sel:'.sb-item[data-sec="foro"]',titulo:'Comunidad',texto:'El foro, el directorio VIP y el canal privado para conectar con otros socios del Club.'},
+  {sel:'.sb-group[data-group="Comunidad"] .sb-group-t',titulo:'Comunidad',texto:'El foro, el directorio VIP y el canal privado. Pulsa la flechita para desplegarlos.'},
   {sel:'.sb-item[data-sec="perfil"]',titulo:'Mi cuenta',texto:'Tu perfil, tu suscripción y la configuración del Club, todo desde aquí.'},
   {sel:'#help-btn',titulo:'Vuelve a consultar esta guía',texto:'Cuando necesites recordar dónde está algo, pulsa este botón de ayuda para repetir el recorrido.'},
 ];
