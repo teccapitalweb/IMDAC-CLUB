@@ -226,7 +226,7 @@ function renderSection(sec){
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
   if(sec==='perfil') cargarPerfilDatos();
-  if(sec==='juegos'){ cargarHistorialQuiz(); cargarProgresoMisiones(); }
+  if(sec==='juegos'){ cargarProgresoMisiones(); }
   if(sec==='tienda') cargarTienda();
 }
 let _newsRAF=null;
@@ -2253,9 +2253,7 @@ function renderJuegos(){
     <div class="js-item"><b>${DATA.monedas||0}</b><span>Monedas</span></div>
     <div class="js-item"><b>${DATA.xp||0}</b><span>XP</span></div>
   </div>
-  <div id="juegos-area">${renderSelectorJuegos()}</div>
-  <div class="sec-head" style="margin-top:30px"><h3>Historial de intentos</h3></div>
-  <div id="quiz-historial"><div class="card"><div class="empty"><b>Cargando…</b></div></div></div>`;
+  <div id="juegos-area">${renderSelectorJuegos()}</div>`;
 }
 /* ====== Tarjetas de misión (portada de Zona de Retos) ======
    Inspirado en el panel VIP de un sitio de referencia que mostró el usuario:
@@ -2287,8 +2285,8 @@ function renderSelectorJuegos(){
   </div>`;
 }
 /* Progreso real de cada tarjeta -- se calcula aparte y se pinta encima una
-   vez que llega, mismo patrón de mejora progresiva que el resto del sitio
-   (ej. cargarHistorialQuiz). Nunca bloquea el primer pintado de la página. */
+   vez que llega, mismo patrón de mejora progresiva que el resto del sitio.
+   Nunca bloquea el primer pintado de la página. */
 async function cargarProgresoMisiones(){
   const uid=CURRENT_USER&&CURRENT_USER.uid;
   const pintar=(id,metaTxt,pct)=>{
@@ -2728,22 +2726,6 @@ function finalizarQuiz(){
     <button class="btn-primary" style="width:auto;padding:13px 30px" onclick="renderSection('juegos')">Jugar de nuevo</button>
   </div>`;
   _quiz=null;
-  cargarHistorialQuiz();
-}
-async function cargarHistorialQuiz(){
-  const cont=document.getElementById('quiz-historial');
-  if(!CURRENT_USER||CURRENT_USER.uid==='demo'){if(cont)cont.innerHTML=`<div class="card"><div class="empty"><b>Inicia sesión</b><span>Para ver tu historial de intentos.</span></div></div>`;return;}
-  try{
-    const snap=await db.collection('progreso').doc(CURRENT_USER.uid).collection('quizIntentos').orderBy('fecha','desc').limit(20).get();
-    if(!cont)return;
-    if(snap.empty){cont.innerHTML=`<div class="card"><div class="empty"><b>Aún no has jugado</b><span>Responde tu primer quiz para ver tu historial aquí.</span></div></div>`;return;}
-    cont.innerHTML=snap.docs.map(d=>{
-      const x=d.data();
-      const fecha=x.fecha&&x.fecha.toDate?x.fecha.toDate().toLocaleDateString('es-MX'):'';
-      return `<div class="topic"><div class="topic-head"><div class="topic-who"><span class="au">${escHtml(x.categoria||'General')}</span><span class="topic-date">${fecha}</span></div></div>
-        <p>${x.correcta?'✅ Correcta':'❌ Incorrecta'}${x.monedasGanadas?` · +${x.monedasGanadas} monedas`:''}</p></div>`;
-    }).join('');
-  }catch(e){ if(cont)cont.innerHTML=`<div class="card"><div class="empty"><b>No se pudo cargar tu historial</b></div></div>`; }
 }
 
 /* ====== Tienda de recompensas ======
