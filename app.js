@@ -4082,7 +4082,7 @@ async function mostrarModalRegaloOnboarding(){
     <div class="calc-result" style="margin-bottom:18px"><b>${data.monedas} monedas</b><span>Tu saldo actual</span></div>
     <div style="display:flex;gap:10px">
       <button class="btn-ghost" style="flex:1" onclick="closeModal();siguientePasoOnboarding()">Más tarde</button>
-      <button class="btn-primary" style="flex:1" onclick="closeModal();go('tienda');siguientePasoOnboarding()">Ver la tienda →</button>
+      <button class="btn-primary" style="flex:1" onclick="closeModal();go('tienda');setTimeout(siguientePasoOnboarding,3000)">Ver la tienda →</button>
     </div>
   </div>`;
   document.getElementById('modal').classList.add('open');
