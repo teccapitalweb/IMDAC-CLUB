@@ -4040,6 +4040,10 @@ function cerrarTour(){
   document.getElementById('tour-spot')?.remove();
   document.getElementById('tour-card')?.remove();
   marcarTourVisto();
+  // En móvil el recorrido abre el drawer de la barra lateral para poder
+  // señalar sus secciones (ver mostrarPasoTour) -- hay que cerrarlo al
+  // terminar, si no se queda abierto tapando la pantalla.
+  if(window.innerWidth<=1100)toggleSidebar(false);
   // Reabierto a mano desde el botón de ayuda (fuera del registro): solo se
   // cierra, sin seguir con nombre/perfil/regalo/curso de prueba -- esos
   // pasos ya se completaron hace tiempo para un socio existente.
@@ -4049,10 +4053,22 @@ function cerrarTour(){
 function mostrarPasoTour(){
   const paso=TOUR_PASOS[_tourPaso];
   if(!paso)return cerrarTour();
+  // En móvil la barra lateral (.sb-item/.sb-group) vive escondida dentro
+  // del drawer de "Más" -- sin abrirlo primero, el elemento a señalar mide
+  // 0x0 y el recorrido se ve como una tarjeta flotando sobre nada. El botón
+  // de ayuda (#help-btn) sí vive siempre visible en la barra superior, así
+  // que para ese paso el drawer se cierra en vez de abrirse.
+  if(window.innerWidth<=1100){
+    const esSidebar=paso.sel.indexOf('.sb-item')>-1||paso.sel.indexOf('.sb-group')>-1;
+    toggleSidebar(esSidebar);
+  }
   const el=document.querySelector(paso.sel);
   if(!el){_tourPaso++;return mostrarPasoTour();}
   el.scrollIntoView({block:'center',behavior:'smooth'});
-  setTimeout(()=>posicionarTour(el,paso),150);
+  // 400ms: el drawer de la barra lateral en móvil tarda .3s en deslizarse
+  // (transition en .sidebar) -- hay que esperar a que termine antes de medir
+  // su posición, si no el recuadro que resalta el paso sale fuera de pantalla.
+  setTimeout(()=>posicionarTour(el,paso),400);
 }
 function posicionarTour(el,paso){
   const r=el.getBoundingClientRect();
@@ -4220,7 +4236,11 @@ async function confirmarCursoPruebaOnboarding(cursoId){
     // propia prueba gratuita — por eso se refrescaba "detrás" y nunca se
     // veía el desbloqueo hasta recargar la página a mano.
     if(confirmBtn)confirmBtn.textContent='Preparando tu curso…';
-    await loadData().catch(()=>{});
+    // Nunca se queda pegado esperando: si la recarga tarda demasiado (mala
+    // señal, red lenta en el teléfono), igual se abre el curso a los 8s --
+    // mejor eso que un modal congelado que obliga a recargar la página a
+    // mano. Si loadData() termina después, igual deja los datos al día.
+    await Promise.race([loadData().catch(()=>{}), new Promise(r=>setTimeout(r,8000))]);
     closeModal();
     openCurso(cursoId);
     toast('¡Listo! Ya puedes ver las clases de tu curso de prueba.');
