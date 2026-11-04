@@ -297,6 +297,8 @@ function proximaLeccion(c,prog){
 }
 function dsStat(label,val){return `<div class="ds-stat"><b>${val}</b><span>${label}</span></div>`;}
 function quickItem(sec,label,icon){return `<div class="quick-item" onclick="go('${sec}')"><div class="qi"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg></div><span>${label}</span></div>`;}
+function homeStat(icon,value,label,detail){return `<div class="home-stat"><span class="home-stat-icon">${icon}</span><b>${value}</b><strong>${label}</strong><small>${detail}</small></div>`;}
+function homeQuickItem(sec,label,detail,icon){return `<button type="button" class="home-quick-item" onclick="go('${sec}')"><span class="home-quick-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg></span><span class="home-quick-copy"><b>${label}</b><small>${detail}</small></span><span class="home-quick-arrow">→</span></button>`;}
 const IMG_POR_TIPO={
   Materiales:'photo-1517581177682-a085bb7ffb15',
   Estructuras:'photo-1541976590-713941681591',
@@ -406,57 +408,80 @@ function renderInicio(){
   const prog=continuo&&member?(DATA.progresos[continuo.id]||0):0;
   const lec=continuo?proximaLeccion(continuo,prog):null;
   const w=DATA.webinars[0];
+  const totalClases=cursosOrd.reduce((sum,c)=>sum+Number(c.clases||(c.listaClases||[]).length||0),0);
+  const clasesTerminadas=cursosOrd.reduce((sum,c)=>{
+    const total=Number(c.clases||(c.listaClases||[]).length||0);
+    return sum+Math.round(total*Math.min(100,Math.max(0,Number(DATA.progresos[c.id]||0)))/100);
+  },0);
+  const progresoGeneral=totalClases?Math.round(clasesTerminadas/totalClases*100):0;
+  // El argumento queda serializado para que un identificador válido con
+  // apóstrofe no rompa los botones inline de continuar o ver temario.
+  const courseArg=continuo?escHtml(JSON.stringify(String(continuo.id||''))):'';
+  const courseTitle=continuo?escHtml(continuo.titulo):'';
+  const courseImage=continuo?driveImg(continuo.img,1400):'assets/cursos/curso-01.jpg';
+  // JSON.stringify conserva la URL como una cadena CSS aunque incluya
+  // paréntesis o caracteres especiales; escHtml protege el atributo HTML.
+  const courseImageStyle=escHtml(`url(${JSON.stringify(courseImage)})`);
+  const nextTitle=continuo&&lec&&lec.total
+    ?(member?escHtml(lec.actual||`Clase ${lec.idx}`):'Elige tu curso de prueba')
+    :(member?'Explora el catálogo IMDAC':'Activa tu primera experiencia');
+  const nextCopy=continuo&&lec&&lec.total
+    ?(member?`Siguiente: ${escHtml(lec.siguiente||'Continúa avanzando')}`:'Verás todas sus clases excepto la última.')
+    :(member?'Encuentra una ruta que se adapte a tus objetivos.':'Conoce los cursos y elige una prueba gratuita.');
   return `
-  <div class="dash-hero">
-    <div class="dash-continue">
-      <div class="dc-tag">${saludo()}</div>
-      <h2>Hola, <i>${firstName()}</i>.</h2>
-      <p class="dc-sub">${member?'Tu ruta avanza a tu ritmo: se habilita un curso nuevo cada 7 días.':(hayClaseGratis()?'Tu curso de prueba está disponible: mira todas sus clases excepto la última.':'Elige un curso de prueba para empezar a aprender.')}</p>
-      ${continuo?`
-      <div class="dc-course">
-        <div class="dc-course-label">${member?(prog>0?'Continúa tu curso':'Curso sugerido para empezar'):(cursoDePrueba?'Tu curso de prueba':'Curso de entrada')}</div>
-        <h3>${continuo.titulo}</h3>
-        ${lec.total?`
-        <div class="dc-lesson">
-          <div class="dc-badge">${lec.idx}</div>
-          <div><span class="dc-lesson-tag">Siguiente · ${lec.idx} de ${lec.total}</span><span class="dc-lesson-title">${member?lec.siguiente:'Activa tu membresía para verla'}</span></div>
-        </div>`:''}
-        <div class="dc-progress-row"><div class="dc-progress-bar"><i style="width:${prog}%"></i></div><span class="dc-progress-pct">${prog}%</span></div>
-        <button class="dc-cta" onclick="openCurso('${continuo.id}')">▶ ${member&&prog>0?'Continuar curso':'Ver curso'}</button>
-      </div>`:`
-      <div class="dc-course"><div class="dc-course-label">Catálogo</div><h3>Aún no hay cursos publicados</h3></div>`}
-    </div>
-    <div class="dash-side">
-      <div class="ds-label">Tu siguiente meta</div>
-      <div class="ds-steps">
-        ${continuo&&lec&&lec.total?`
-        <div class="ds-step now"><span class="dot"></span><div><small>Ahora</small><b>${lec.actual}</b></div></div>
-        <div class="ds-step"><span class="dot"></span><div><small>Después</small><b>${lec.siguiente}</b></div></div>`
-        :(member?`<div class="ds-step"><span class="dot"></span><div><small>Catálogo</small><b>Aún no hay cursos publicados.</b></div></div>`
-        :`<div class="ds-step"><span class="dot"></span><div><small>Membresía</small><b>Activa tu membresía para desbloquear tus clases.</b></div></div>`)}
+  <div class="home-dashboard">
+    <section class="home-summary">
+      <div class="home-learning">
+        <header class="home-greeting">
+          <span>${saludo()} · CLUB IMDAC</span>
+          <h1>Hola, <em>${escHtml(firstName())}</em>.</h1>
+          <p>${member?'Bienvenido(a) a tu espacio de aprendizaje en arquitectura y construcción.':'Descubre una ruta de aprendizaje creada para tus objetivos profesionales.'}</p>
+        </header>
+        ${continuo?`
+        <article class="home-course-hero" style="--home-course-image:${courseImageStyle}">
+          <div class="home-course-shade"></div>
+          <div class="home-course-content">
+            <span class="home-kicker"><b>▶</b> ${member&&prog>0?'CONTINUAR MI CURSO':(cursoDePrueba?'TU PRUEBA GRATUITA':'CURSO RECOMENDADO')}</span>
+            <h2>${courseTitle}</h2>
+            <p>${escHtml(continuo.desc||'Aprende con contenido práctico, claro y aplicable a proyectos reales.')}</p>
+            ${lec&&lec.total?`<div class="home-course-progress"><div><b>${member&&prog>0?`Clase ${lec.idx} de ${lec.total}`:`${lec.total} clases disponibles`}</b><span>${member&&prog>0?`${prog}% completado`:'Comienza tu ruta hoy'}</span></div><div class="home-bar"><i style="width:${prog}%"></i></div></div>`:''}
+            <div class="home-course-actions">
+              <button type="button" class="home-button-primary" onclick="openCurso(${courseArg})">${member&&prog>0?'▶ Continuar mi curso':'Ver curso'} <b>→</b></button>
+              ${continuo.hasSyllabus?`<button type="button" class="home-button-ghost" onclick="abrirTemario(${courseArg})">☷ Ver temario</button>`:''}
+            </div>
+          </div>
+        </article>`:`
+        <article class="home-course-empty"><span>CATÁLOGO IMDAC</span><h2>Tu próxima ruta empieza aquí.</h2><p>Muy pronto encontrarás cursos, clases y recursos publicados para ti.</p><button type="button" class="home-button-primary" onclick="go('biblioteca')">Explorar cursos <b>→</b></button></article>`}
       </div>
-      <div class="ds-webinar">
-        <div class="wlabel">Próxima clase en vivo<b>${w?w.titulo:'Por anunciar'}</b></div>
-        <div class="ds-cd" id="countdown"><span data-cd="d">00</span>d <span data-cd="h">00</span>h <span data-cd="m">00</span>m</div>
-      </div>
-      <div class="ds-stats">
-        ${dsStat('Cursos',DATA.cursos.length)}
-        ${dsStat('En progreso',enProg)}
-        ${dsStat('Material PDF',DATA.material.length)}
-        ${dsStat('Certificados',comp)}
-      </div>
-    </div>
-  </div>
-  <div class="quick-row">
-    ${quickItem('webinar','Clases en vivo','M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z')}
-    ${quickItem('material','Material PDF','M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z')}
-    ${quickItem('foro','Foro','M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z')}
-    ${quickItem('biblioteca','Cursos','M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253')}
-  </div>
-  ${renderDescubre()}
-  <div class="sec-head"><h3>Continuar aprendiendo</h3><a onclick="go('biblioteca')">Ver todos →</a></div>
-  <div class="course-grid">${cursos.length?cursos.map(courseCard).join(''):emptyMini('Aún no hay cursos. ¡Pronto se liberan!')}</div>
-  `;
+      <aside class="home-progress-panel">
+        <div class="home-progress-heading"><span>▥</span><h2>Mi progreso personal</h2><button type="button" onclick="go('logros')">Ver estadísticas →</button></div>
+        <div class="home-progress-focus">
+          <div class="home-progress-ring" style="--home-progress:${progresoGeneral}%"><div><b>${progresoGeneral}%</b><span>Progreso<br>general</span></div></div>
+          <div class="home-next-goal"><span>◎ TU SIGUIENTE META</span><b>${nextTitle}</b><p>${nextCopy}</p><button type="button" aria-label="Abrir curso" onclick="${continuo?`openCurso(${courseArg})`:`go('biblioteca')`}">→</button></div>
+        </div>
+        <div class="home-stat-grid">
+          ${homeStat('▱',DATA.cursos.length,'Cursos','disponibles')}
+          ${homeStat('◉',enProg,'En progreso','ahora')}
+          ${homeStat('▤',DATA.material.length,'Material','PDF')}
+          ${homeStat('✪',comp,'Certificados','obtenidos')}
+        </div>
+        <div class="home-live-row"><div><span>PRÓXIMA CLASE EN VIVO</span><b>${escHtml(w?w.titulo:'Por anunciar')}</b></div><div class="home-countdown" id="countdown"><span data-cd="d">00</span>d <span data-cd="h">00</span>h <span data-cd="m">00</span>m</div></div>
+      </aside>
+    </section>
+    <section class="home-quick-row" aria-label="Accesos rápidos">
+      ${homeQuickItem('webinar','Clases en vivo','Agenda y acompáñate de expertos','M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z')}
+      ${homeQuickItem('material','Material PDF','Guías y recursos para descargar','M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z')}
+      ${homeQuickItem('foro','Foro','Comparte y resuelve dudas','M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z')}
+      ${homeQuickItem('biblioteca','Cursos','Explora tu próximo curso','M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253')}
+    </section>
+    <section class="home-feature-row">
+      <article class="home-weekly-challenge" style="--home-challenge-image:url('assets/retos/mision-02.png')"><div class="home-challenge-shade"></div><div class="home-feature-content"><span class="home-kicker"><b>◎</b> RETO DE LA SEMANA</span><h2>Detecta el error en obra.</h2><p>Entrena tu mirada técnica identificando situaciones que requieren revisión.</p><button type="button" class="home-button-primary" onclick="go('juegos')">Participar en el reto <b>→</b></button></div></article>
+      <article class="home-rewards-card"><div class="home-rewards-top"><div class="home-rewards-icon">◌</div><div><h2>Monedas / Recompensas</h2><p>Completa cursos, retos y actividades para ganar monedas y canjear recompensas.</p></div><div class="home-coin-total"><b>${Number(DATA.monedas)||0}</b><span>Monedas IMDAC</span></div></div><button type="button" class="home-rewards-link" onclick="go('tienda')">Ir a la tienda de recompensas <b>→</b></button></article>
+    </section>
+    ${renderDescubre()}
+    <div class="sec-head home-courses-head"><div><span>CATÁLOGO PERSONAL</span><h3>Continúa construyendo tu camino.</h3></div><a onclick="go('biblioteca')">Ver todos los cursos →</a></div>
+    <div class="course-grid home-course-grid">${cursos.length?cursos.map(courseCard).join(''):emptyMini('Aún no hay cursos. ¡Pronto se liberan!')}</div>
+  </div>`;
 }
 function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t}</b></div>`;}
 
@@ -3599,13 +3624,16 @@ function startCountdown(){
 function skelGrid(n){return `<div class="course-grid">${Array.from({length:n},()=>`<div class="skel-card"><div class="skel" style="aspect-ratio:16/10"></div><div style="padding:16px"><div class="skel skel-line" style="width:80%"></div><div class="skel skel-line" style="width:50%"></div><div class="skel skel-line" style="width:100%;margin-top:14px"></div></div></div>`).join('')}</div>`;}
 function skelNews(n){return Array.from({length:n},()=>`<div class="skel-card" style="display:flex;gap:14px;padding:14px;margin-bottom:12px"><div class="skel" style="width:120px;height:80px;border-radius:10px;flex-shrink:0"></div><div style="flex:1"><div class="skel skel-line" style="width:30%"></div><div class="skel skel-line" style="width:85%"></div><div class="skel skel-line" style="width:60%"></div></div></div>`).join('');}
 function skelInicio(){
-  return `<div class="dash-hero">
-    <div class="skel" style="height:280px;border-radius:16px"></div>
-    <div class="skel" style="height:280px;border-radius:16px"></div>
-  </div>
-  <div class="quick-row">${Array.from({length:4},()=>'<div class="skel" style="height:90px;border-radius:16px"></div>').join('')}</div>
-  <div class="skel skel-line" style="width:200px;height:20px;margin:8px 0 16px"></div>
-  ${skelGrid(4)}`;
+  return `<div class="home-dashboard">
+    <div class="home-summary">
+      <div><div class="skel skel-line" style="width:220px;height:19px;margin:7px 0 12px"></div><div class="skel" style="height:294px;border-radius:22px"></div></div>
+      <div class="skel" style="height:365px;border-radius:22px"></div>
+    </div>
+    <div class="home-quick-row">${Array.from({length:4},()=>'<div class="skel" style="height:66px;border-radius:15px"></div>').join('')}</div>
+    <div class="home-feature-row"><div class="skel" style="height:167px;border-radius:20px"></div><div class="skel" style="height:167px;border-radius:20px"></div></div>
+    <div class="skel skel-line" style="width:235px;height:20px;margin:8px 0 16px"></div>
+    ${skelGrid(4)}
+  </div>`;
 }
 function emptyIllus(title,desc,actionLabel,actionFn){
   const illus=`<svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="55" width="120" height="80" rx="10" fill="var(--gris-100)"/><path d="M40 70l60 38 60-38" stroke="var(--gris-300)" stroke-width="3" fill="none"/><rect x="64" y="30" width="72" height="48" rx="8" fill="var(--surface)" stroke="var(--rojo)" stroke-width="3"/><circle cx="100" cy="50" r="9" fill="var(--rojo)" opacity=".25"/><path d="M100 45v8m0 4h.01" stroke="var(--rojo)" stroke-width="3" stroke-linecap="round"/></svg>`;
