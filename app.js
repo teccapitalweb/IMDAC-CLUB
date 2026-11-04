@@ -2974,9 +2974,50 @@ function avanzarDespuesDeClase(cursoId,i){
     playClase(cursoId,next);
   }else{
     cerrarVideoModal();
-    if(seCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);}
+    if(seCompleto){confetti();setTimeout(()=>toast('¡Felicidades! Completaste el curso 🎉'),250);setTimeout(()=>mostrarModalResena(cursoId),1800);}
     else toast('Clase completada ✓');
   }
+}
+
+/* ====== Reseña al terminar un curso ======
+   Una sola vez por curso (el servidor también lo bloquea en
+   /resena-curso) -- se marca en localStorage apenas se muestra, para
+   no insistir si el socio vuelve a entrar a un curso ya terminado. */
+function resenaKey(cursoId){return 'imdac_resena_'+((CURRENT_USER&&CURRENT_USER.uid)||'anon')+'_'+cursoId;}
+function resenaYaMostrada(cursoId){try{return localStorage.getItem(resenaKey(cursoId))==='1';}catch(e){return false;}}
+function marcarResenaMostrada(cursoId){try{localStorage.setItem(resenaKey(cursoId),'1');}catch(e){}}
+let _resenaEstrellas=0;
+function mostrarModalResena(cursoId){
+  if(resenaYaMostrada(cursoId))return;
+  const c=DATA.cursos.find(x=>x.id===cursoId);
+  _resenaEstrellas=0;
+  document.getElementById('modal-content').innerHTML=`<div class="modal-body" style="text-align:center;padding:32px 28px">
+    <div style="font-size:2rem;margin-bottom:10px">🎉</div>
+    <h3 style="font-family:var(--font-display);font-size:1.2rem;margin-bottom:6px">¡Completaste ${c?escHtml(c.titulo):'el curso'}!</h3>
+    <p style="color:var(--muted);font-size:.86rem;line-height:1.5;margin-bottom:18px">¿Qué te pareció? Tu calificación ayuda a otros socios a elegir su siguiente curso.</p>
+    <div id="resena-estrellas" style="display:flex;justify-content:center;gap:6px;font-size:2rem;margin-bottom:16px">${[1,2,3,4,5].map(n=>`<span onclick="elegirEstrellaResena(${n})" style="cursor:pointer;color:var(--line)" data-n="${n}">★</span>`).join('')}</div>
+    <textarea id="resena-comentario" placeholder="Cuéntanos qué te gustó (opcional)" style="width:100%;min-height:80px;padding:12px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:vertical;margin-bottom:16px;box-sizing:border-box"></textarea>
+    <div style="display:flex;gap:10px">
+      <button class="btn-ghost" style="flex:1" onclick="omitirResena('${cursoId}')">Omitir</button>
+      <button class="btn-primary" style="flex:1" onclick="enviarResena('${cursoId}')">Enviar reseña</button>
+    </div>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function elegirEstrellaResena(n){
+  _resenaEstrellas=n;
+  document.querySelectorAll('#resena-estrellas span').forEach(s=>{s.style.color=(+s.dataset.n<=n)?'#f5b301':'var(--line)';});
+}
+function omitirResena(cursoId){marcarResenaMostrada(cursoId);closeModal();}
+async function enviarResena(cursoId){
+  if(!_resenaEstrellas)return toast('Elige de 1 a 5 estrellas');
+  const comentario=(document.getElementById('resena-comentario').value||'').trim();
+  marcarResenaMostrada(cursoId);
+  try{
+    await apiFetch('/resena-curso',{method:'POST',body:{cursoId,estrellas:_resenaEstrellas,comentario}});
+    closeModal();
+    toast('¡Gracias por tu reseña! 🙌');
+  }catch(e){ closeModal(); }
 }
 
 /* ====== Actividad de refuerzo al terminar cada clase ======
