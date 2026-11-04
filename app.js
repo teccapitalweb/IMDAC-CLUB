@@ -1705,6 +1705,15 @@ function renderConfig(){
   </div>
 
   <div class="card cfg-card">
+    <h3>¿Tienes un cupón?</h3>
+    <p class="cfg-note" style="margin:-8px 0 16px">Canjea la clave que te compartieron en el canal de WhatsApp o redes de IMDAC. Puede darte monedas o acceso temporal a Herramientas Pro.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <input id="cfg-cupon" placeholder="Ej. CANAL100" style="flex:1;min-width:200px;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);text-transform:uppercase">
+      <button class="btn-primary" style="width:auto;padding:13px 24px" onclick="canjearCuponUI()">Canjear</button>
+    </div>
+  </div>
+
+  <div class="card cfg-card">
     <h3>Notificaciones</h3>
     ${notifs.map(n=>`<div class="cfg-item"><div class="ci-t"><b>${n[0]}</b><span>${n[1]}</span></div>
       <label class="toggle"><input type="checkbox" ${prefs[n[2]]!==false?'checked':''} onchange="setNotiPref('${n[2]}',this.checked)"><span class="tk"></span></label></div>`).join('')}
@@ -3772,8 +3781,37 @@ function _tieneAcceso(){
   return false;
 }
 
-function requiereMembresiaAccion(message){
+/* Acceso temporal a Herramientas Pro, otorgado por un cupón (ver
+   renderConfig/canjearCuponUI) -- nunca desbloquea cursos ni Zona de
+   Retos, solo estas calculadoras/fichas/checklist. Igual criterio que
+   _tieneAcceso() pero sumando esta fecha límite aparte. */
+async function canjearCuponUI(){
+  const el=document.getElementById('cfg-cupon');
+  const clave=(el&&el.value||'').trim();
+  if(!clave)return toast('Escribe la clave del cupón');
+  try{
+    const r=await apiFetch('/canjear-cupon',{method:'POST',body:{clave}});
+    if(r.tipo==='monedas'){
+      DATA.monedas=Number(r.monedas)||DATA.monedas;
+      toast(`¡Cupón canjeado! +${r.otorgado} monedas 🎉`);
+    }else if(r.tipo==='herramientas_pro'){
+      window._miMiembro=window._miMiembro||{};
+      window._miMiembro.herramientasProHasta=r.herramientasProHasta;
+      toast('¡Cupón canjeado! Ya puedes usar las Herramientas Pro por tiempo limitado 🎉');
+    }
+    if(el)el.value='';
+  }catch(e){
+    toast(e.message||'No se pudo canjear el cupón',{type:'err'});
+  }
+}
+function tieneAccesoHerramientas(){
   if(_tieneAcceso())return true;
+  const hasta=(window._miMiembro||{}).herramientasProHasta;
+  if(!hasta)return false;
+  try{ return new Date(hasta)>new Date(); }catch(e){ return false; }
+}
+function requiereMembresiaAccion(message){
+  if(tieneAccesoHerramientas())return true;
   mostrarModalHerramientaPro(message);
   return false;
 }
@@ -3793,10 +3831,10 @@ function mostrarModalHerramientaPro(message){
   document.getElementById('modal').classList.add('open');
 }
 function bannerHerramientaPro(){
-  if(_tieneAcceso())return '';
+  if(tieneAccesoHerramientas())return '';
   return `<div class="dir-visitor-banner">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    <span><b>Vista previa de Herramientas Pro.</b> Puedes conocer cada calculadora. Para capturar datos, calcular resultados o descargar reportes, activa tu membresía.</span>
+    <span><b>Vista previa de Herramientas Pro.</b> Puedes conocer cada calculadora. Para capturar datos, calcular resultados o descargar reportes, activa tu membresía o canjea un cupón de acceso.</span>
     <button onclick="renderPaywall('Activa tu membresía para usar esta herramienta, ver sus resultados y descargar tus reportes en PDF.')">Activar membresía</button>
   </div>`;
 }
