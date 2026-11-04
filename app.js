@@ -428,59 +428,26 @@ function renderInicio(){
   const nextCopy=continuo&&lec&&lec.total
     ?(member?`Siguiente: ${escHtml(lec.siguiente||'Continúa avanzando')}`:'Verás todas sus clases excepto la última.')
     :(member?'Encuentra una ruta que se adapte a tus objetivos.':'Conoce los cursos y elige una prueba gratuita.');
-  return `
-  <div class="home-dashboard">
-    <section class="home-summary">
-      <div class="home-learning">
-        <header class="home-greeting">
-          <span>${saludo()} · CLUB IMDAC</span>
-          <h1>Hola, <em>${escHtml(firstName())}</em>.</h1>
-          <p>${member?'Bienvenido(a) a tu espacio de aprendizaje en arquitectura y construcción.':'Descubre una ruta de aprendizaje creada para tus objetivos profesionales.'}</p>
-        </header>
-        ${continuo?`
-        <article class="home-course-hero" style="--home-course-image:${courseImageStyle}">
-          <div class="home-course-shade"></div>
-          <div class="home-course-content">
-            <span class="home-kicker"><b>▶</b> ${member&&prog>0?'CONTINUAR MI CURSO':(cursoDePrueba?'TU PRUEBA GRATUITA':'CURSO RECOMENDADO')}</span>
-            <h2>${courseTitle}</h2>
-            <p>${escHtml(continuo.desc||'Aprende con contenido práctico, claro y aplicable a proyectos reales.')}</p>
-            ${lec&&lec.total?`<div class="home-course-progress"><div><b>${member&&prog>0?`Clase ${lec.idx} de ${lec.total}`:`${lec.total} clases disponibles`}</b><span>${member&&prog>0?`${prog}% completado`:'Comienza tu ruta hoy'}</span></div><div class="home-bar"><i style="width:${prog}%"></i></div></div>`:''}
-            <div class="home-course-actions">
-              <button type="button" class="home-button-primary" onclick="openCurso(${courseArg})">${member&&prog>0?'▶ Continuar mi curso':'Ver curso'} <b>→</b></button>
-              ${continuo.hasSyllabus?`<button type="button" class="home-button-ghost" onclick="abrirTemario(${courseArg})">☷ Ver temario</button>`:''}
-            </div>
-          </div>
-        </article>`:`
-        <article class="home-course-empty"><span>CATÁLOGO IMDAC</span><h2>Tu próxima ruta empieza aquí.</h2><p>Muy pronto encontrarás cursos, clases y recursos publicados para ti.</p><button type="button" class="home-button-primary" onclick="go('biblioteca')">Explorar cursos <b>→</b></button></article>`}
-      </div>
-      <aside class="home-progress-panel">
-        <div class="home-progress-heading"><span>▥</span><h2>Mi progreso personal</h2><button type="button" onclick="go('logros')">Ver estadísticas →</button></div>
-        <div class="home-progress-focus">
-          <div class="home-progress-ring" style="--home-progress:${progresoGeneral}%"><div><b>${progresoGeneral}%</b><span>Progreso<br>general</span></div></div>
-          <div class="home-next-goal"><span>◎ TU SIGUIENTE META</span><b>${nextTitle}</b><p>${nextCopy}</p><button type="button" aria-label="Abrir curso" onclick="${continuo?`openCurso(${courseArg})`:`go('biblioteca')`}">→</button></div>
-        </div>
-        <div class="home-stat-grid">
-          ${homeStat('▱',DATA.cursos.length,'Cursos','disponibles')}
-          ${homeStat('◉',enProg,'En progreso','ahora')}
-          ${homeStat('▤',DATA.material.length,'Material','PDF')}
-          ${homeStat('✪',comp,'Certificados','obtenidos')}
-        </div>
-        <div class="home-live-row"><div><span>PRÓXIMA CLASE EN VIVO</span><b>${escHtml(w?w.titulo:'Por anunciar')}</b></div><div class="home-countdown" id="countdown"><span data-cd="d">00</span>d <span data-cd="h">00</span>h <span data-cd="m">00</span>m</div></div>
-      </aside>
-    </section>
-    <section class="home-quick-row" aria-label="Accesos rápidos">
-      ${homeQuickItem('webinar','Clases en vivo','Agenda y acompáñate de expertos','M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z')}
-      ${homeQuickItem('material','Material PDF','Guías y recursos para descargar','M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z')}
-      ${homeQuickItem('foro','Foro','Comparte y resuelve dudas','M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z')}
-      ${homeQuickItem('biblioteca','Cursos','Explora tu próximo curso','M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253')}
-    </section>
-    <section class="home-feature-row">
-      <article class="home-weekly-challenge" style="--home-challenge-image:url('assets/retos/mision-02.png')"><div class="home-challenge-shade"></div><div class="home-feature-content"><span class="home-kicker"><b>◎</b> RETO DE LA SEMANA</span><h2>Detecta el error en obra.</h2><p>Entrena tu mirada técnica identificando situaciones que requieren revisión.</p><button type="button" class="home-button-primary" onclick="go('juegos')">Participar en el reto <b>→</b></button></div></article>
-      <article class="home-rewards-card"><div class="home-rewards-top"><div class="home-rewards-icon">◌</div><div><h2>Monedas / Recompensas</h2><p>Completa cursos, retos y actividades para ganar monedas y canjear recompensas.</p></div><div class="home-coin-total"><b>${Number(DATA.monedas)||0}</b><span>Monedas IMDAC</span></div></div><button type="button" class="home-rewards-link" onclick="go('tienda')">Ir a la tienda de recompensas <b>→</b></button></article>
-    </section>
-    ${renderDescubre()}
-    <div class="sec-head home-courses-head"><div><span>CATÁLOGO PERSONAL</span><h3>Continúa construyendo tu camino.</h3></div><a onclick="go('biblioteca')">Ver todos los cursos →</a></div>
-    <div class="course-grid home-course-grid">${cursos.length?cursos.map(courseCard).join(''):emptyMini('Aún no hay cursos. ¡Pronto se liberan!')}</div>
+  const coins=Number(DATA.monedas)||0;
+  const streak=rachaSemanas();
+  const discovery=datosParaDescubrir().slice(0,3);
+  const goalDone=[prog>0,comp>0].filter(Boolean).length;
+  const objective=(done,text)=>`<li class="${done?'done':''}"><i>${done?'✓':'○'}</i><span>${text}</span></li>`;
+  const eventDate=w&&w.fechaISO?new Date(w.fechaISO).toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'}):'Por anunciar';
+  return `<div class="command-dashboard">
+    <main class="command-main">
+      <section class="command-welcome" style="--command-welcome:url('assets/dashboard/welcome-building.png')"><div><span>BIENVENIDO AL CLUB</span><h1>Hola, <em>${escHtml(firstName())}</em>.</h1><p>${member?'Sigue aprendiendo, completa retos y avanza en tu ruta profesional.':'Explora cursos, retos y recursos para construir tu próxima meta profesional.'}</p></div><button type="button" onclick="go('suscripcion')">♛ Membresía VIP</button></section>
+      ${continuo?`<section class="command-course" style="--command-course:url('assets/dashboard/course-architecture.png')"><div class="command-course-preview" style="--command-preview:${courseImageStyle}"><span>▶</span></div><div class="command-course-copy"><b>${member&&prog>0?'CURSO EN PROGRESO':(cursoDePrueba?'TU PRUEBA GRATUITA':'CURSO RECOMENDADO')}</b><h2>${courseTitle}</h2><p>${escHtml(continuo.desc||'Aprende con contenido práctico, claro y aplicable a proyectos reales.')}</p><div class="command-progress-label"><span>${lec&&lec.total?`Clase ${lec.idx} de ${lec.total}`:'Listo para empezar'}</span><strong>${prog}%</strong></div><div class="command-progress"><i style="width:${prog}%"></i></div><div class="command-next"><span>▣</span><div><small>PRÓXIMA CLASE</small><b>${nextTitle}</b></div></div><div class="command-actions"><button type="button" onclick="openCurso(${courseArg})">▶ ${member&&prog>0?'Continuar curso':'Ver curso'}</button>${continuo.hasSyllabus?`<button type="button" class="ghost" onclick="abrirTemario(${courseArg})">☷ Ver temario</button>`:''}</div></div></section>`:`<section class="command-course command-empty"><div><b>CATÁLOGO IMDAC</b><h2>Tu próxima ruta empieza aquí.</h2><p>Encuentra cursos y recursos creados para la arquitectura y construcción.</p><button type="button" onclick="go('biblioteca')">Explorar cursos →</button></div></section>`}
+      <nav class="command-quick" aria-label="Accesos rápidos"><span>Accesos<br>rápidos</span><button onclick="go('biblioteca')">▰ Mis cursos</button><button onclick="go('webinar')">▣ Clases en vivo</button><button onclick="go('material')">▤ Material PDF</button><button onclick="go('foro')">▢ Foro</button><button onclick="go('directorio')">♧ Comunidad VIP</button></nav>
+      <section class="command-ecosystem" style="--command-crown:url('assets/dashboard/rewards-crown.png')"><div class="command-eco-intro"><h2>Tu ecosistema<br>de retos y recompensas</h2><p>Aumenta tu nivel, gana monedas, desbloquea insignias y canjea beneficios exclusivos.</p></div><button onclick="go('juegos')"><img src="assets/dashboard/reward-trio.png" alt=""><b>Retos</b><small>Practica y avanza</small><span>Ver retos →</span></button><button onclick="go('tienda')"><b>${coins.toLocaleString('es-MX')}</b><small>Monedas IMDAC</small><span>Canjear →</span></button><button onclick="go('tienda')"><img src="assets/dashboard/reward-store.png" alt=""><b>Tienda</b><small>Recompensas</small><span>Explorar →</span></button><button onclick="go('logros')"><b>${comp}</b><small>Insignias y logros</small><span>Ver todas →</span></button></section>
+      <section class="command-recommend"><div class="command-section-heading"><div><span>RECOMENDACIONES PARA TI</span><h2>Continúa construyendo tu camino.</h2></div><button onclick="go('biblioteca')">Ver más contenidos →</button></div><div class="command-discovery">${discovery.map(d=>`<button type="button" onclick="abrirDato(${Number(d.idx)})" style="--discover-img:url('${escHtml(d.img||'assets/cursos/curso-01.jpg')}')"><div></div><small>${escHtml(d.tag||'NUEVO HOY')}</small><b>${escHtml(d.titulo)}</b><span>${escHtml(d.texto||'Recurso para seguir aprendiendo.')}</span></button>`).join('')}</div></section>
+    </main>
+    <aside class="command-side">
+      <section class="command-panel command-objectives"><div class="command-panel-head"><h2>◎ Tus objetivos de esta semana</h2><span>${goalDone} de 3 completados</span></div><ul>${objective(prog>0,'Continuar tu curso')}${objective(comp>0,'Completar un curso')}${objective(false,'Participar en un reto')}</ul><div class="command-objective-bar"><span><i style="width:${Math.max(10,goalDone/3*100)}%"></i></span><b>${Math.round(goalDone/3*100)}%</b></div></section>
+      <section class="command-panel command-classes"><div class="command-panel-head"><h2>▣ Próximas clases</h2><button onclick="go('webinar')">Ver calendario →</button></div><div class="command-class-row"><time>${escHtml(eventDate)}</time><p><b>${escHtml(w?w.titulo:'Próxima sesión por anunciar')}</b><span>${w?'Consulta la información en clases en vivo.':'Muy pronto habrá nuevas fechas.'}</span></p></div><div class="command-class-row"><time>${lec&&lec.total?`CLASE ${lec.idx}`:'RUTA'}</time><p><b>${nextTitle}</b><span>Continúa desde donde te quedaste.</span></p></div></section>
+      <section class="command-panel command-metrics"><div class="command-panel-head"><h2>▥ Tus métricas clave</h2><button onclick="go('logros')">Ver todo →</button></div><div><article><b>${DATA.cursos.length}</b><span>Cursos activos</span></article><article><b>${enProg}</b><span>En progreso</span></article><article><b>${comp}</b><span>Certificados</span></article><article><b>${coins.toLocaleString('es-MX')}</b><span>Monedas</span></article></div></section>
+      <section class="command-community"><div><span>♧</span><h2>IMDAC Comunidad VIP</h2><p>Conecta, comparte avances y resuelve dudas con otros profesionales.</p><small>${streak?`${streak} semana${streak===1?'':'s'} de racha`:'Tu ruta comienza hoy'}</small></div><button onclick="go('foro')">Ir al foro →</button></section>
+    </aside>
   </div>`;
 }
 function emptyMini(t){return `<div class="empty" style="grid-column:1/-1"><b>${t}</b></div>`;}
