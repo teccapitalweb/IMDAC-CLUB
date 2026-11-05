@@ -219,13 +219,13 @@ function renderSection(sec){
     material:renderMaterial, noticias:renderNoticias, foro:renderForo, juegos:renderJuegos, tienda:renderTienda,
     'ficha-obra':renderFichaObra, checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor,
     normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
-    perfil:renderPerfil, suscripcion:renderSuscripcion,
+    perfil:renderPerfilOverview, 'perfil-datos':renderPerfil, suscripcion:renderSuscripcion,
     logros:renderLogros, certificados:renderCertificados, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
   };
-  const cr = sec==='inicio'?'':crumbs(navLabel(sec));
+  const cr = sec==='inicio'?'':crumbs(navLabel(sec)||(sec==='perfil-datos'?'Mi Perfil':''));
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
-  if(sec==='perfil') cargarPerfilDatos();
+  if(sec==='perfil-datos') cargarPerfilDatos();
   if(sec==='juegos'){ cargarProgresoMisiones(); }
   if(sec==='tienda') cargarTienda();
 }
@@ -1391,9 +1391,48 @@ function toggleNotisPanel(ev){
   if(willOpen){pop.innerHTML=notisPanelHTML();marcarNotisLeidas();}
 }
 
+/* Resumen de cuenta: lo primero que se ve al entrar a "Mi Perfil" --
+   estado real de membresía, monedas/XP/cursos, y accesos directos a las
+   subsecciones (datos personales, logros, membresía, configuración), en
+   vez de aterrizar directo en el formulario de edición. El formulario
+   completo (antes "Mi Perfil") sigue existiendo tal cual, solo que ahora
+   vive en la subsección 'perfil-datos'. */
+function renderPerfilOverview(){
+  const n=CURRENT_USER?.displayName||'Miembro';
+  const member=_tieneAcceso();
+  const cursosOrd=ordenarCursos(DATA.cursos);
+  const enProg=cursosOrd.filter(c=>{const p=DATA.progresos[c.id]||0;return p>0&&p<100;}).length;
+  const coins=Number(DATA.monedas)||0;
+  const xp=Number(DATA.xp)||0;
+  const siguiente=enProg>0
+    ?`Tienes ${enProg} curso${enProg===1?'':'s'} en progreso para continuar.`
+    :(member?'Explora el catálogo y empieza tu próximo curso.':'Activa tu membresía para desbloquear todos los cursos y recompensas.');
+  return `<h1 class="page-h">Mi Perfil</h1><p class="page-sub">Tu cuenta, tu progreso y tus beneficios en un solo lugar.</p>
+  <div class="profile-hero">
+    <div class="av">${initials()}</div>
+    <div><h3>${escHtml(n)}</h3><div style="color:var(--muted);font-size:.9rem">${escHtml(CURRENT_USER?.email||'')}</div><span class="badge">${member?'✦ Miembro Premium':'Sin membresía activa'}</span></div>
+  </div>
+  <div class="perfil-stats">
+    <article><b>${coins.toLocaleString('es-MX')}</b><span>Monedas</span></article>
+    <article><b>${xp.toLocaleString('es-MX')}</b><span>XP</span></article>
+    <article><b>${DATA.cursos.length}</b><span>Cursos</span></article>
+  </div>
+  <button type="button" class="perfil-beneficios" onclick="go('suscripcion')">
+    <div><b>✦ Explora tus beneficios</b><span>Consulta tu membresía y tu progreso.</span></div>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+  </button>
+  <div class="perfil-grid">
+    <button type="button" onclick="go('perfil-datos')"><span class="ico">◉</span><div><b>Mi perfil</b><span>Datos profesionales</span></div></button>
+    <button type="button" onclick="go('logros')"><span class="ico">★</span><div><b>Mis logros</b><span>Avances y medallas</span></div></button>
+    <button type="button" onclick="go('suscripcion')"><span class="ico">♛</span><div><b>Membresía</b><span>Plan y beneficios</span></div></button>
+    <button type="button" onclick="go('configuracion')"><span class="ico">⚙</span><div><b>Configuración</b><span>Datos y seguridad</span></div></button>
+  </div>
+  <div class="perfil-avance">✦ <span><b>Tu siguiente avance empieza aquí.</b> ${siguiente}</span></div>
+  <button type="button" class="perfil-logout" onclick="doLogout()">⎋ Cerrar sesión</button>`;
+}
 function renderPerfil(){
   const n=CURRENT_USER?.displayName||'Miembro';
-  return `<h1 class="page-h">Mi Perfil</h1><p class="page-sub">Administra tu información personal y datos de contacto.</p>
+  return `<div class="sec-head" style="margin-bottom:10px"><h1 class="page-h" style="margin:0">Mi Perfil</h1><button class="btn-ghost" onclick="go('perfil')">← Volver</button></div><p class="page-sub">Administra tu información personal y datos de contacto.</p>
   <div class="profile-hero">
     <div class="av">${initials()}</div>
     <div><h3>${n}</h3><div style="color:var(--muted);font-size:.9rem">${CURRENT_USER?.email||''}</div><span class="badge">✦ Miembro Premium</span></div>
