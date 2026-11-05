@@ -2576,14 +2576,14 @@ function retoHead(titulo,subtitulo){return `<div class="sec-head"><div><h3>${tit
    una sola vez por nivel para siempre (progreso/{uid}/cambiosProyectoRecompensas);
    un nivel ya resuelto queda en modo solo-lectura, sin más monedas. */
 const CAMBIOS_NIVELES=[
-  {id:'fachada',label:'Fachada principal',categoria:'Arquitectura',pista:'Fíjate en la planta alta, las ventanas de abajo y el jardín frontal.',original:'assets/retos/cambios/nivel-01-fachada-original.jpg',modificada:'assets/retos/cambios/nivel-01-fachada-modificada.jpg'},
-  {id:'sala',label:'Sala de estar',categoria:'Interiorismo',pista:'Observa ambos lados del sofá y los cojines.',original:'assets/retos/cambios/nivel-02-sala-original.jpg',modificada:'assets/retos/cambios/nivel-02-sala-modificada.jpg'},
-  {id:'plano',label:'Planta arquitectónica',categoria:'Distribución',pista:'Compara la zona del comedor, la cocina y la sala.',original:'assets/retos/cambios/nivel-03-plano-original.jpg',modificada:'assets/retos/cambios/nivel-03-plano-modificada.jpg'},
-  {id:'obra',label:'Avance de obra',categoria:'Construcción',pista:'Revisa el centro y ambos costados de la fachada en obra.',original:'assets/retos/cambios/nivel-04-obra-original.jpg',modificada:'assets/retos/cambios/nivel-04-obra-modificada.jpg'},
-  {id:'cimentacion',label:'Cimentación',categoria:'Estructura',pista:'Mira el borde de la losa y ambas esquinas del fondo.',original:'assets/retos/cambios/nivel-05-cimentacion-original.jpg',modificada:'assets/retos/cambios/nivel-05-cimentacion-modificada.jpg'},
-  {id:'cubierta',label:'Cubierta / terraza',categoria:'Acabados',pista:'Observa el techo, el muro derecho y la esquina inferior izquierda.',original:'assets/retos/cambios/nivel-06-cubierta-original.jpg',modificada:'assets/retos/cambios/nivel-06-cubierta-modificada.jpg'}
+  {id:'fachada',label:'Fachada principal',categoria:'Arquitectura',total:2,pista:'Fíjate en la puerta principal y en la ventana de la planta alta.',original:'assets/retos/cambios/nivel-01-fachada-original.jpg',modificada:'assets/retos/cambios/nivel-01-fachada-modificada.jpg'},
+  {id:'sala',label:'Sala de estar',categoria:'Interiorismo',total:2,pista:'Observa el lado donde estaba la lámpara y el cuadro sobre el sofá.',original:'assets/retos/cambios/nivel-02-sala-original.jpg',modificada:'assets/retos/cambios/nivel-02-sala-modificada.jpg'},
+  {id:'plano',label:'Planta arquitectónica',categoria:'Distribución',total:3,pista:'Revisa la recámara, la puerta del baño y el área junto a la cocina.',original:'assets/retos/cambios/nivel-03-plano-original.jpg',modificada:'assets/retos/cambios/nivel-03-plano-modificada.jpg'},
+  {id:'obra',label:'Avance de obra',categoria:'Construcción',total:3,pista:'Mira el costado derecho del edificio, los cascos y la parte inferior derecha.',original:'assets/retos/cambios/nivel-04-obra-original.jpg',modificada:'assets/retos/cambios/nivel-04-obra-modificada.jpg'},
+  {id:'cimentacion',label:'Cimentación',categoria:'Estructura',total:4,pista:'Compara las columnas, los materiales acopiados, la barrera y la zanja lateral.',original:'assets/retos/cambios/nivel-05-cimentacion-original.jpg',modificada:'assets/retos/cambios/nivel-05-cimentacion-modificada.jpg'},
+  {id:'cubierta',label:'Cubierta / terraza',categoria:'Acabados',total:4,pista:'Observa el techo completo, los paneles solares y la chimenea.',original:'assets/retos/cambios/nivel-06-cubierta-original.jpg',modificada:'assets/retos/cambios/nivel-06-cubierta-modificada.jpg'}
 ];
-const CAMBIOS_PREMIO=15,CAMBIOS_TOTAL_ZONAS=3;
+const CAMBIOS_PREMIO=15;
 let _cambiosResueltos=new Set(),_cambiosAvance={};
 async function iniciarCambiosProyecto(){
   await cargarNivelesCambios();
@@ -2604,14 +2604,14 @@ async function cargarNivelesCambios(){
 }
 function renderNivelesCambios(){
   const a=document.getElementById('juegos-area');if(!a)return;
-  a.innerHTML=`${retoHead('¿Qué cambió en el proyecto?','Misión 03 · compara dos propuestas y encuentra los 3 cambios reales')}
+  a.innerHTML=`${retoHead('¿Qué cambió en el proyecto?','Misión 03 · compara dos propuestas y encuentra todos los cambios reales')}
   <div class="rompe-niveles">${CAMBIOS_NIVELES.map(nv=>{
     const resuelto=_cambiosResueltos.has(nv.id);
     const avance=_cambiosAvance[nv.id]||0;
     return `<button type="button" class="rompe-nivel${resuelto?' is-done':''}" onclick="iniciarNivelCambios('${nv.id}')">
       <span class="rompe-nivel-ico">${resuelto?'✓':'◉'}</span>
       <b>${escHtml(nv.label)}</b>
-      <span>${resuelto?escHtml(nv.categoria):(avance>0?`${avance}/${CAMBIOS_TOTAL_ZONAS} encontrados`:escHtml(nv.categoria))}</span>
+      <span>${resuelto?escHtml(nv.categoria):(avance>0?`${avance}/${nv.total} encontrados`:`${nv.total} cambios`)}</span>
       <span class="rompe-nivel-premio">${resuelto?'Completado':`+${CAMBIOS_PREMIO} monedas`}</span>
     </button>`;
   }).join('')}</div>
@@ -2630,7 +2630,7 @@ async function iniciarNivelCambios(nivelId){
       encontrados=ids.map(id=>({id,explicacion:cambioExplLeer(nivelId,id)}));
     }catch(e){}
   }
-  _cambios={nivel:nivelId,total:CAMBIOS_TOTAL_ZONAS,encontrados,marcadoresOk:[],ganado:_cambiosResueltos.has(nivelId)||encontrados.length>=CAMBIOS_TOTAL_ZONAS,enviando:false,pista:false,marcadorErr:null,motivo:null};
+  _cambios={nivel:nivelId,total:nivel.total,encontrados,marcadoresOk:[],ganado:_cambiosResueltos.has(nivelId)||encontrados.length>=nivel.total,enviando:false,pista:false,marcadorErr:null,motivo:null};
   renderCambiosProyecto();
 }
 function renderCambiosProyecto(){
@@ -2640,16 +2640,15 @@ function renderCambiosProyecto(){
   a.innerHTML=`${retoHead('¿Qué cambió en el proyecto?',`Nivel ${escHtml(nivel.label)} · encuentra los ${s.total} cambios reales`)}
   <div class="visual-game"><div class="game-status"><b>${s.ganado?'¡Resuelto!':`${s.encontrados.length}/${s.total} encontrados`}</b><span>${s.ganado?'Compara el antes y el después cuando quieras: este nivel ya no otorga más monedas.':`Toca en la propuesta B los puntos donde cambió el proyecto. Faltan ${faltan}.`}</span><button class="btn-ghost" onclick="renderNivelesCambios()">← Niveles</button></div>
   <div class="comparador-proyecto">
-    <div class="comparador-foto"><span class="comparador-tag">A · Original</span><img src="${nivel.original}" alt="Propuesta original de ${escHtml(nivel.label)}"></div>
-    <div class="comparador-foto reto-stage" style="cursor:${s.ganado?'default':'crosshair'}">
-      <span class="comparador-tag">B · Modificada</span>
+    <div class="comparador-foto"><img src="${nivel.original}" alt="Propuesta original de ${escHtml(nivel.label)}"></div>
+    <div class="comparador-foto" style="cursor:${s.ganado?'default':'crosshair'}">
       <img src="${nivel.modificada}" alt="Propuesta modificada de ${escHtml(nivel.label)}" ${s.ganado?'':'onclick="responderCambioProyecto(event)"'}>
       ${s.marcadorErr?`<span class="reto-marker reto-marker-err" style="left:${s.marcadorErr.x}%;top:${s.marcadorErr.y}%">✕</span>`:''}
       ${s.marcadoresOk.map(p=>`<span class="reto-marker reto-marker-ok" style="left:${p.x}%;top:${p.y}%">✓</span>`).join('')}
     </div>
   </div>
   ${s.encontrados.length?`<div class="reto-hallazgos">${s.encontrados.map((e,i)=>`<div class="reto-hallazgo found"><b>✓ Cambio ${i+1}</b><span>${escHtml(e.explicacion)}</span></div>`).join('')}</div>`:''}
-  ${s.ganado?`<div class="game-success"><b>¡Encontraste los ${s.total} cambios!</b><span>${s.motivo==='membresia_requerida'?'Activa tu membresía para ganar las monedas de recompensa la próxima vez.':'Regresando a la lista de niveles…'}</span></div>`:`<div class="game-tip">${s.pista?escHtml(nivel.pista):'Compara estructura, acabados y mobiliario con calma: hay 3 diferencias reales en esta pareja de fotos.'}</div>`}
+  ${s.ganado?`<div class="game-success"><b>¡Encontraste los ${s.total} cambios!</b><span>${s.motivo==='membresia_requerida'?'Activa tu membresía para ganar las monedas de recompensa la próxima vez.':'Regresando a la lista de niveles…'}</span></div>`:`<div class="game-tip">${s.pista?escHtml(nivel.pista):`Compara estructura, acabados y mobiliario con calma: hay ${s.total} diferencias reales en esta pareja de fotos.`}</div>`}
   ${!s.ganado?`<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn-ghost" onclick="_cambios.pista=true;renderCambiosProyecto()">💡 Mostrar pista</button></div>`:''}
   </div>`;
 }
