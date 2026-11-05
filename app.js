@@ -3092,6 +3092,7 @@ async function confirmarOrdenObra(){
   s.enviando=false;
   cargarProgresoMisiones();
   renderOrdenObra();
+  setTimeout(()=>{ if(_ordenObra===s)renderNivelesOrdenObra(); },1800);
 }
 
 /* 4. Laberinto de planos: recorrido sobre una planta conceptual generada al
