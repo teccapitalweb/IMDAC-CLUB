@@ -3942,36 +3942,91 @@ function sopaGenerarGrid(palabras){
 function renderActSopa(cursoId,i,data){
   const palabras=data.palabras||[];
   const {grid,N}=sopaGenerarGrid(palabras);
-  _actClase={cursoId,i,tipo:'sopa',palabras,grid,N,encontradas:[],sel:null};
+  _actClase={cursoId,i,tipo:'sopa',palabras,grid,N,encontradas:[],foundCells:new Set(),drag:null,sel:[]};
   return `${actHeaderHTML('Sopa de letras','🔎')}
     <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:14px">${palabras.map(w=>`<span id="sopa-chip-${escHtml(w)}" class="tag gray" style="font-size:.74rem">${escHtml(w)}</span>`).join('')}</div>
-    <div id="sopa-grid" style="display:grid;grid-template-columns:repeat(${N},22px);gap:2px;justify-content:center;margin:0 auto;max-width:100%;overflow-x:auto">${sopaGridHTML()}</div>
-    <p style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:10px">Toca la primera letra de una palabra y luego la última (en línea recta).</p>`;
+    <div id="sopa-grid" style="display:grid;grid-template-columns:repeat(${N},22px);gap:2px;justify-content:center;margin:0 auto;max-width:100%;overflow-x:auto;touch-action:none"
+      onpointerdown="sopaPointerDown(event)" onpointermove="sopaPointerMove(event)" onpointerup="sopaPointerUp(event)" onpointercancel="sopaPointerUp(event)">${sopaGridHTML()}</div>
+    <p style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:10px">Mantén presionada la primera letra y arrastra hasta la última, como una sola trazada (en línea recta).</p>`;
 }
 function sopaGridHTML(){
   let html='';
   for(let r=0;r<_actClase.N;r++)for(let c=0;c<_actClase.N;c++){
-    html+=`<span data-r="${r}" data-c="${c}" onclick="sopaClickCelda(${r},${c})" style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;border-radius:4px;cursor:pointer;background:#f1f1f1">${_actClase.grid[r][c]}</span>`;
+    html+=`<span data-r="${r}" data-c="${c}" style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;border-radius:4px;background:#f1f1f1;user-select:none">${_actClase.grid[r][c]}</span>`;
   }
   return html;
 }
-function sopaMarcarCelda(r,c,on){const el=document.querySelector(`#sopa-grid [data-r="${r}"][data-c="${c}"]`);if(el)el.style.outline=on?'2px solid var(--rojo)':'none';}
-function sopaClickCelda(r,c){
-  if(!_actClase.sel){_actClase.sel={r,c};sopaMarcarCelda(r,c,true);return;}
-  const {r:r0,c:c0}=_actClase.sel;
-  sopaMarcarCelda(r0,c0,false);
-  const dr=Math.sign(r-r0),dc=Math.sign(c-c0);
-  const len=Math.max(Math.abs(r-r0),Math.abs(c-c0))+1;
-  const esLinea=(dr!==0||dc!==0)&&(r-r0)===dr*(len-1)&&(c-c0)===dc*(len-1);
-  _actClase.sel=null;
-  if(!esLinea)return;
-  let str='';const celdas=[];
-  for(let k=0;k<len;k++){const rr=r0+dr*k,cc=c0+dc*k;str+=_actClase.grid[rr][cc];celdas.push([rr,cc]);}
+/* Arrastre de celda a celda (mouse y táctil unificados vía Pointer Events):
+   se presiona la primera letra y, sin soltar, se recorre hasta la última de
+   la palabra -- igual que el de DulceLab -- en vez de tocar inicio y fin
+   por separado. Mientras arrastra se previsualiza la selección en vivo; al
+   soltar se valida igual que antes (línea recta, palabra real sin usar). */
+function sopaCelda(r,c){return document.querySelector(`#sopa-grid [data-r="${r}"][data-c="${c}"]`);}
+function sopaCeldaDesdePunto(x,y){
+  const el=document.elementFromPoint(x,y);
+  const cell=el&&el.closest?el.closest('[data-r]'):null;
+  return cell?{r:Number(cell.dataset.r),c:Number(cell.dataset.c)}:null;
+}
+function sopaPathCeldas(r0,c0,r1,c1){
+  const dr=r1-r0,dc=c1-c0;
+  if(dr===0&&dc===0)return [[r0,c0]];
+  if(dr!==0&&dc!==0&&Math.abs(dr)!==Math.abs(dc))return null; // solo horizontal/vertical/diagonal real
+  const stepR=dr===0?0:(dr>0?1:-1),stepC=dc===0?0:(dc>0?1:-1);
+  const len=Math.max(Math.abs(dr),Math.abs(dc))+1,celdas=[];
+  for(let k=0;k<len;k++){
+    const r=r0+stepR*k,c=c0+stepC*k;
+    if(r<0||r>=_actClase.N||c<0||c>=_actClase.N)return null;
+    celdas.push([r,c]);
+  }
+  return celdas;
+}
+function sopaPintarSeleccion(path,color){
+  sopaLimpiarSeleccion();
+  path.forEach(([r,c])=>{
+    if(_actClase.foundCells.has(r+','+c))return;
+    const el=sopaCelda(r,c); if(el)el.style.background=color;
+  });
+  _actClase.sel=path;
+}
+function sopaLimpiarSeleccion(){
+  (_actClase.sel||[]).forEach(([r,c])=>{
+    if(_actClase.foundCells.has(r+','+c))return;
+    const el=sopaCelda(r,c); if(el)el.style.background='#f1f1f1';
+  });
+  _actClase.sel=[];
+}
+function sopaPointerDown(ev){
+  const cell=sopaCeldaDesdePunto(ev.clientX,ev.clientY);
+  if(!cell)return;
+  ev.preventDefault();
+  _actClase.drag={r0:cell.r,c0:cell.c,r1:cell.r,c1:cell.c};
+  sopaPintarSeleccion([[cell.r,cell.c]],'#ffe6a3');
+}
+function sopaPointerMove(ev){
+  if(!_actClase.drag)return;
+  const cell=sopaCeldaDesdePunto(ev.clientX,ev.clientY);
+  if(!cell)return;
+  ev.preventDefault();
+  const path=sopaPathCeldas(_actClase.drag.r0,_actClase.drag.c0,cell.r,cell.c);
+  if(!path)return; // fuera de línea recta: se mantiene la última selección válida
+  _actClase.drag.r1=cell.r;_actClase.drag.c1=cell.c;
+  sopaPintarSeleccion(path,'#ffe6a3');
+}
+function sopaPointerUp(ev){
+  if(!_actClase.drag)return;
+  const {r0,c0,r1,c1}=_actClase.drag;
+  const path=sopaPathCeldas(r0,c0,r1,c1);
+  sopaLimpiarSeleccion();
+  _actClase.drag=null;
+  if(path&&path.length>1)sopaConfirmarPalabra(path);
+}
+function sopaConfirmarPalabra(path){
+  let str='';path.forEach(([r,c])=>str+=_actClase.grid[r][c]);
   const rev=str.split('').reverse().join('');
   const match=_actClase.palabras.find(w=>!_actClase.encontradas.includes(w)&&(w===str||w===rev));
   if(!match)return;
   _actClase.encontradas.push(match);
-  celdas.forEach(([rr,cc])=>{const el=document.querySelector(`#sopa-grid [data-r="${rr}"][data-c="${cc}"]`);if(el)el.style.background='#c8f7c5';});
+  path.forEach(([r,c])=>{_actClase.foundCells.add(r+','+c);const el=sopaCelda(r,c);if(el)el.style.background='#c8f7c5';});
   const chip=document.getElementById('sopa-chip-'+match); if(chip){chip.classList.remove('gray');chip.style.textDecoration='line-through';}
   if(_actClase.encontradas.length===_actClase.palabras.length)calificarActividad({encontradas:_actClase.encontradas});
 }
