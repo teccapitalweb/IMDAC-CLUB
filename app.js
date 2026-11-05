@@ -192,10 +192,27 @@ window.addEventListener('hashchange',()=>{
 });
 
 function go(sec){
+  if(sec==='perfil'){
+    // "Mi Perfil" ya no navega a una página completa: abre un panel sobre
+    // la página actual (como el panel VIP de referencia). Si todavía no
+    // hay nada pintado detrás (carga directa en #perfil), se pinta Inicio
+    // primero para que el panel no flote sobre un fondo vacío.
+    if(!currentSection || currentSection==='perfil' || !document.querySelector('#content .section')){
+      currentSection='inicio';
+      renderSection('inicio');
+    }
+    abrirPerfilDrawer('resumen');
+    if(!_desdeHash && hashActual()!=='perfil'){ try{location.hash='perfil';}catch(e){} }
+    document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec==='perfil'));
+    document.querySelectorAll('.mob-item').forEach(e=>e.classList.toggle('active',e.dataset.sec==='perfil'));
+    if(window.innerWidth<=1100) toggleSidebar(false);
+    return;
+  }
   if(!LOADING&&MEMBER_ONLY_SECTIONS.has(sec)&&!_tieneAcceso()){
     renderPaywall('Esta sección es exclusiva para miembros. Puedes seguir explorando cursos, temarios y materiales.');
     return;
   }
+  document.getElementById('perfil-drawer-bg')?.classList.remove('open');
   currentSection=sec;
   if(!_desdeHash && hashActual()!==sec){ try{location.hash=sec;}catch(e){} }
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===sec));
@@ -219,13 +236,12 @@ function renderSection(sec){
     material:renderMaterial, noticias:renderNoticias, foro:renderForo, juegos:renderJuegos, tienda:renderTienda,
     'ficha-obra':renderFichaObra, checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor,
     normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
-    perfil:renderPerfilOverview, 'perfil-datos':renderPerfil, suscripcion:renderSuscripcion,
+    suscripcion:renderSuscripcion,
     logros:renderLogros, certificados:renderCertificados, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
   };
-  const cr = sec==='inicio'?'':crumbs(navLabel(sec)||(sec==='perfil-datos'?'Mi Perfil':''));
+  const cr = sec==='inicio'?'':crumbs(navLabel(sec));
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
-  if(sec==='perfil-datos') cargarPerfilDatos();
   if(sec==='juegos'){ cargarProgresoMisiones(); }
   if(sec==='tienda') cargarTienda();
 }
@@ -1391,13 +1407,32 @@ function toggleNotisPanel(ev){
   if(willOpen){pop.innerHTML=notisPanelHTML();marcarNotisLeidas();}
 }
 
-/* Resumen de cuenta: lo primero que se ve al entrar a "Mi Perfil" --
-   estado real de membresía, monedas/XP/cursos, y accesos directos a las
-   subsecciones (datos personales, logros, membresía, configuración), en
-   vez de aterrizar directo en el formulario de edición. El formulario
-   completo (antes "Mi Perfil") sigue existiendo tal cual, solo que ahora
-   vive en la subsección 'perfil-datos'. */
-function renderPerfilOverview(){
+/* Panel de "Mi Perfil": se abre SOBRE la página actual (como un cajón
+   lateral), no navega a una página completa -- ver abrirPerfilDrawer() y
+   la intercepción de sec==='perfil' dentro de go(). Tiene dos vistas
+   internas que solo reemplazan #perfil-drawer-body, nunca #content:
+   'resumen' (estado real de membresía, monedas/XP/cursos, accesos
+   directos) y 'datos' (el formulario de edición que ya existía). */
+function abrirPerfilDrawer(vista){
+  const bg=document.getElementById('perfil-drawer-bg');if(!bg)return;
+  bg.classList.add('open');
+  renderPerfilDrawer(vista||'resumen');
+}
+function cerrarPerfilDrawer(){
+  const bg=document.getElementById('perfil-drawer-bg');if(!bg)return;
+  bg.classList.remove('open');
+  document.querySelectorAll('.sb-item,.mob-item').forEach(e=>e.classList.toggle('active',e.dataset.sec===currentSection));
+  if(hashActual()==='perfil'){
+    const vuelta=(currentSection&&currentSection!=='perfil')?currentSection:'inicio';
+    try{history.replaceState(null,'','#'+vuelta);}catch(e){}
+  }
+}
+function renderPerfilDrawer(vista){
+  const body=document.getElementById('perfil-drawer-body');if(!body)return;
+  body.innerHTML = vista==='datos'?perfilDrawerDatosHTML():perfilDrawerResumenHTML();
+  if(vista==='datos') cargarPerfilDatos();
+}
+function perfilDrawerResumenHTML(){
   const n=CURRENT_USER?.displayName||'Miembro';
   const member=_tieneAcceso();
   const cursosOrd=ordenarCursos(DATA.cursos);
@@ -1407,8 +1442,7 @@ function renderPerfilOverview(){
   const siguiente=enProg>0
     ?`Tienes ${enProg} curso${enProg===1?'':'s'} en progreso para continuar.`
     :(member?'Explora el catálogo y empieza tu próximo curso.':'Activa tu membresía para desbloquear todos los cursos y recompensas.');
-  return `<h1 class="page-h">Mi Perfil</h1><p class="page-sub">Tu cuenta, tu progreso y tus beneficios en un solo lugar.</p>
-  <div class="profile-hero">
+  return `<div class="profile-hero" style="margin-bottom:18px">
     <div class="av">${initials()}</div>
     <div><h3>${escHtml(n)}</h3><div style="color:var(--muted);font-size:.9rem">${escHtml(CURRENT_USER?.email||'')}</div><span class="badge">${member?'✦ Miembro Premium':'Sin membresía activa'}</span></div>
   </div>
@@ -1417,40 +1451,31 @@ function renderPerfilOverview(){
     <article><b>${xp.toLocaleString('es-MX')}</b><span>XP</span></article>
     <article><b>${DATA.cursos.length}</b><span>Cursos</span></article>
   </div>
-  <button type="button" class="perfil-beneficios" onclick="go('suscripcion')">
+  <button type="button" class="perfil-beneficios" onclick="cerrarPerfilDrawer();go('suscripcion')">
     <div><b>✦ Explora tus beneficios</b><span>Consulta tu membresía y tu progreso.</span></div>
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
   </button>
   <div class="perfil-grid">
-    <button type="button" onclick="go('perfil-datos')"><span class="ico">◉</span><div><b>Mi perfil</b><span>Datos profesionales</span></div></button>
-    <button type="button" onclick="go('logros')"><span class="ico">★</span><div><b>Mis logros</b><span>Avances y medallas</span></div></button>
-    <button type="button" onclick="go('suscripcion')"><span class="ico">♛</span><div><b>Membresía</b><span>Plan y beneficios</span></div></button>
-    <button type="button" onclick="go('configuracion')"><span class="ico">⚙</span><div><b>Configuración</b><span>Datos y seguridad</span></div></button>
+    <button type="button" onclick="renderPerfilDrawer('datos')"><span class="ico">◉</span><div><b>Mi perfil</b><span>Datos profesionales</span></div></button>
+    <button type="button" onclick="cerrarPerfilDrawer();go('logros')"><span class="ico">★</span><div><b>Mis logros</b><span>Avances y medallas</span></div></button>
+    <button type="button" onclick="cerrarPerfilDrawer();go('suscripcion')"><span class="ico">♛</span><div><b>Membresía</b><span>Plan y beneficios</span></div></button>
+    <button type="button" onclick="cerrarPerfilDrawer();go('configuracion')"><span class="ico">⚙</span><div><b>Configuración</b><span>Datos y seguridad</span></div></button>
   </div>
   <div class="perfil-avance">✦ <span><b>Tu siguiente avance empieza aquí.</b> ${siguiente}</span></div>
   <button type="button" class="perfil-logout" onclick="doLogout()">⎋ Cerrar sesión</button>`;
 }
-function renderPerfil(){
+function perfilDrawerDatosHTML(){
   const n=CURRENT_USER?.displayName||'Miembro';
-  return `<div class="sec-head" style="margin-bottom:10px"><h1 class="page-h" style="margin:0">Mi Perfil</h1><button class="btn-ghost" onclick="go('perfil')">← Volver</button></div><p class="page-sub">Administra tu información personal y datos de contacto.</p>
-  <div class="profile-hero">
-    <div class="av">${initials()}</div>
-    <div><h3>${n}</h3><div style="color:var(--muted);font-size:.9rem">${CURRENT_USER?.email||''}</div><span class="badge">✦ Miembro Premium</span></div>
-  </div>
-  <div class="card" style="padding:30px">
-    <h3 style="font-family:var(--font-display);font-size:1.2rem;margin-bottom:4px">Información personal</h3>
-    <p style="color:var(--muted);font-size:.88rem;margin-bottom:22px">Los cambios se guardan al presionar "Guardar cambios".</p>
-    <div class="form-grid">
-      <div class="field"><label>Nombre</label><input id="pf-name" value="${n}"></div>
-      <div class="field"><label>Apellido</label><input id="pf-last" placeholder="Tu apellido"></div>
-      <div class="field form-full"><label>Correo electrónico</label><input value="${CURRENT_USER?.email||''}" disabled></div>
-      <div class="field"><label>Teléfono</label><input id="pf-phone" placeholder="+52 ..."></div>
-      <div class="field"><label>Ciudad</label><input id="pf-city" placeholder="Tu ciudad, MX"></div>
-      <div class="field form-full"><label>Profesión / Cédula</label><input id="pf-prof" placeholder="Arquitecto / Ing. Civil — Cédula..."></div>
-      <div class="field form-full"><label>Biografía</label><textarea id="pf-bio" rows="3" placeholder="Cuéntanos un poco sobre ti..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
-    </div>
-    <button class="btn-primary" style="width:auto;padding:13px 30px;margin-top:16px" onclick="saveProfile()">Guardar cambios</button>
-  </div>`;
+  return `<div class="sec-head" style="margin-bottom:6px;align-items:center"><h3 style="margin:0;font-family:var(--font-display);font-size:1.25rem">Mi Perfil</h3><button class="btn-ghost" style="width:auto;padding:7px 14px" onclick="renderPerfilDrawer('resumen')">← Volver</button></div>
+  <p style="color:var(--muted);font-size:.86rem;margin-bottom:20px">Los cambios se guardan al presionar "Guardar cambios".</p>
+  <div class="field"><label>Nombre</label><input id="pf-name" value="${n}"></div>
+  <div class="field" style="margin-top:14px"><label>Apellido</label><input id="pf-last" placeholder="Tu apellido"></div>
+  <div class="field" style="margin-top:14px"><label>Correo electrónico</label><input value="${CURRENT_USER?.email||''}" disabled></div>
+  <div class="field" style="margin-top:14px"><label>Teléfono</label><input id="pf-phone" placeholder="+52 ..."></div>
+  <div class="field" style="margin-top:14px"><label>Ciudad</label><input id="pf-city" placeholder="Tu ciudad, MX"></div>
+  <div class="field" style="margin-top:14px"><label>Profesión / Cédula</label><input id="pf-prof" placeholder="Arquitecto / Ing. Civil — Cédula..."></div>
+  <div class="field" style="margin-top:14px"><label>Biografía</label><textarea id="pf-bio" rows="3" placeholder="Cuéntanos un poco sobre ti..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
+  <button class="btn-primary" style="width:100%;padding:13px 30px;margin-top:18px" onclick="saveProfile()">Guardar cambios</button>`;
 }
 function cargarPerfilDatos(){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;

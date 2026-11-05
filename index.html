@@ -1185,6 +1185,16 @@ table.norm tr:hover td{background:var(--base)}
 .modal-body h3{font-family:var(--font-display);font-size:1.4rem;font-weight:700;margin-bottom:6px}
 .btn-block{width:100%;padding:14px;background:var(--rojo);color:#fff;border-radius:11px;font-weight:700;margin-top:20px;transition:transform .15s,box-shadow .15s}
 .btn-block:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(255,44,44,.32)}
+/* PANEL DE PERFIL: igual que el modal, pero ocupa solo una franja a la
+   derecha (como el panel VIP de referencia) dejando ver la página de
+   fondo, en vez de tapar toda la pantalla. */
+.perfil-drawer-bg{position:fixed;inset:0;background:rgba(13,13,13,.45);z-index:600;display:none;align-items:stretch;justify-content:flex-end}
+.perfil-drawer-bg.open{display:flex}
+.perfil-drawer{width:400px;max-width:88vw;background:var(--base);overflow-y:auto;box-shadow:-12px 0 32px rgba(0,0,0,.2);padding:24px 22px;position:relative;
+  transform:translateX(100%);transition:transform .3s cubic-bezier(.34,1.4,.4,1)}
+.perfil-drawer-bg.open .perfil-drawer{transform:translateX(0)}
+.perfil-drawer-close{position:absolute;top:18px;right:18px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:1rem;color:var(--muted);z-index:2}
+@media(max-width:600px){.perfil-drawer{width:100vw;max-width:100vw}}
 .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(calc(100% + 46px));opacity:0;pointer-events:none;background:var(--negro);color:#fff;padding:14px 26px;border-radius:50px;font-weight:600;z-index:4000;box-shadow:var(--shadow-lg);transition:transform .35s cubic-bezier(.34,1.4,.4,1),opacity .3s ease;font-size:.9rem;max-width:calc(100vw - 28px);text-align:center;line-height:1.35;box-sizing:border-box}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:auto}
 
@@ -1713,6 +1723,13 @@ a,button,input,select,textarea,.sb-item,.filter,.mob-item{-webkit-tap-highlight-
 <!-- MODAL CURSO -->
 <div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal"><div id="modal-content"></div></div>
+</div>
+<!-- PANEL DE PERFIL (resumen de cuenta, se abre sobre la página actual) -->
+<div class="perfil-drawer-bg" id="perfil-drawer-bg" onclick="if(event.target===this)cerrarPerfilDrawer()">
+  <aside class="perfil-drawer">
+    <button class="perfil-drawer-close" onclick="cerrarPerfilDrawer()" aria-label="Cerrar">✕</button>
+    <div id="perfil-drawer-body"></div>
+  </aside>
 </div>
 <div class="toast" id="toast"></div>
 
