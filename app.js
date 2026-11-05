@@ -2268,7 +2268,7 @@ const MISIONES_JUEGOS=[
   {id:'cambios',n:3,icono:'◉',titulo:'¿Qué cambió en el proyecto?',desc:'Compara dos propuestas arquitectónicas y encuentra los cambios visuales.',portada:'assets/retos/mision-03.png',onclick:'iniciarCambiosProyecto()'},
   {id:'puzzle',n:4,icono:'▦',titulo:'Rompecabezas arquitectónico',desc:'Reconstruye una composición arquitectónica y descubre sus decisiones de diseño.',portada:'assets/retos/mision-04.png',onclick:'iniciarRompecabezas()'},
   {id:'orden',n:5,icono:'↕',titulo:'Ordena la obra',desc:'10 escenarios constructivos: organiza cada secuencia de actividades respetando sus dependencias reales.',portada:'assets/retos/mision-05.png',onclick:'iniciarOrdenObra()'},
-  {id:'laberinto',n:6,icono:'⌘',titulo:'Laberinto de planos',desc:'Encuentra una ruta funcional dentro de una planta arquitectónica.',coverClass:'mision-art-laberinto',onclick:'iniciarLaberintoPlanos()'}
+  {id:'laberinto',n:6,icono:'⌘',titulo:'Laberinto de planos',desc:'Encuentra una ruta funcional dentro de una planta arquitectónica.',portada:'assets/retos/mision-06.png',onclick:'iniciarLaberintoPlanos()'}
 ];
 function renderSelectorJuegos(){
   return `<div class="mision-grid">${MISIONES_JUEGOS.map(m=>`
