@@ -2324,8 +2324,9 @@ async function cargarProgresoMisiones(){
   }catch(e){ pintar('retos','Fotografías reales de obra',0); }
   try{
     const recompensasSnap=await db.collection('progreso').doc(uid).collection('rompecabezasRecompensas').get();
+    const totalRondas=ROMPECABEZAS_NIVELES.reduce((n,nv)=>n+nv.rondas,0);
     const resueltos=recompensasSnap.size;
-    pintar('puzzle',`${resueltos}/${ROMPECABEZAS_NIVELES.length} niveles resueltos`,resueltos/ROMPECABEZAS_NIVELES.length*100);
+    pintar('puzzle',`${resueltos}/${totalRondas} rondas resueltas`,totalRondas?resueltos/totalRondas*100:0);
   }catch(e){ pintar('puzzle','3 niveles de dificultad',0); }
   try{
     const recompensasSnap=await db.collection('progreso').doc(uid).collection('cambiosProyectoRecompensas').get();
@@ -2706,10 +2707,12 @@ async function responderCambioProyecto(ev){
 
 /* 2. Rompecabezas: intercambio táctil/clic de piezas sobre una foto real,
    con estado siempre resoluble porque la mezcla parte de movimientos
-   legales desde la solución. Tres niveles de dificultad con desbloqueo
-   progresivo (fácil → medio → difícil) y recompensa real del servidor
-   (/rompecabezas-completar), una sola vez por nivel para siempre -- nunca
-   se vuelve a pagar por rearmarlo. */
+   legales desde la solución. Cada nivel de dificultad pide resolver varias
+   RONDAS (imágenes distintas) -- fácil y medio 2, difícil 1 -- y cada ronda
+   paga su propia recompensa al resolverse (no solo la última). El nivel
+   siguiente se desbloquea cuando todas las rondas del anterior quedaron
+   pagadas. "Mezclar de nuevo" solo revuelve las piezas de la imagen de la
+   ronda actual; para pasar a otra imagen hay que resolver esta primero. */
 const ROMPECABEZAS_IMAGENES=[
   'assets/retos/rompecabezas/interior-contemporaneo.jpg',
   'assets/retos/rompecabezas/mesa-proyecto.jpg',
@@ -2717,61 +2720,86 @@ const ROMPECABEZAS_IMAGENES=[
   'assets/retos/rompecabezas/planta-residencial.jpg',
 ];
 const ROMPECABEZAS_NIVELES=[
-  {id:'facil',n:3,label:'Fácil',monedas:10},
-  {id:'medio',n:4,label:'Medio',monedas:20},
-  {id:'dificil',n:6,label:'Difícil',monedas:35},
+  {id:'facil',n:3,label:'Fácil',monedas:10,rondas:2},
+  {id:'medio',n:4,label:'Medio',monedas:20,rondas:2},
+  {id:'dificil',n:6,label:'Difícil',monedas:35,rondas:1},
 ];
-let _puzzleResueltos=new Set();
+let _puzzleRondasHechas={};
+function puzzleNivelResuelto(nivelId){
+  const nv=ROMPECABEZAS_NIVELES.find(x=>x.id===nivelId);
+  return !!nv&&(_puzzleRondasHechas[nivelId]||0)>=nv.rondas;
+}
 async function iniciarRompecabezas(){
   await cargarNivelesRompecabezas();
   renderNivelesRompecabezas();
 }
 async function cargarNivelesRompecabezas(){
-  _puzzleResueltos=new Set();
+  _puzzleRondasHechas={};
   if(!CURRENT_USER||CURRENT_USER.uid==='demo')return;
   try{
     const snap=await db.collection('progreso').doc(CURRENT_USER.uid).collection('rompecabezasRecompensas').get();
-    snap.forEach(d=>_puzzleResueltos.add(d.id));
+    snap.forEach(d=>{
+      const nivelId=d.id.split('_')[0];
+      _puzzleRondasHechas[nivelId]=(_puzzleRondasHechas[nivelId]||0)+1;
+    });
   }catch(e){}
 }
 function renderNivelesRompecabezas(){
   const a=document.getElementById('juegos-area');if(!a)return;
   a.innerHTML=`${retoHead('Rompecabezas arquitectónico','Misión 04 · elige tu nivel de dificultad')}
   <div class="rompe-niveles">${ROMPECABEZAS_NIVELES.map((nv,i)=>{
-    const resuelto=_puzzleResueltos.has(nv.id);
-    const bloqueado=i>0&&!_puzzleResueltos.has(ROMPECABEZAS_NIVELES[i-1].id);
+    const rondasHechas=Math.min(_puzzleRondasHechas[nv.id]||0,nv.rondas);
+    const resuelto=rondasHechas>=nv.rondas;
+    const bloqueado=i>0&&!puzzleNivelResuelto(ROMPECABEZAS_NIVELES[i-1].id);
     return `<button type="button" class="rompe-nivel${bloqueado?' is-locked':''}${resuelto?' is-done':''}" ${bloqueado?'disabled':`onclick="iniciarNivelRompecabezas('${nv.id}')"`}>
       <span class="rompe-nivel-ico">${bloqueado?'🔒':(resuelto?'✓':'▦')}</span>
       <b>${nv.label}</b>
-      <span>${nv.n}×${nv.n} piezas</span>
-      <span class="rompe-nivel-premio">${resuelto?'Completado':`+${nv.monedas} monedas`}</span>
+      <span>${nv.n}×${nv.n} piezas · ${rondasHechas}/${nv.rondas} rondas</span>
+      <span class="rompe-nivel-premio">${resuelto?'Completado':`+${nv.monedas} monedas por ronda`}</span>
     </button>`;
   }).join('')}</div>
   ${!_tieneAcceso()?'<div class="game-tip">Puedes armar los rompecabezas libremente. Las monedas de recompensa requieren membresía activa.</div>':''}`;
 }
-function iniciarNivelRompecabezas(nivelId){
-  const nivel=ROMPECABEZAS_NIVELES.find(x=>x.id===nivelId);if(!nivel)return;
-  const n=nivel.n,tiles=Array.from({length:n*n},(_,i)=>i);let empty=tiles.length-1;
+function puzzleBarajar(n){
+  const tiles=Array.from({length:n*n},(_,i)=>i);let empty=tiles.length-1;
   const vueltas=Math.max(40,n*n*8);
   for(let k=0;k<vueltas;k++){const moves=puzzleVecinos(empty,n);const next=moves[Math.floor(Math.random()*moves.length)];[tiles[empty],tiles[next]]=[tiles[next],tiles[empty]];empty=next;}
+  return tiles;
+}
+function iniciarNivelRompecabezas(nivelId){
+  const nivel=ROMPECABEZAS_NIVELES.find(x=>x.id===nivelId);if(!nivel)return;
+  const ronda=Math.min((_puzzleRondasHechas[nivelId]||0)+1,nivel.rondas);
   const imagen=ROMPECABEZAS_IMAGENES[Math.floor(Math.random()*ROMPECABEZAS_IMAGENES.length)];
-  _puzzle={nivel:nivelId,n,tiles,selected:null,movimientos:0,ganado:false,imagen,enviando:false};
+  _puzzle={nivel:nivelId,ronda,n:nivel.n,tiles:puzzleBarajar(nivel.n),selected:null,movimientos:0,ganado:false,imagen,enviando:false};
+  renderRompecabezas();
+}
+function siguienteRondaRompecabezas(){
+  const s=_puzzle;if(!s)return;
+  const nivel=ROMPECABEZAS_NIVELES.find(x=>x.id===s.nivel);if(!nivel)return;
+  const imagen=ROMPECABEZAS_IMAGENES[Math.floor(Math.random()*ROMPECABEZAS_IMAGENES.length)];
+  _puzzle={nivel:s.nivel,ronda:s.ronda+1,n:nivel.n,tiles:puzzleBarajar(nivel.n),selected:null,movimientos:0,ganado:false,imagen,enviando:false};
+  renderRompecabezas();
+}
+function remezclarRompecabezas(){
+  const s=_puzzle;if(!s||s.enviando)return;
+  s.tiles=puzzleBarajar(s.n);s.selected=null;s.movimientos=0;s.ganado=false;
   renderRompecabezas();
 }
 function puzzleVecinos(i,n){const r=Math.floor(i/n),c=i%n,out=[];if(r)out.push(i-n);if(r<n-1)out.push(i+n);if(c)out.push(i-1);if(c<n-1)out.push(i+1);return out;}
 function renderRompecabezas(){
   const a=document.getElementById('juegos-area'),s=_puzzle;if(!a||!s)return;
   const nivel=ROMPECABEZAS_NIVELES.find(x=>x.id===s.nivel)||ROMPECABEZAS_NIVELES[0];
+  const esUltimaRonda=s.ronda>=nivel.rondas;
   const final=s.tiles.every((v,i)=>v===i);
   if(final&&!s.ganado){s.ganado=true;confirmarRompecabezas();}
-  a.innerHTML=`${retoHead('Rompecabezas arquitectónico',`Nivel ${nivel.label} · reconstruye la imagen en ${s.n*s.n-1} piezas`)}
- <div class="visual-game puzzle-game"><div class="game-status"><b>${s.movimientos} movimientos</b><span>${s.ganado?(s.enviando?'Registrando tu recompensa…':'¡Imagen reconstruida!'):'Toca una pieza junto al espacio vacío para moverla.'}</span><button class="btn-ghost" onclick="iniciarNivelRompecabezas('${s.nivel}')">Mezclar de nuevo</button></div>
+  a.innerHTML=`${retoHead('Rompecabezas arquitectónico',`Nivel ${nivel.label} · ronda ${s.ronda}/${nivel.rondas} · reconstruye la imagen en ${s.n*s.n-1} piezas`)}
+ <div class="visual-game puzzle-game"><div class="game-status"><b>${s.movimientos} movimientos</b><span>${s.ganado?(s.enviando?'Registrando tu recompensa…':'¡Imagen reconstruida!'):'Toca una pieza junto al espacio vacío para moverla.'}</span><button class="btn-ghost" onclick="remezclarRompecabezas()">Mezclar de nuevo</button></div>
  <div class="puzzle-layout"><div class="puzzle-board" style="--puzzle-n:${s.n}">${s.tiles.map((tile,i)=>{
    if(tile===s.n*s.n-1)return '<button class="puzzle-tile puzzle-empty" aria-label="Espacio vacío"></button>';
    const bx=tile%s.n,by=Math.floor(tile/s.n);
    const posX=s.n>1?(bx/(s.n-1)*100):0,posY=s.n>1?(by/(s.n-1)*100):0;
    return `<button class="puzzle-tile ${s.selected===i?'is-selected':''}" style="background-image:url('${s.imagen}');background-size:${s.n*100}% ${s.n*100}%;background-position:${posX}% ${posY}%" aria-label="Pieza ${tile+1}" onclick="moverPiezaPuzzle(${i})"></button>`;
- }).join('')}</div><aside class="puzzle-info"><span class="pill">NIVEL ${nivel.label.toUpperCase()}</span><h3>Reconstruye la imagen completa.</h3><p>Al completarla, identifica qué decisiones de diseño reconoces en la composición.</p>${s.ganado?`<div class="game-success"><b>¡Resuelto!</b><span>${s.enviando?'Registrando tu recompensa…':'Vuelve a Zona de Retos para seguir al siguiente nivel.'}</span></div>`:''}</aside></div></div>`;
+ }).join('')}</div><aside class="puzzle-info"><span class="pill">NIVEL ${nivel.label.toUpperCase()} · RONDA ${s.ronda}/${nivel.rondas}</span><h3>Reconstruye la imagen completa.</h3><p>Al completarla, identifica qué decisiones de diseño reconoces en la composición.</p>${s.ganado&&!s.enviando?`<div class="game-success"><b>¡Resuelto!</b><span>${esUltimaRonda?'Vuelve a Zona de Retos para seguir al siguiente nivel.':'Buen trabajo. Sigue con la siguiente imagen de este nivel.'}</span>${!esUltimaRonda?'<button class="btn-primary" style="width:auto;margin-top:10px;padding:10px 20px" onclick="siguienteRondaRompecabezas()">Siguiente imagen →</button>':''}</div>`:''}</aside></div></div>`;
 }
 function moverPiezaPuzzle(i){
   const s=_puzzle;if(!s||s.ganado)return;
@@ -2785,16 +2813,19 @@ async function confirmarRompecabezas(){
   const s=_puzzle;if(!s||s.enviando)return;
   s.enviando=true;
   try{
-    const r=await apiFetch('/rompecabezas-completar',{method:'POST',body:{nivel:s.nivel}});
-    _puzzleResueltos.add(s.nivel);
+    const r=await apiFetch('/rompecabezas-completar',{method:'POST',body:{nivel:s.nivel,ronda:s.ronda}});
+    _puzzleRondasHechas[s.nivel]=Math.max(_puzzleRondasHechas[s.nivel]||0,s.ronda);
+    const totalRondas=ROMPECABEZAS_NIVELES.find(x=>x.id===s.nivel).rondas;
     confetti();
     if(r.monedasGanadas>0){
       actualizarSaldoJuegos(r.monedasGanadas,0);
-      toast(`¡Nivel completado! +${r.monedasGanadas} monedas 🎉`);
+      toast(`¡Ronda ${s.ronda}/${totalRondas} completada! +${r.monedasGanadas} monedas 🎉`);
     }else if(r.motivo==='membresia_requerida'){
-      toast('¡Nivel completado! Activa tu membresía para ganar las monedas de recompensa.');
+      toast('¡Ronda completada! Activa tu membresía para ganar las monedas de recompensa.');
+    }else if(r.motivo==='ya_recompensada'){
+      toast('Ya habías ganado la recompensa de esta ronda antes.');
     }else{
-      toast('¡Nivel completado!');
+      toast('¡Ronda completada!');
     }
   }catch(e){
     toast('Resuelto, pero no se pudo registrar tu recompensa. Intenta de nuevo más tarde.',{type:'err'});
