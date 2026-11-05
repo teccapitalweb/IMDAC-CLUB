@@ -2265,9 +2265,9 @@ function renderJuegos(){
 const MISIONES_JUEGOS=[
   {id:'quiz',n:1,icono:'🏛️',titulo:'Quiz del Arquitecto',desc:'Preguntas rápidas de opción múltiple para repasar conceptos clave de tus cursos.',portada:'assets/retos/mision-01.png',onclick:'abrirCaminoQuiz()'},
   {id:'retos',n:2,icono:'🔎',titulo:'Detecta el error',desc:'Observa una fotografía real de obra e identifica los riesgos antes de que sea tarde.',portada:'assets/retos/mision-02.png',onclick:'abrirCaminoRetos()'},
-  {id:'cambios',n:3,icono:'◉',titulo:'¿Qué cambió en el proyecto?',desc:'Compara dos propuestas arquitectónicas y encuentra los cambios visuales.',coverClass:'mision-art-cambios',onclick:'iniciarCambiosProyecto()'},
-  {id:'puzzle',n:4,icono:'▦',titulo:'Rompecabezas arquitectónico',desc:'Reconstruye una composición arquitectónica y descubre sus decisiones de diseño.',coverClass:'mision-art-puzzle',onclick:'iniciarRompecabezas()'},
-  {id:'orden',n:5,icono:'↕',titulo:'Ordena la obra',desc:'10 escenarios constructivos: organiza cada secuencia de actividades respetando sus dependencias reales.',coverClass:'mision-art-orden',onclick:'iniciarOrdenObra()'},
+  {id:'cambios',n:3,icono:'◉',titulo:'¿Qué cambió en el proyecto?',desc:'Compara dos propuestas arquitectónicas y encuentra los cambios visuales.',portada:'assets/retos/mision-03.png',onclick:'iniciarCambiosProyecto()'},
+  {id:'puzzle',n:4,icono:'▦',titulo:'Rompecabezas arquitectónico',desc:'Reconstruye una composición arquitectónica y descubre sus decisiones de diseño.',portada:'assets/retos/mision-04.png',onclick:'iniciarRompecabezas()'},
+  {id:'orden',n:5,icono:'↕',titulo:'Ordena la obra',desc:'10 escenarios constructivos: organiza cada secuencia de actividades respetando sus dependencias reales.',portada:'assets/retos/mision-05.png',onclick:'iniciarOrdenObra()'},
   {id:'laberinto',n:6,icono:'⌘',titulo:'Laberinto de planos',desc:'Encuentra una ruta funcional dentro de una planta arquitectónica.',coverClass:'mision-art-laberinto',onclick:'iniciarLaberintoPlanos()'}
 ];
 function renderSelectorJuegos(){
