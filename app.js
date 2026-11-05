@@ -2590,7 +2590,7 @@ const CAMBIOS_NIVELES=[
   {id:'cimentacion',label:'Cimentación',categoria:'Estructura',total:4,pista:'Compara las columnas, los materiales acopiados, la barrera y la zanja lateral.',original:'assets/retos/cambios/nivel-05-cimentacion-original.jpg',modificada:'assets/retos/cambios/nivel-05-cimentacion-modificada.jpg'},
   {id:'cubierta',label:'Cubierta / terraza',categoria:'Acabados',total:4,pista:'Observa el techo completo, los paneles solares y la chimenea.',original:'assets/retos/cambios/nivel-06-cubierta-original.jpg',modificada:'assets/retos/cambios/nivel-06-cubierta-modificada.jpg'}
 ];
-const CAMBIOS_PREMIO=15;
+const CAMBIOS_PREMIO=20;
 let _cambiosResueltos=new Set(),_cambiosAvance={};
 async function iniciarCambiosProyecto(){
   await cargarNivelesCambios();
@@ -2726,9 +2726,9 @@ const ROMPECABEZAS_IMAGENES=[
   'assets/retos/rompecabezas/planta-residencial.jpg',
 ];
 const ROMPECABEZAS_NIVELES=[
-  {id:'facil',n:3,label:'Fácil',monedas:10,rondas:2},
-  {id:'medio',n:4,label:'Medio',monedas:20,rondas:2},
-  {id:'dificil',n:6,label:'Difícil',monedas:35,rondas:1},
+  {id:'facil',n:3,label:'Fácil',monedas:15,rondas:2},
+  {id:'medio',n:4,label:'Medio',monedas:25,rondas:2},
+  {id:'dificil',n:6,label:'Difícil',monedas:45,rondas:1},
 ];
 let _puzzleRondasHechas={};
 function puzzleNivelResuelto(nivelId){
@@ -2858,7 +2858,7 @@ async function confirmarRompecabezas(){
    genérica o rota (ver ordenImgFail).
 */
 const ORDEN_OBRA_NIVELES=[
-  {id:'vivienda',n:1,titulo:'Construye una vivienda desde cero',dificultad:'Básico',monedas:15,actividades:[
+  {id:'vivienda',n:1,titulo:'Construye una vivienda desde cero',dificultad:'Básico',monedas:20,actividades:[
     {id:'terreno',titulo:'Preparación del terreno'},
     {id:'cimentacion',titulo:'Cimentación',razon:"La cimentación necesita un terreno ya nivelado y trazado: colar sobre tierra sin preparar compromete el desplante de la estructura."},
     {id:'estructura',titulo:'Estructura',razon:'Columnas y trabes requieren una cimentación ya curada que soporte su peso antes de cargarla.'},
@@ -2866,14 +2866,14 @@ const ORDEN_OBRA_NIVELES=[
     {id:'instalaciones',titulo:'Instalaciones',razon:'Tuberías y canalizaciones se ahogan dentro de los muros ya construidos: no se pueden instalar sin ellos.'},
     {id:'acabados',titulo:'Acabados y entrega',razon:'Pintar o colocar acabados antes de cerrar instalaciones obliga a romper y repetir el trabajo.'}
   ]},
-  {id:'terreno',n:2,titulo:'Preparación del terreno',dificultad:'Básico',monedas:15,actividades:[
+  {id:'terreno',n:2,titulo:'Preparación del terreno',dificultad:'Básico',monedas:20,actividades:[
     {id:'estudios',titulo:'Revisión de estudios y condiciones'},
     {id:'delimitacion',titulo:'Delimitación',razon:'Sin conocer las condiciones del terreno (estudios, colindancias) no se puede delimitar con certeza dónde construir.'},
     {id:'limpieza',titulo:'Limpieza',razon:'Limpiar antes de delimitar arriesga invadir terreno vecino o fuera del polígono autorizado.'},
     {id:'trazo',titulo:'Trazo y nivelación',razon:'El trazo necesita un terreno limpio y libre de obstáculos para marcar ejes y niveles con precisión.'},
     {id:'excavacion',titulo:'Excavación conforme al proyecto',razon:'Excavar sin trazo y nivelación previos no garantiza que los cortes coincidan con el proyecto.'}
   ]},
-  {id:'cimentacion',n:3,titulo:'Cimentación',dificultad:'Básico',monedas:15,actividades:[
+  {id:'cimentacion',n:3,titulo:'Cimentación',dificultad:'Básico',monedas:20,actividades:[
     {id:'replanteo',titulo:'Replanteo'},
     {id:'excavacion',titulo:'Excavación',razon:'La excavación sigue las referencias que dejó el replanteo; sin él no hay dónde excavar con precisión.'},
     {id:'base',titulo:'Preparación de base',razon:'La base (plantilla, compactado) se prepara dentro de la excavación ya abierta.'},
@@ -2881,7 +2881,7 @@ const ORDEN_OBRA_NIVELES=[
     {id:'revision_tecnica',titulo:'Revisión técnica',razon:'Se revisa el armado y la cimbra antes de colar, cuando ya están colocados pero aún visibles.'},
     {id:'colado',titulo:'Colado y curado',razon:'El colado solo procede después de que la revisión técnica aprueba el armado y la cimbra.'}
   ]},
-  {id:'muros',n:4,titulo:'Levantamiento de muros',dificultad:'Intermedio',monedas:20,actividades:[
+  {id:'muros',n:4,titulo:'Levantamiento de muros',dificultad:'Intermedio',monedas:30,actividades:[
     {id:'revision_planos',titulo:'Revisión de planos'},
     {id:'trazo',titulo:'Trazo',razon:'El trazo de los muros depende de las medidas y ejes que marcan los planos ya revisados.'},
     {id:'mezcla',titulo:'Preparación de mezcla',razon:'La mezcla se prepara cuando ya hay trazo, para no perder tiempo de fraguado antes de usarla.'},
@@ -2889,7 +2889,7 @@ const ORDEN_OBRA_NIVELES=[
     {id:'levantamiento',titulo:'Levantamiento y verificación',razon:'El resto del muro se levanta a partir de las primeras hiladas ya niveladas y a plomo.'},
     {id:'revision_final',titulo:'Revisión final',razon:'La revisión final evalúa el muro ya levantado completo, no uno a medias.'}
   ]},
-  {id:'electrica',n:5,titulo:'Instalación eléctrica',dificultad:'Intermedio',monedas:20,actividades:[
+  {id:'electrica',n:5,titulo:'Instalación eléctrica',dificultad:'Intermedio',monedas:30,actividades:[
     {id:'revision_proyecto',titulo:'Revisión del proyecto'},
     {id:'marcado_rutas',titulo:'Marcado de rutas',razon:'Las rutas de tubería se marcan siguiendo el proyecto eléctrico ya revisado.'},
     {id:'canalizaciones',titulo:'Instalación de canalizaciones y cajas',razon:'Canalizaciones y cajas se colocan sobre las rutas ya marcadas en muro o losa.'},
@@ -2897,7 +2897,7 @@ const ORDEN_OBRA_NIVELES=[
     {id:'conexiones',titulo:'Conexiones por personal competente',razon:'Las conexiones requieren que los conductores ya estén tendidos entre los puntos a unir.'},
     {id:'pruebas',titulo:'Pruebas y verificación',razon:'Las pruebas evalúan conexiones ya realizadas; antes de eso no hay circuito que probar.'}
   ]},
-  {id:'hidrosanitaria',n:6,titulo:'Instalación hidrosanitaria',dificultad:'Intermedio',monedas:20,actividades:[
+  {id:'hidrosanitaria',n:6,titulo:'Instalación hidrosanitaria',dificultad:'Intermedio',monedas:30,actividades:[
     {id:'revision_planos',titulo:'Revisión de planos'},
     {id:'trazo',titulo:'Trazo',razon:'El trazo de tuberías sigue las rutas y pendientes que indican los planos ya revisados.'},
     {id:'pasos_soportes',titulo:'Preparación de pasos y soportes',razon:'Pasos en muro/losa y soportes se preparan en los puntos que ya marcó el trazo.'},
@@ -2905,7 +2905,7 @@ const ORDEN_OBRA_NIVELES=[
     {id:'hermeticidad',titulo:'Pruebas de hermeticidad',razon:'La hermeticidad solo se prueba con tubería ya montada y conectada.'},
     {id:'liberacion',titulo:'Correcciones y liberación para cierre',razon:'Las correcciones atienden fugas detectadas en la prueba; sin prueba no se sabe qué corregir.'}
   ]},
-  {id:'pisos',n:7,titulo:'Instalación de pisos',dificultad:'Intermedio',monedas:20,actividades:[
+  {id:'pisos',n:7,titulo:'Instalación de pisos',dificultad:'Intermedio',monedas:30,actividades:[
     {id:'inspeccion_base',titulo:'Inspección de base'},
     {id:'preparacion_superficie',titulo:'Preparación de superficie',razon:'La superficie se prepara según lo que reveló la inspección de la base (nivel, humedad, grietas).'},
     {id:'trazo',titulo:'Trazo',razon:'El trazo de piezas se marca sobre una superficie ya preparada y limpia.'},
@@ -2913,7 +2913,7 @@ const ORDEN_OBRA_NIVELES=[
     {id:'colocacion',titulo:'Colocación y nivelación',razon:'Las piezas se colocan mientras el adhesivo aún está fresco, nunca antes de aplicarlo.'},
     {id:'juntas',titulo:'Juntas, limpieza y protección',razon:'Las juntas se sellan cuando el piso ya está colocado y nivelado, no antes.'}
   ]},
-  {id:'impermeabilizacion',n:8,titulo:'Impermeabilización',dificultad:'Avanzado',monedas:30,actividades:[
+  {id:'impermeabilizacion',n:8,titulo:'Impermeabilización',dificultad:'Avanzado',monedas:45,actividades:[
     {id:'inspeccion_cubierta',titulo:'Inspección de cubierta'},
     {id:'preparacion',titulo:'Preparación',razon:'La preparación (limpieza, desprendido de material suelto) responde a lo que encontró la inspección.'},
     {id:'reparacion',titulo:'Reparación de puntos críticos',razon:'Reparar grietas o encuentros requiere una superficie ya limpia y preparada para trabajar.'},
@@ -2921,7 +2921,7 @@ const ORDEN_OBRA_NIVELES=[
     {id:'instalacion_sistema',titulo:'Instalación del sistema',razon:'El sistema impermeabilizante se instala sobre la imprimación ya aplicada, cuando corresponde.'},
     {id:'revision_prueba',titulo:'Revisión y prueba según especificaciones',razon:'La prueba final evalúa el sistema ya instalado por completo.'}
   ]},
-  {id:'losa',n:9,titulo:'Construcción de losa',dificultad:'Avanzado',monedas:30,actividades:[
+  {id:'losa',n:9,titulo:'Construcción de losa',dificultad:'Avanzado',monedas:45,actividades:[
     {id:'revision_proyecto',titulo:'Revisión del proyecto'},
     {id:'apuntalamiento',titulo:'Apuntalamiento y cimbra',razon:'La cimbra se arma siguiendo las medidas y cargas que define el proyecto ya revisado.'},
     {id:'acero',titulo:'Colocación de acero y elementos previstos',razon:'El acero se coloca sobre la cimbra ya armada y apuntalada.'},
@@ -2930,7 +2930,7 @@ const ORDEN_OBRA_NIVELES=[
     {id:'curado',titulo:'Curado',razon:'El curado comienza justo después del colado, mientras el concreto aún está fraguando.'},
     {id:'retiro_apoyos',titulo:'Retiro de apoyos cuando se autorice',razon:'Los apoyos se retiran hasta que el curado garantiza que la losa ya resiste su propio peso.'}
   ]},
-  {id:'entrega',n:10,titulo:'Entrega de obra',dificultad:'Avanzado',monedas:35,actividades:[
+  {id:'entrega',n:10,titulo:'Entrega de obra',dificultad:'Avanzado',monedas:50,actividades:[
     {id:'inspeccion_final',titulo:'Inspección final'},
     {id:'lista_pendientes',titulo:'Lista de pendientes',razon:'La lista de pendientes se arma con lo que detectó la inspección final.'},
     {id:'correcciones',titulo:'Correcciones',razon:'Las correcciones atienden justamente los pendientes ya listados.'},
@@ -3105,9 +3105,9 @@ async function confirmarOrdenObra(){
    laberinto no es secreto (no hay nada que ocultar del servidor): se genera
    y se resuelve todo en el cliente, igual que la mezcla del rompecabezas. */
 const LABERINTO_NIVELES=[
-  {id:'facil',label:'Fácil',monedas:10,rondas:2,w:7,h:7,misiones:['Reconoce una circulación continua.','Identifica una ruta simple sin bloqueos.']},
-  {id:'medio',label:'Medio',monedas:20,rondas:2,w:9,h:9,misiones:['Resuelve una circulación con desvíos intermedios.','Encuentra la mejor ruta entre muros y giros.']},
-  {id:'dificil',label:'Difícil',monedas:35,rondas:2,w:11,h:9,misiones:['Analiza el recorrido antes de avanzar.','Domina una circulación compleja con rutas falsas.']}
+  {id:'facil',label:'Fácil',monedas:15,rondas:2,w:7,h:7,misiones:['Reconoce una circulación continua.','Identifica una ruta simple sin bloqueos.']},
+  {id:'medio',label:'Medio',monedas:25,rondas:2,w:9,h:9,misiones:['Resuelve una circulación con desvíos intermedios.','Encuentra la mejor ruta entre muros y giros.']},
+  {id:'dificil',label:'Difícil',monedas:45,rondas:2,w:11,h:9,misiones:['Analiza el recorrido antes de avanzar.','Domina una circulación compleja con rutas falsas.']}
 ];
 let _laberintoRondasHechas={};
 function laberintoNivelResuelto(nivelId){
