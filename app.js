@@ -2300,7 +2300,7 @@ async function cargarProgresoMisiones(){
   if(!uid||uid==='demo'){
     pintar('quiz','Inicia sesión para ver tu avance',0);
     pintar('retos','Inicia sesión para ver tu avance',0);
-    pintar('cambios','Encuentra 4 cambios',0);
+    pintar('cambios',`0/${CAMBIOS_NIVELES.length} cambios encontrados`,0);
     pintar('puzzle','Nivel inicial disponible',0);
     pintar('orden','Secuencia de obra disponible',0);
     pintar('laberinto','Misión de circulación disponible',0);
@@ -2327,7 +2327,12 @@ async function cargarProgresoMisiones(){
     const resueltos=recompensasSnap.size;
     pintar('puzzle',`${resueltos}/${ROMPECABEZAS_NIVELES.length} niveles resueltos`,resueltos/ROMPECABEZAS_NIVELES.length*100);
   }catch(e){ pintar('puzzle','3 niveles de dificultad',0); }
-  ['cambios','orden','laberinto'].forEach(id=>{
+  try{
+    const recompensasSnap=await db.collection('progreso').doc(uid).collection('cambiosProyectoRecompensas').get();
+    const resueltos=recompensasSnap.size;
+    pintar('cambios',`${resueltos}/${CAMBIOS_NIVELES.length} cambios encontrados`,resueltos/CAMBIOS_NIVELES.length*100);
+  }catch(e){ pintar('cambios',`${CAMBIOS_NIVELES.length} propuestas por comparar`,0); }
+  ['orden','laberinto'].forEach(id=>{
     const done=localStorage.getItem(`imdac-reto-${id}-${uid}`)==='done';
     pintar(id,done?'Completado':'Disponible hoy',done?100:0);
   });
@@ -2562,16 +2567,112 @@ function completarRetoLocal(id,mensaje){
 }
 function retoHead(titulo,subtitulo){return `<div class="sec-head"><div><h3>${titulo}</h3><span style="color:var(--muted);font-size:.84rem">${subtitulo}</span></div><button class="btn-ghost" onclick="renderSection('juegos')">← Zona de Retos</button></div>`;}
 
-/* 1. ¿Qué cambió en el proyecto? Los puntos se muestran sólo cuando el
-   jugador los descubre; no son diferencias arbitrarias de texto. */
-const CAMBIOS_PUNTOS=[{id:'ventana',x:72,y:28,label:'Ventana adicional'},{id:'techo',x:48,y:18,label:'Cambio de cubierta'},{id:'arbol',x:19,y:73,label:'Árbol incorporado'},{id:'acceso',x:56,y:73,label:'Acceso rediseñado'}];
-function iniciarCambiosProyecto(){_cambios={hallados:[],mensaje:'Encuentra los 4 cambios en la propuesta de la derecha.'};renderCambiosProyecto();}
-function renderCasaCambio(tipo){const mod=tipo==='despues';return `<div class="cambio-edificio ${mod?'cambio-despues':''}" aria-label="Proyecto ${mod?'modificado':'original'}"><div class="cambio-sol"></div><div class="cambio-casa"><i class="cambio-techo"></i><i class="cambio-cuerpo"></i><i class="cambio-ventana v1"></i><i class="cambio-ventana v2"></i>${mod?'<i class="cambio-ventana v3"></i><i class="cambio-arbol"></i><i class="cambio-acceso"></i>':''}</div><span>Propuesta ${mod?'B · modificada':'A · original'}</span></div>`;}
-function renderCambiosProyecto(){const a=document.getElementById('juegos-area'),s=_cambios;if(!a||!s)return;const done=s.hallados.length===CAMBIOS_PUNTOS.length;a.innerHTML=`${retoHead('¿Qué cambió en el proyecto?','Misión 03 · observa, compara y toca los cambios')}
-  <div class="visual-game"><div class="game-status"><b>${s.hallados.length}/4 cambios detectados</b><span>${escHtml(s.mensaje)}</span><button class="btn-ghost" onclick="iniciarCambiosProyecto()">Reiniciar</button></div>
-  <div class="comparador-proyecto"><div>${renderCasaCambio('antes')}</div><div class="proyecto-hotspots">${renderCasaCambio('despues')}${CAMBIOS_PUNTOS.map(p=>`<button class="cambio-hotspot ${s.hallados.includes(p.id)?'is-found':''}" style="left:${p.x}%;top:${p.y}%" aria-label="Revisar zona" onclick="revisarCambioProyecto('${p.id}')">${s.hallados.includes(p.id)?'✓':''}</button>`).join('')}</div></div>
-  ${done?`<div class="game-success"><b>¡Excelente observación!</b><span>Detectaste los cuatro cambios. Comparar soluciones ayuda a entrenar tu lectura visual de un proyecto.</span></div>`:`<div class="game-tip">Pista: mira la cubierta, los vanos, el acceso y el paisaje inmediato.</div>`}</div>`;}
-function revisarCambioProyecto(id){const s=_cambios,p=CAMBIOS_PUNTOS.find(x=>x.id===id);if(!s||!p||s.hallados.includes(id))return;s.hallados.push(id);s.mensaje=`Correcto: ${p.label}.`;if(s.hallados.length===CAMBIOS_PUNTOS.length){s.mensaje='Completaste la comparación visual.';completarRetoLocal('cambios','¡Los cuatro cambios fueron identificados!');}renderCambiosProyecto();}
+/* 1. ¿Qué cambió en el proyecto? 6 niveles con fotografías reales
+   (antes/después). El cliente solo conoce las imágenes y un texto público
+   de pista -- la zona exacta del cambio y la explicación viven únicamente
+   en el webhook (/cambios-proyecto/:nivel/responder) y nunca llegan al
+   cliente hasta acertar, igual que Detecta el error. La recompensa se paga
+   una sola vez por nivel para siempre (progreso/{uid}/cambiosProyectoRecompensas);
+   un nivel ya resuelto queda en modo solo-lectura, sin más monedas. */
+const CAMBIOS_NIVELES=[
+  {id:'fachada',label:'Fachada principal',categoria:'Arquitectura',pista:'Fíjate en la planta alta de la fachada.',original:'assets/retos/cambios/nivel-01-fachada-original.jpg',modificada:'assets/retos/cambios/nivel-01-fachada-modificada.jpg'},
+  {id:'sala',label:'Sala de estar',categoria:'Interiorismo',pista:'Observa el lado derecho de la sala.',original:'assets/retos/cambios/nivel-02-sala-original.jpg',modificada:'assets/retos/cambios/nivel-02-sala-modificada.jpg'},
+  {id:'plano',label:'Planta arquitectónica',categoria:'Distribución',pista:'Compara la zona del comedor y la cocina.',original:'assets/retos/cambios/nivel-03-plano-original.jpg',modificada:'assets/retos/cambios/nivel-03-plano-modificada.jpg'},
+  {id:'obra',label:'Avance de obra',categoria:'Construcción',pista:'Revisa el lado derecho de la fachada en obra.',original:'assets/retos/cambios/nivel-04-obra-original.jpg',modificada:'assets/retos/cambios/nivel-04-obra-modificada.jpg'},
+  {id:'cimentacion',label:'Cimentación',categoria:'Estructura',pista:'Mira el borde perimetral de la losa.',original:'assets/retos/cambios/nivel-05-cimentacion-original.jpg',modificada:'assets/retos/cambios/nivel-05-cimentacion-modificada.jpg'},
+  {id:'cubierta',label:'Cubierta / terraza',categoria:'Acabados',pista:'Observa el techo, no las paredes.',original:'assets/retos/cambios/nivel-06-cubierta-original.jpg',modificada:'assets/retos/cambios/nivel-06-cubierta-modificada.jpg'}
+];
+const CAMBIOS_PREMIO=15;
+let _cambiosResueltos=new Set();
+async function iniciarCambiosProyecto(){
+  await cargarNivelesCambios();
+  renderNivelesCambios();
+}
+async function cargarNivelesCambios(){
+  _cambiosResueltos=new Set();
+  if(!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  try{
+    const snap=await db.collection('progreso').doc(CURRENT_USER.uid).collection('cambiosProyectoRecompensas').get();
+    snap.forEach(d=>_cambiosResueltos.add(d.id));
+  }catch(e){}
+}
+function renderNivelesCambios(){
+  const a=document.getElementById('juegos-area');if(!a)return;
+  a.innerHTML=`${retoHead('¿Qué cambió en el proyecto?','Misión 03 · compara dos propuestas y toca el cambio real')}
+  <div class="rompe-niveles">${CAMBIOS_NIVELES.map(nv=>{
+    const resuelto=_cambiosResueltos.has(nv.id);
+    return `<button type="button" class="rompe-nivel${resuelto?' is-done':''}" onclick="iniciarNivelCambios('${nv.id}')">
+      <span class="rompe-nivel-ico">${resuelto?'✓':'◉'}</span>
+      <b>${escHtml(nv.label)}</b>
+      <span>${escHtml(nv.categoria)}</span>
+      <span class="rompe-nivel-premio">${resuelto?'Completado':`+${CAMBIOS_PREMIO} monedas`}</span>
+    </button>`;
+  }).join('')}</div>
+  ${!_tieneAcceso()?'<div class="game-tip">Puedes comparar las propuestas libremente. Las monedas de recompensa requieren membresía activa.</div>':''}`;
+}
+function cambioExplKey(nivelId){return `imdac-cambio-expl-${nivelId}-${(CURRENT_USER&&CURRENT_USER.uid)||'local'}`;}
+function iniciarNivelCambios(nivelId){
+  const nivel=CAMBIOS_NIVELES.find(x=>x.id===nivelId);if(!nivel)return;
+  const resuelto=_cambiosResueltos.has(nivelId);
+  let explicacion='';
+  if(resuelto){try{explicacion=localStorage.getItem(cambioExplKey(nivelId))||'';}catch(e){}}
+  _cambios={nivel:nivelId,intentos:0,ganado:resuelto,enviando:false,explicacion,pista:false,marcadorOk:null,marcadorErr:null};
+  renderCambiosProyecto();
+}
+function renderCambiosProyecto(){
+  const a=document.getElementById('juegos-area'),s=_cambios;if(!a||!s)return;
+  const nivel=CAMBIOS_NIVELES.find(x=>x.id===s.nivel)||CAMBIOS_NIVELES[0];
+  a.innerHTML=`${retoHead('¿Qué cambió en el proyecto?',`Nivel ${escHtml(nivel.label)} · encuentra el cambio real`)}
+  <div class="visual-game"><div class="game-status"><b>${s.ganado?'¡Resuelto!':`${s.intentos} intento${s.intentos===1?'':'s'}`}</b><span>${s.ganado?'Compara el antes y el después cuando quieras: este nivel ya no otorga más monedas.':'Toca en la propuesta B el punto exacto donde cambió el proyecto.'}</span><button class="btn-ghost" onclick="renderNivelesCambios()">← Niveles</button></div>
+  <div class="comparador-proyecto">
+    <div class="comparador-foto"><span class="comparador-tag">A · Original</span><img src="${nivel.original}" alt="Propuesta original de ${escHtml(nivel.label)}"></div>
+    <div class="comparador-foto reto-stage" style="cursor:${s.ganado?'default':'crosshair'}">
+      <span class="comparador-tag">B · Modificada</span>
+      <img src="${nivel.modificada}" alt="Propuesta modificada de ${escHtml(nivel.label)}" ${s.ganado?'':'onclick="responderCambioProyecto(event)"'}>
+      ${s.marcadorErr?`<span class="reto-marker reto-marker-err" style="left:${s.marcadorErr.x}%;top:${s.marcadorErr.y}%">✕</span>`:''}
+      ${s.marcadorOk?`<span class="reto-marker reto-marker-ok" style="left:${s.marcadorOk.x}%;top:${s.marcadorOk.y}%">✓</span>`:''}
+    </div>
+  </div>
+  ${s.ganado?`<div class="game-success"><b>¡Correcto!</b><span>${escHtml(s.explicacion||'Identificaste el cambio real entre ambas propuestas.')}</span></div>`:`<div class="game-tip">${s.pista?escHtml(nivel.pista):'Compara estructura, acabados y mobiliario con calma, no solo la iluminación general de la foto.'}</div>`}
+  ${!s.ganado?`<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn-ghost" onclick="_cambios.pista=true;renderCambiosProyecto()">💡 Mostrar pista</button></div>`:''}
+  </div>`;
+}
+async function responderCambioProyecto(ev){
+  const s=_cambios;if(!s||s.ganado||s.enviando)return;
+  const img=ev.currentTarget,b=img.getBoundingClientRect();
+  const x=(ev.clientX-b.left)/b.width*100,y=(ev.clientY-b.top)/b.height*100;
+  s.enviando=true;
+  try{
+    const out=await apiFetch(`/cambios-proyecto/${encodeURIComponent(s.nivel)}/responder`,{method:'POST',body:{x,y}});
+    s.enviando=false;
+    if(!out.correcta){
+      s.intentos++;
+      s.marcadorErr={x,y};
+      renderCambiosProyecto();
+      setTimeout(()=>{ if(_cambios===s){ s.marcadorErr=null; renderCambiosProyecto(); } },1600);
+      return;
+    }
+    s.ganado=true;
+    s.marcadorOk={x,y};
+    s.explicacion=out.explicacion;
+    _cambiosResueltos.add(s.nivel);
+    try{localStorage.setItem(cambioExplKey(s.nivel),out.explicacion||'');}catch(e){}
+    confetti();
+    if(out.monedasGanadas>0){
+      actualizarSaldoJuegos(out.monedasGanadas,out.xpGanada);
+      toast(`¡Cambio encontrado! +${out.monedasGanadas} monedas 🎉`);
+    }else if(out.motivo==='membresia_requerida'){
+      toast('¡Cambio encontrado! Activa tu membresía para ganar las monedas de recompensa.');
+    }else{
+      toast('¡Cambio encontrado!');
+    }
+    renderCambiosProyecto();
+    cargarProgresoMisiones();
+  }catch(e){
+    s.enviando=false;
+    toast(e.message||'No se pudo revisar tu selección',{type:'err'});
+  }
+}
 
 /* 2. Rompecabezas: intercambio táctil/clic de piezas sobre una foto real,
    con estado siempre resoluble porque la mezcla parte de movimientos
