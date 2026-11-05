@@ -2322,7 +2322,12 @@ async function cargarProgresoMisiones(){
     const totalZonas=(retosData.retos||[]).reduce((n,r)=>n+(Array.isArray(r.zonas)?r.zonas.length:0),0);
     pintar('retos',`${recompensasSnap.size}/${totalZonas} casos identificados`,totalZonas?recompensasSnap.size/totalZonas*100:0);
   }catch(e){ pintar('retos','Fotografías reales de obra',0); }
-  ['cambios','puzzle','orden','laberinto'].forEach(id=>{
+  try{
+    const recompensasSnap=await db.collection('progreso').doc(uid).collection('rompecabezasRecompensas').get();
+    const resueltos=recompensasSnap.size;
+    pintar('puzzle',`${resueltos}/${ROMPECABEZAS_NIVELES.length} niveles resueltos`,resueltos/ROMPECABEZAS_NIVELES.length*100);
+  }catch(e){ pintar('puzzle','3 niveles de dificultad',0); }
+  ['cambios','orden','laberinto'].forEach(id=>{
     const done=localStorage.getItem(`imdac-reto-${id}-${uid}`)==='done';
     pintar(id,done?'Completado':'Disponible hoy',done?100:0);
   });
@@ -2568,14 +2573,105 @@ function renderCambiosProyecto(){const a=document.getElementById('juegos-area'),
   ${done?`<div class="game-success"><b>¡Excelente observación!</b><span>Detectaste los cuatro cambios. Comparar soluciones ayuda a entrenar tu lectura visual de un proyecto.</span></div>`:`<div class="game-tip">Pista: mira la cubierta, los vanos, el acceso y el paisaje inmediato.</div>`}</div>`;}
 function revisarCambioProyecto(id){const s=_cambios,p=CAMBIOS_PUNTOS.find(x=>x.id===id);if(!s||!p||s.hallados.includes(id))return;s.hallados.push(id);s.mensaje=`Correcto: ${p.label}.`;if(s.hallados.length===CAMBIOS_PUNTOS.length){s.mensaje='Completaste la comparación visual.';completarRetoLocal('cambios','¡Los cuatro cambios fueron identificados!');}renderCambiosProyecto();}
 
-/* 2. Rompecabezas: intercambio táctil/clic de piezas, con estado siempre
-   resoluble porque la mezcla parte de movimientos legales desde la solución. */
-function iniciarRompecabezas(){const n=3,tiles=Array.from({length:n*n},(_,i)=>i);let empty=tiles.length-1;for(let k=0;k<28;k++){const moves=puzzleVecinos(empty,n);const next=moves[Math.floor(Math.random()*moves.length)];[tiles[empty],tiles[next]]=[tiles[next],tiles[empty]];empty=next;}_puzzle={n,tiles,selected:null,movimientos:0,ganado:false};renderRompecabezas();}
+/* 2. Rompecabezas: intercambio táctil/clic de piezas sobre una foto real,
+   con estado siempre resoluble porque la mezcla parte de movimientos
+   legales desde la solución. Tres niveles de dificultad con desbloqueo
+   progresivo (fácil → medio → difícil) y recompensa real del servidor
+   (/rompecabezas-completar), una sola vez por nivel para siempre -- nunca
+   se vuelve a pagar por rearmarlo. */
+const ROMPECABEZAS_IMAGENES=[
+  'assets/retos/rompecabezas/interior-contemporaneo.jpg',
+  'assets/retos/rompecabezas/mesa-proyecto.jpg',
+  'assets/retos/rompecabezas/obra-ejecucion.jpg',
+  'assets/retos/rompecabezas/planta-residencial.jpg',
+];
+const ROMPECABEZAS_NIVELES=[
+  {id:'facil',n:3,label:'Fácil',monedas:10},
+  {id:'medio',n:4,label:'Medio',monedas:20},
+  {id:'dificil',n:6,label:'Difícil',monedas:35},
+];
+let _puzzleResueltos=new Set();
+async function iniciarRompecabezas(){
+  await cargarNivelesRompecabezas();
+  renderNivelesRompecabezas();
+}
+async function cargarNivelesRompecabezas(){
+  _puzzleResueltos=new Set();
+  if(!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  try{
+    const snap=await db.collection('progreso').doc(CURRENT_USER.uid).collection('rompecabezasRecompensas').get();
+    snap.forEach(d=>_puzzleResueltos.add(d.id));
+  }catch(e){}
+}
+function renderNivelesRompecabezas(){
+  const a=document.getElementById('juegos-area');if(!a)return;
+  a.innerHTML=`${retoHead('Rompecabezas arquitectónico','Misión 04 · elige tu nivel de dificultad')}
+  <div class="rompe-niveles">${ROMPECABEZAS_NIVELES.map((nv,i)=>{
+    const resuelto=_puzzleResueltos.has(nv.id);
+    const bloqueado=i>0&&!_puzzleResueltos.has(ROMPECABEZAS_NIVELES[i-1].id);
+    return `<button type="button" class="rompe-nivel${bloqueado?' is-locked':''}${resuelto?' is-done':''}" ${bloqueado?'disabled':`onclick="iniciarNivelRompecabezas('${nv.id}')"`}>
+      <span class="rompe-nivel-ico">${bloqueado?'🔒':(resuelto?'✓':'▦')}</span>
+      <b>${nv.label}</b>
+      <span>${nv.n}×${nv.n} piezas</span>
+      <span class="rompe-nivel-premio">${resuelto?'Completado':`+${nv.monedas} monedas`}</span>
+    </button>`;
+  }).join('')}</div>
+  ${!_tieneAcceso()?'<div class="game-tip">Puedes armar los rompecabezas libremente. Las monedas de recompensa requieren membresía activa.</div>':''}`;
+}
+function iniciarNivelRompecabezas(nivelId){
+  const nivel=ROMPECABEZAS_NIVELES.find(x=>x.id===nivelId);if(!nivel)return;
+  const n=nivel.n,tiles=Array.from({length:n*n},(_,i)=>i);let empty=tiles.length-1;
+  const vueltas=Math.max(40,n*n*8);
+  for(let k=0;k<vueltas;k++){const moves=puzzleVecinos(empty,n);const next=moves[Math.floor(Math.random()*moves.length)];[tiles[empty],tiles[next]]=[tiles[next],tiles[empty]];empty=next;}
+  const imagen=ROMPECABEZAS_IMAGENES[Math.floor(Math.random()*ROMPECABEZAS_IMAGENES.length)];
+  _puzzle={nivel:nivelId,n,tiles,selected:null,movimientos:0,ganado:false,imagen,enviando:false};
+  renderRompecabezas();
+}
 function puzzleVecinos(i,n){const r=Math.floor(i/n),c=i%n,out=[];if(r)out.push(i-n);if(r<n-1)out.push(i+n);if(c)out.push(i-1);if(c<n-1)out.push(i+1);return out;}
-function renderRompecabezas(){const a=document.getElementById('juegos-area'),s=_puzzle;if(!a||!s)return;const final=s.tiles.every((v,i)=>v===i);if(final&&!s.ganado){s.ganado=true;completarRetoLocal('puzzle','¡Rompecabezas arquitectónico completado!');}a.innerHTML=`${retoHead('Rompecabezas arquitectónico','Misión 04 · reconstruye la fachada en ${s.n*s.n-1} piezas')}
- <div class="visual-game puzzle-game"><div class="game-status"><b>${s.movimientos} movimientos</b><span>${s.ganado?'¡Fachada reconstruida!':'Toca una pieza junto al espacio vacío para moverla.'}</span><button class="btn-ghost" onclick="iniciarRompecabezas()">Mezclar de nuevo</button></div>
- <div class="puzzle-layout"><div class="puzzle-board" style="--puzzle-n:${s.n}">${s.tiles.map((tile,i)=>tile===s.n*s.n-1?'<button class="puzzle-tile puzzle-empty" aria-label="Espacio vacío"></button>':`<button class="puzzle-tile ${s.selected===i?'is-selected':''}" style="--bx:${tile%s.n};--by:${Math.floor(tile/s.n)}" aria-label="Pieza ${tile+1}" onclick="moverPiezaPuzzle(${i})"></button>`).join('')}</div><aside class="puzzle-info"><span class="pill">LECTURA DE FACHADA</span><h3>Una composición, varias decisiones.</h3><p>Al completar la imagen, identifica cómo los vanos, la cubierta y los materiales construyen la expresión del proyecto.</p><div class="puzzle-mini-building"></div></aside></div></div>`;}
-function moverPiezaPuzzle(i){const s=_puzzle;if(!s||s.ganado)return;const empty=s.tiles.indexOf(s.n*s.n-1);if(!puzzleVecinos(empty,s.n).includes(i)){toast('Solo puedes mover una pieza junto al espacio vacío.',{type:'err'});return;}[s.tiles[i],s.tiles[empty]]=[s.tiles[empty],s.tiles[i]];s.movimientos++;renderRompecabezas();}
+function renderRompecabezas(){
+  const a=document.getElementById('juegos-area'),s=_puzzle;if(!a||!s)return;
+  const nivel=ROMPECABEZAS_NIVELES.find(x=>x.id===s.nivel)||ROMPECABEZAS_NIVELES[0];
+  const final=s.tiles.every((v,i)=>v===i);
+  if(final&&!s.ganado){s.ganado=true;confirmarRompecabezas();}
+  a.innerHTML=`${retoHead('Rompecabezas arquitectónico',`Nivel ${nivel.label} · reconstruye la imagen en ${s.n*s.n-1} piezas`)}
+ <div class="visual-game puzzle-game"><div class="game-status"><b>${s.movimientos} movimientos</b><span>${s.ganado?(s.enviando?'Registrando tu recompensa…':'¡Imagen reconstruida!'):'Toca una pieza junto al espacio vacío para moverla.'}</span><button class="btn-ghost" onclick="iniciarNivelRompecabezas('${s.nivel}')">Mezclar de nuevo</button></div>
+ <div class="puzzle-layout"><div class="puzzle-board" style="--puzzle-n:${s.n}">${s.tiles.map((tile,i)=>{
+   if(tile===s.n*s.n-1)return '<button class="puzzle-tile puzzle-empty" aria-label="Espacio vacío"></button>';
+   const bx=tile%s.n,by=Math.floor(tile/s.n);
+   const posX=s.n>1?(bx/(s.n-1)*100):0,posY=s.n>1?(by/(s.n-1)*100):0;
+   return `<button class="puzzle-tile ${s.selected===i?'is-selected':''}" style="background-image:url('${s.imagen}');background-size:${s.n*100}% ${s.n*100}%;background-position:${posX}% ${posY}%" aria-label="Pieza ${tile+1}" onclick="moverPiezaPuzzle(${i})"></button>`;
+ }).join('')}</div><aside class="puzzle-info"><span class="pill">NIVEL ${nivel.label.toUpperCase()}</span><h3>Reconstruye la imagen completa.</h3><p>Al completarla, identifica qué decisiones de diseño reconoces en la composición.</p>${s.ganado?`<div class="game-success"><b>¡Resuelto!</b><span>${s.enviando?'Registrando tu recompensa…':'Vuelve a Zona de Retos para seguir al siguiente nivel.'}</span></div>`:''}</aside></div></div>`;
+}
+function moverPiezaPuzzle(i){
+  const s=_puzzle;if(!s||s.ganado)return;
+  const empty=s.tiles.indexOf(s.n*s.n-1);
+  if(!puzzleVecinos(empty,s.n).includes(i)){toast('Solo puedes mover una pieza junto al espacio vacío.',{type:'err'});return;}
+  [s.tiles[i],s.tiles[empty]]=[s.tiles[empty],s.tiles[i]];
+  s.movimientos++;
+  renderRompecabezas();
+}
+async function confirmarRompecabezas(){
+  const s=_puzzle;if(!s||s.enviando)return;
+  s.enviando=true;
+  try{
+    const r=await apiFetch('/rompecabezas-completar',{method:'POST',body:{nivel:s.nivel}});
+    _puzzleResueltos.add(s.nivel);
+    confetti();
+    if(r.monedasGanadas>0){
+      actualizarSaldoJuegos(r.monedasGanadas,0);
+      toast(`¡Nivel completado! +${r.monedasGanadas} monedas 🎉`);
+    }else if(r.motivo==='membresia_requerida'){
+      toast('¡Nivel completado! Activa tu membresía para ganar las monedas de recompensa.');
+    }else{
+      toast('¡Nivel completado!');
+    }
+  }catch(e){
+    toast('Resuelto, pero no se pudo registrar tu recompensa. Intenta de nuevo más tarde.',{type:'err'});
+  }
+  s.enviando=false;
+  cargarProgresoMisiones();
+  renderRompecabezas();
+}
 
 /* 3. Ordena la obra: actividades con dependencias, reordenables por arrastre,
    y también con botones para quien no use drag and drop. */
