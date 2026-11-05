@@ -2259,23 +2259,22 @@ function renderJuegos(){
   <div id="juegos-area">${renderSelectorJuegos()}</div>`;
 }
 /* ====== Tarjetas de misión (portada de Zona de Retos) ======
-   Inspirado en el panel VIP de un sitio de referencia que mostró el usuario:
-   4 tarjetas con franja de color + insignia "MISIÓN 0X", descripción corta,
-   meta y una barra de progreso delgada abajo. Quiz y Detecta el error abren
-   "Tu camino" (timeline de ítems individuales); Construye tu proyecto y Arma
-   el plano abren su flujo de siempre sin cambios -- son de una sola sesión
-   diaria, no tienen muchos ítems que listar en un timeline. */
+   Los dos prototipos anteriores (Construye tu proyecto y Arma el plano) se
+   conservan únicamente como datos históricos del usuario, pero ya no se
+   muestran ni se pueden iniciar desde la Zona de Retos. */
 const MISIONES_JUEGOS=[
   {id:'quiz',n:1,icono:'🏛️',titulo:'Quiz del Arquitecto',desc:'Preguntas rápidas de opción múltiple para repasar conceptos clave de tus cursos.',portada:'assets/retos/mision-01.png',onclick:'abrirCaminoQuiz()'},
   {id:'retos',n:2,icono:'🔎',titulo:'Detecta el error',desc:'Observa una fotografía real de obra e identifica los riesgos antes de que sea tarde.',portada:'assets/retos/mision-02.png',onclick:'abrirCaminoRetos()'},
-  {id:'simulador',n:3,icono:'🏗️',titulo:'Construye tu proyecto',desc:'Administra una vivienda virtual: presupuesto, plazo, calidad y seguridad.',portada:'assets/retos/mision-03.png',onclick:'iniciarSimulador()'},
-  {id:'plano',n:4,icono:'📐',titulo:'Arma el plano',desc:'Coloca accesos, ventanas, divisiones y mobiliario con reglas espaciales.',portada:'assets/retos/mision-04.png',onclick:'mostrarNivelesPlano()'}
+  {id:'cambios',n:3,icono:'◉',titulo:'¿Qué cambió en el proyecto?',desc:'Compara dos propuestas arquitectónicas y encuentra los cambios visuales.',coverClass:'mision-art-cambios',onclick:'iniciarCambiosProyecto()'},
+  {id:'puzzle',n:4,icono:'▦',titulo:'Rompecabezas arquitectónico',desc:'Reconstruye una composición arquitectónica y descubre sus decisiones de diseño.',coverClass:'mision-art-puzzle',onclick:'iniciarRompecabezas()'},
+  {id:'orden',n:5,icono:'↕',titulo:'Ordena la obra',desc:'Organiza actividades de construcción respetando sus dependencias reales.',coverClass:'mision-art-orden',onclick:'iniciarOrdenObra()'},
+  {id:'laberinto',n:6,icono:'⌘',titulo:'Laberinto de planos',desc:'Encuentra una ruta funcional dentro de una planta arquitectónica.',coverClass:'mision-art-laberinto',onclick:'iniciarLaberintoPlanos()'}
 ];
 function renderSelectorJuegos(){
   return `<div class="mision-grid">${MISIONES_JUEGOS.map(m=>`
     <button type="button" class="mision-card" data-mision="${m.id}" onclick="${m.onclick}">
       <div class="mision-top">
-        <img class="mision-cover" src="${m.portada}" alt="Portada de ${m.titulo}">
+        ${m.portada?`<img class="mision-cover" src="${m.portada}" alt="Portada de ${m.titulo}">`:`<div class="mision-cover mision-art ${m.coverClass}" aria-label="Portada de ${m.titulo}"><span>MISIÓN ${String(m.n).padStart(2,'0')}</span></div>`}
         <span class="mision-open">↗</span>
       </div>
       <div class="mision-body">
@@ -2301,8 +2300,10 @@ async function cargarProgresoMisiones(){
   if(!uid||uid==='demo'){
     pintar('quiz','Inicia sesión para ver tu avance',0);
     pintar('retos','Inicia sesión para ver tu avance',0);
-    pintar('simulador','Disponible hoy',0);
-    pintar('plano','Disponible hoy',0);
+    pintar('cambios','Encuentra 4 cambios',0);
+    pintar('puzzle','Nivel inicial disponible',0);
+    pintar('orden','Secuencia de obra disponible',0);
+    pintar('laberinto','Misión de circulación disponible',0);
     return;
   }
   try{
@@ -2321,15 +2322,10 @@ async function cargarProgresoMisiones(){
     const totalZonas=(retosData.retos||[]).reduce((n,r)=>n+(Array.isArray(r.zonas)?r.zonas.length:0),0);
     pintar('retos',`${recompensasSnap.size}/${totalZonas} casos identificados`,totalZonas?recompensasSnap.size/totalZonas*100:0);
   }catch(e){ pintar('retos','Fotografías reales de obra',0); }
-  try{
-    const hoy=new Date().toISOString().slice(0,10);
-    const simHoy=await db.collection('progreso').doc(uid).collection('simuladorDiario').doc(hoy).get();
-    pintar('simulador',simHoy.exists?'Ya jugado hoy':'Disponible hoy',simHoy.exists?100:0);
-  }catch(e){ pintar('simulador','Disponible hoy',0); }
-  try{
-    const superados=PLANO_NIVELES.filter(n=>{try{const saved=JSON.parse(localStorage.getItem(planoKey(n))||'null');return !!(saved&&saved.evaluation&&saved.evaluation.aprobado);}catch(e){return false;}}).length;
-    pintar('plano',`${superados}/${PLANO_NIVELES.length} niveles superados`,superados/PLANO_NIVELES.length*100);
-  }catch(e){ pintar('plano','Estudio de diseño disponible',0); }
+  ['cambios','puzzle','orden','laberinto'].forEach(id=>{
+    const done=localStorage.getItem(`imdac-reto-${id}-${uid}`)==='done';
+    pintar(id,done?'Completado':'Disponible hoy',done?100:0);
+  });
 }
 /* ====== "Tu camino": timeline de ítems individuales (Quiz y Detecta el error) ======
    Mismo concepto en los dos: se listan TODOS los ítems disponibles en orden,
@@ -2548,6 +2544,67 @@ function actualizarSaldoJuegos(monedas,xp){
   if(saldos[0])saldos[0].textContent=DATA.monedas;
   if(saldos[1])saldos[1].textContent=DATA.xp;
 }
+/* ====== Nuevos retos visuales ======
+   Estos retos no escriben monedas en el navegador. Su progreso se conserva
+   por usuario en este dispositivo; el canje de recompensas sigue siendo una
+   acción validada por el servidor en los juegos que ya la tienen. */
+let _cambios=null,_puzzle=null,_ordenObra=null,_laberinto=null;
+function retoKey(id){return `imdac-reto-${id}-${(CURRENT_USER&&CURRENT_USER.uid)||'local'}`;}
+function completarRetoLocal(id,mensaje){
+  try{localStorage.setItem(retoKey(id),'done');}catch(e){}
+  toast(mensaje||'¡Reto completado!');
+  cargarProgresoMisiones();
+}
+function retoHead(titulo,subtitulo){return `<div class="sec-head"><div><h3>${titulo}</h3><span style="color:var(--muted);font-size:.84rem">${subtitulo}</span></div><button class="btn-ghost" onclick="renderSection('juegos')">← Zona de Retos</button></div>`;}
+
+/* 1. ¿Qué cambió en el proyecto? Los puntos se muestran sólo cuando el
+   jugador los descubre; no son diferencias arbitrarias de texto. */
+const CAMBIOS_PUNTOS=[{id:'ventana',x:72,y:28,label:'Ventana adicional'},{id:'techo',x:48,y:18,label:'Cambio de cubierta'},{id:'arbol',x:19,y:73,label:'Árbol incorporado'},{id:'acceso',x:56,y:73,label:'Acceso rediseñado'}];
+function iniciarCambiosProyecto(){_cambios={hallados:[],mensaje:'Encuentra los 4 cambios en la propuesta de la derecha.'};renderCambiosProyecto();}
+function renderCasaCambio(tipo){const mod=tipo==='despues';return `<div class="cambio-edificio ${mod?'cambio-despues':''}" aria-label="Proyecto ${mod?'modificado':'original'}"><div class="cambio-sol"></div><div class="cambio-casa"><i class="cambio-techo"></i><i class="cambio-cuerpo"></i><i class="cambio-ventana v1"></i><i class="cambio-ventana v2"></i>${mod?'<i class="cambio-ventana v3"></i><i class="cambio-arbol"></i><i class="cambio-acceso"></i>':''}</div><span>Propuesta ${mod?'B · modificada':'A · original'}</span></div>`;}
+function renderCambiosProyecto(){const a=document.getElementById('juegos-area'),s=_cambios;if(!a||!s)return;const done=s.hallados.length===CAMBIOS_PUNTOS.length;a.innerHTML=`${retoHead('¿Qué cambió en el proyecto?','Misión 03 · observa, compara y toca los cambios')}
+  <div class="visual-game"><div class="game-status"><b>${s.hallados.length}/4 cambios detectados</b><span>${escHtml(s.mensaje)}</span><button class="btn-ghost" onclick="iniciarCambiosProyecto()">Reiniciar</button></div>
+  <div class="comparador-proyecto"><div>${renderCasaCambio('antes')}</div><div class="proyecto-hotspots">${renderCasaCambio('despues')}${CAMBIOS_PUNTOS.map(p=>`<button class="cambio-hotspot ${s.hallados.includes(p.id)?'is-found':''}" style="left:${p.x}%;top:${p.y}%" aria-label="Revisar zona" onclick="revisarCambioProyecto('${p.id}')">${s.hallados.includes(p.id)?'✓':''}</button>`).join('')}</div></div>
+  ${done?`<div class="game-success"><b>¡Excelente observación!</b><span>Detectaste los cuatro cambios. Comparar soluciones ayuda a entrenar tu lectura visual de un proyecto.</span></div>`:`<div class="game-tip">Pista: mira la cubierta, los vanos, el acceso y el paisaje inmediato.</div>`}</div>`;}
+function revisarCambioProyecto(id){const s=_cambios,p=CAMBIOS_PUNTOS.find(x=>x.id===id);if(!s||!p||s.hallados.includes(id))return;s.hallados.push(id);s.mensaje=`Correcto: ${p.label}.`;if(s.hallados.length===CAMBIOS_PUNTOS.length){s.mensaje='Completaste la comparación visual.';completarRetoLocal('cambios','¡Los cuatro cambios fueron identificados!');}renderCambiosProyecto();}
+
+/* 2. Rompecabezas: intercambio táctil/clic de piezas, con estado siempre
+   resoluble porque la mezcla parte de movimientos legales desde la solución. */
+function iniciarRompecabezas(){const n=3,tiles=Array.from({length:n*n},(_,i)=>i);let empty=tiles.length-1;for(let k=0;k<28;k++){const moves=puzzleVecinos(empty,n);const next=moves[Math.floor(Math.random()*moves.length)];[tiles[empty],tiles[next]]=[tiles[next],tiles[empty]];empty=next;}_puzzle={n,tiles,selected:null,movimientos:0,ganado:false};renderRompecabezas();}
+function puzzleVecinos(i,n){const r=Math.floor(i/n),c=i%n,out=[];if(r)out.push(i-n);if(r<n-1)out.push(i+n);if(c)out.push(i-1);if(c<n-1)out.push(i+1);return out;}
+function renderRompecabezas(){const a=document.getElementById('juegos-area'),s=_puzzle;if(!a||!s)return;const final=s.tiles.every((v,i)=>v===i);if(final&&!s.ganado){s.ganado=true;completarRetoLocal('puzzle','¡Rompecabezas arquitectónico completado!');}a.innerHTML=`${retoHead('Rompecabezas arquitectónico','Misión 04 · reconstruye la fachada en ${s.n*s.n-1} piezas')}
+ <div class="visual-game puzzle-game"><div class="game-status"><b>${s.movimientos} movimientos</b><span>${s.ganado?'¡Fachada reconstruida!':'Toca una pieza junto al espacio vacío para moverla.'}</span><button class="btn-ghost" onclick="iniciarRompecabezas()">Mezclar de nuevo</button></div>
+ <div class="puzzle-layout"><div class="puzzle-board" style="--puzzle-n:${s.n}">${s.tiles.map((tile,i)=>tile===s.n*s.n-1?'<button class="puzzle-tile puzzle-empty" aria-label="Espacio vacío"></button>':`<button class="puzzle-tile ${s.selected===i?'is-selected':''}" style="--bx:${tile%s.n};--by:${Math.floor(tile/s.n)}" aria-label="Pieza ${tile+1}" onclick="moverPiezaPuzzle(${i})"></button>`).join('')}</div><aside class="puzzle-info"><span class="pill">LECTURA DE FACHADA</span><h3>Una composición, varias decisiones.</h3><p>Al completar la imagen, identifica cómo los vanos, la cubierta y los materiales construyen la expresión del proyecto.</p><div class="puzzle-mini-building"></div></aside></div></div>`;}
+function moverPiezaPuzzle(i){const s=_puzzle;if(!s||s.ganado)return;const empty=s.tiles.indexOf(s.n*s.n-1);if(!puzzleVecinos(empty,s.n).includes(i)){toast('Solo puedes mover una pieza junto al espacio vacío.',{type:'err'});return;}[s.tiles[i],s.tiles[empty]]=[s.tiles[empty],s.tiles[i]];s.movimientos++;renderRompecabezas();}
+
+/* 3. Ordena la obra: actividades con dependencias, reordenables por arrastre,
+   y también con botones para quien no use drag and drop. */
+const ORDEN_OBRA=[
+ {id:'terreno',titulo:'Preparar el terreno',sub:'Limpieza, trazo y nivelación.'},
+ {id:'cimentacion',titulo:'Ejecutar cimentación',sub:'Base lista antes de cargar muros.'},
+ {id:'estructura',titulo:'Levantar estructura',sub:'Columnas y elementos principales.'},
+ {id:'muros',titulo:'Levantar muros',sub:'Cierres y vanos definidos.'},
+ {id:'cubierta',titulo:'Colocar cubierta',sub:'Protección del edificio.'},
+ {id:'instalaciones',titulo:'Coordinar instalaciones',sub:'Pruebas antes de cerrar acabados.'},
+ {id:'acabados',titulo:'Aplicar acabados',sub:'Recubrimientos y entrega final.'}
+];
+function iniciarOrdenObra(){_ordenObra={items:[...ORDEN_OBRA].sort(()=>Math.random()-.5),mensaje:'Organiza las actividades según sus dependencias.'};renderOrdenObra();}
+function renderOrdenObra(){const a=document.getElementById('juegos-area'),s=_ordenObra;if(!a||!s)return;a.innerHTML=`${retoHead('Ordena la obra','Misión 05 · planifica una secuencia constructiva')}
+ <div class="visual-game"><div class="game-status"><b>Reto de secuencias</b><span>${escHtml(s.mensaje)}</span><button class="btn-ghost" onclick="iniciarOrdenObra()">Nueva mezcla</button></div><div class="obra-story">${ORDEN_OBRA.map((it,i)=>`<span class="obra-step ${s.items.indexOf(it)===i?'is-ready':''}">${i+1}</span>`).join('')}</div><div class="sequence-list" ondragover="event.preventDefault()" ondrop="soltarActividadObra(event)">${s.items.map((it,i)=>`<article class="sequence-card" draggable="true" ondragstart="arrastrarActividadObra(event,${i})"><span class="sequence-num">${i+1}</span><div><b>${it.titulo}</b><small>${it.sub}</small></div><div class="sequence-actions"><button aria-label="Subir ${it.titulo}" onclick="moverActividadObra(${i},-1)" ${i?'':'disabled'}>↑</button><button aria-label="Bajar ${it.titulo}" onclick="moverActividadObra(${i},1)" ${i<s.items.length-1?'':'disabled'}>↓</button></div></article>`).join('')}</div><button class="btn-primary sequence-check" onclick="comprobarOrdenObra()">Comprobar secuencia</button><div class="game-tip">No es una regla universal de obra: este escenario asume una vivienda sencilla sin actividades paralelas.</div></div>`;}
+function arrastrarActividadObra(e,i){e.dataTransfer.setData('text/plain',String(i));}
+function soltarActividadObra(e){const from=Number(e.dataTransfer.getData('text/plain')),card=e.target.closest('.sequence-card');if(!Number.isFinite(from)||!card)return;const to=[...card.parentElement.children].indexOf(card);moverActividadObra(from,to-from);}
+function moverActividadObra(i,dir){const s=_ordenObra,j=i+dir;if(!s||j<0||j>=s.items.length)return;[s.items[i],s.items[j]]=[s.items[j],s.items[i]];renderOrdenObra();}
+function comprobarOrdenObra(){const s=_ordenObra;if(!s)return;const ok=s.items.every((it,i)=>it.id===ORDEN_OBRA[i].id);s.mensaje=ok?'¡Secuencia correcta! La vivienda puede avanzar con sus dependencias resueltas.':'Aún hay dependencias fuera de orden. Revisa qué actividad necesita un trabajo previo.';if(ok)completarRetoLocal('orden','¡La secuencia de obra quedó correctamente organizada!');renderOrdenObra();}
+
+/* 4. Laberinto de planos: recorrido accesible sobre una planta conceptual.
+   El destino y los bloqueos son parte del ejercicio, no una validación
+   normativa de un edificio real. */
+const MAZE_MAP=['#########','#S..#...#','#.#.#.#.#','#.#...#.#','#.#####.#','#.......#','#####.#.#','#.....#E#','#########'];
+function iniciarLaberintoPlanos(){let pos={r:1,c:1};_laberinto={pos,movimientos:0,final:false,mensaje:'Llega desde el acceso hasta la salida señalada.'};renderLaberintoPlanos();}
+function renderLaberintoPlanos(){const a=document.getElementById('juegos-area'),s=_laberinto;if(!a||!s)return;a.innerHTML=`${retoHead('Laberinto de planos','Misión 06 · encuentra la salida en una planta conceptual')}
+ <div class="visual-game maze-game"><div class="game-status"><b>${s.movimientos} movimientos</b><span>${escHtml(s.mensaje)}</span><button class="btn-ghost" onclick="iniciarLaberintoPlanos()">Reiniciar</button></div><div class="maze-legend"><span>▣ Muro</span><span>⌂ Acceso</span><span>⚑ Salida</span></div><div class="maze-grid" role="grid" aria-label="Plano navegable">${MAZE_MAP.map((row,r)=>[...row].map((cell,c)=>`<div class="maze-cell ${cell==='#'?'wall':'path'} ${s.pos.r===r&&s.pos.c===c?'player':''} ${cell==='E'?'exit':''}">${s.pos.r===r&&s.pos.c===c?'●':cell==='S'?'⌂':cell==='E'?'⚑':''}</div>`).join('')).join('')}</div><div class="maze-controls"><button onclick="moverLaberinto(-1,0)" aria-label="Mover arriba">↑</button><button onclick="moverLaberinto(0,-1)" aria-label="Mover izquierda">←</button><button onclick="moverLaberinto(1,0)" aria-label="Mover abajo">↓</button><button onclick="moverLaberinto(0,1)" aria-label="Mover derecha">→</button></div><div class="game-tip">Misión: reconoce una circulación continua. Es una simulación didáctica, no una aprobación normativa.</div></div>`;}
+function moverLaberinto(dr,dc){const s=_laberinto;if(!s||s.final)return;const r=s.pos.r+dr,c=s.pos.c+dc,cell=MAZE_MAP[r]&&MAZE_MAP[r][c];if(!cell||cell==='#'){s.mensaje='Ese recorrido está bloqueado por un muro.';renderLaberintoPlanos();return;}s.pos={r,c};s.movimientos++;if(cell==='E'){s.final=true;s.mensaje=`¡Ruta encontrada en ${s.movimientos} movimientos!`;completarRetoLocal('laberinto','¡Encontraste la salida del plano!');}else s.mensaje='Sigue el pasillo disponible hacia la salida.';renderLaberintoPlanos();}
+
 /* ====== Juego 3: Construye tu proyecto + monedas ======
    El costo/calidad/días/seguridad de cada opción se ve completo ANTES de
    elegir -- no es un quiz con respuesta oculta, es una decisión informada.
