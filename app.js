@@ -2333,7 +2333,13 @@ async function cargarProgresoMisiones(){
     const resueltos=recompensasSnap.size;
     pintar('cambios',`${resueltos}/${CAMBIOS_NIVELES.length} cambios encontrados`,resueltos/CAMBIOS_NIVELES.length*100);
   }catch(e){ pintar('cambios',`${CAMBIOS_NIVELES.length} propuestas por comparar`,0); }
-  ['orden','laberinto'].forEach(id=>{
+  try{
+    const recompensasSnap=await db.collection('progreso').doc(uid).collection('laberintoRecompensas').get();
+    const totalRondas=LABERINTO_NIVELES.reduce((n,nv)=>n+nv.rondas,0);
+    const resueltos=recompensasSnap.size;
+    pintar('laberinto',`${resueltos}/${totalRondas} rondas resueltas`,totalRondas?resueltos/totalRondas*100:0);
+  }catch(e){ pintar('laberinto','3 niveles de dificultad',0); }
+  ['orden'].forEach(id=>{
     const done=localStorage.getItem(`imdac-reto-${id}-${uid}`)==='done';
     pintar(id,done?'Completado':'Disponible hoy',done?100:0);
   });
@@ -2853,14 +2859,148 @@ function soltarActividadObra(e){const from=Number(e.dataTransfer.getData('text/p
 function moverActividadObra(i,dir){const s=_ordenObra,j=i+dir;if(!s||j<0||j>=s.items.length)return;[s.items[i],s.items[j]]=[s.items[j],s.items[i]];renderOrdenObra();}
 function comprobarOrdenObra(){const s=_ordenObra;if(!s)return;const ok=s.items.every((it,i)=>it.id===ORDEN_OBRA[i].id);s.mensaje=ok?'¡Secuencia correcta! La vivienda puede avanzar con sus dependencias resueltas.':'Aún hay dependencias fuera de orden. Revisa qué actividad necesita un trabajo previo.';if(ok)completarRetoLocal('orden','¡La secuencia de obra quedó correctamente organizada!');renderOrdenObra();}
 
-/* 4. Laberinto de planos: recorrido accesible sobre una planta conceptual.
-   El destino y los bloqueos son parte del ejercicio, no una validación
-   normativa de un edificio real. */
-const MAZE_MAP=['#########','#S..#...#','#.#.#.#.#','#.#...#.#','#.#####.#','#.......#','#####.#.#','#.....#E#','#########'];
-function iniciarLaberintoPlanos(){let pos={r:1,c:1};_laberinto={pos,movimientos:0,final:false,mensaje:'Llega desde el acceso hasta la salida señalada.'};renderLaberintoPlanos();}
-function renderLaberintoPlanos(){const a=document.getElementById('juegos-area'),s=_laberinto;if(!a||!s)return;a.innerHTML=`${retoHead('Laberinto de planos','Misión 06 · encuentra la salida en una planta conceptual')}
- <div class="visual-game maze-game"><div class="game-status"><b>${s.movimientos} movimientos</b><span>${escHtml(s.mensaje)}</span><button class="btn-ghost" onclick="iniciarLaberintoPlanos()">Reiniciar</button></div><div class="maze-legend"><span>▣ Muro</span><span>⌂ Acceso</span><span>⚑ Salida</span></div><div class="maze-grid" role="grid" aria-label="Plano navegable">${MAZE_MAP.map((row,r)=>[...row].map((cell,c)=>`<div class="maze-cell ${cell==='#'?'wall':'path'} ${s.pos.r===r&&s.pos.c===c?'player':''} ${cell==='E'?'exit':''}">${s.pos.r===r&&s.pos.c===c?'●':cell==='S'?'⌂':cell==='E'?'⚑':''}</div>`).join('')).join('')}</div><div class="maze-controls"><button onclick="moverLaberinto(-1,0)" aria-label="Mover arriba">↑</button><button onclick="moverLaberinto(0,-1)" aria-label="Mover izquierda">←</button><button onclick="moverLaberinto(1,0)" aria-label="Mover abajo">↓</button><button onclick="moverLaberinto(0,1)" aria-label="Mover derecha">→</button></div><div class="game-tip">Misión: reconoce una circulación continua. Es una simulación didáctica, no una aprobación normativa.</div></div>`;}
-function moverLaberinto(dr,dc){const s=_laberinto;if(!s||s.final)return;const r=s.pos.r+dr,c=s.pos.c+dc,cell=MAZE_MAP[r]&&MAZE_MAP[r][c];if(!cell||cell==='#'){s.mensaje='Ese recorrido está bloqueado por un muro.';renderLaberintoPlanos();return;}s.pos={r,c};s.movimientos++;if(cell==='E'){s.final=true;s.mensaje=`¡Ruta encontrada en ${s.movimientos} movimientos!`;completarRetoLocal('laberinto','¡Encontraste la salida del plano!');}else s.mensaje='Sigue el pasillo disponible hacia la salida.';renderLaberintoPlanos();}
+/* 4. Laberinto de planos: recorrido sobre una planta conceptual generada al
+   azar (laberinto perfecto por backtracking, siempre con un único camino
+   garantizado entre acceso y salida -- nunca hace falta regenerar por un
+   layout imposible). Igual que el rompecabezas: cada nivel de dificultad
+   pide resolver 2 laberintos distintos (rondas), cada uno paga su propia
+   recompensa al llegar a la salida, una sola vez para siempre
+   (progreso/{uid}/laberintoRecompensas/{nivel}_{ronda}). El trazo del
+   laberinto no es secreto (no hay nada que ocultar del servidor): se genera
+   y se resuelve todo en el cliente, igual que la mezcla del rompecabezas. */
+const LABERINTO_NIVELES=[
+  {id:'facil',label:'Fácil',monedas:10,rondas:2,w:7,h:7,misiones:['Reconoce una circulación continua.','Identifica una ruta simple sin bloqueos.']},
+  {id:'medio',label:'Medio',monedas:20,rondas:2,w:9,h:9,misiones:['Resuelve una circulación con desvíos intermedios.','Encuentra la mejor ruta entre muros y giros.']},
+  {id:'dificil',label:'Difícil',monedas:35,rondas:2,w:11,h:9,misiones:['Analiza el recorrido antes de avanzar.','Domina una circulación compleja con rutas falsas.']}
+];
+let _laberintoRondasHechas={};
+function laberintoNivelResuelto(nivelId){
+  const nv=LABERINTO_NIVELES.find(x=>x.id===nivelId);
+  return !!nv&&(_laberintoRondasHechas[nivelId]||0)>=nv.rondas;
+}
+async function iniciarLaberintoPlanos(){
+  await cargarNivelesLaberinto();
+  renderNivelesLaberinto();
+}
+async function cargarNivelesLaberinto(){
+  _laberintoRondasHechas={};
+  if(!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  try{
+    const snap=await db.collection('progreso').doc(CURRENT_USER.uid).collection('laberintoRecompensas').get();
+    snap.forEach(d=>{
+      const nivelId=d.id.split('_')[0];
+      _laberintoRondasHechas[nivelId]=(_laberintoRondasHechas[nivelId]||0)+1;
+    });
+  }catch(e){}
+}
+function renderNivelesLaberinto(){
+  const a=document.getElementById('juegos-area');if(!a)return;
+  a.innerHTML=`${retoHead('Laberinto de planos','Misión 06 · elige tu nivel de dificultad')}
+  <div class="rompe-niveles">${LABERINTO_NIVELES.map((nv,i)=>{
+    const rondasHechas=Math.min(_laberintoRondasHechas[nv.id]||0,nv.rondas);
+    const resuelto=rondasHechas>=nv.rondas;
+    const bloqueado=i>0&&!laberintoNivelResuelto(LABERINTO_NIVELES[i-1].id);
+    return `<button type="button" class="rompe-nivel${bloqueado?' is-locked':''}${resuelto?' is-done':''}" ${bloqueado?'disabled':`onclick="iniciarNivelLaberinto('${nv.id}')"`}>
+      <span class="rompe-nivel-ico">${bloqueado?'🔒':(resuelto?'✓':'⌘')}</span>
+      <b>${nv.label}</b>
+      <span>${nv.w}×${nv.h} · ${rondasHechas}/${nv.rondas} rondas</span>
+      <span class="rompe-nivel-premio">${resuelto?'Completado':`+${nv.monedas} monedas por ronda`}</span>
+    </button>`;
+  }).join('')}</div>
+  ${!_tieneAcceso()?'<div class="game-tip">Puedes jugar el laberinto libremente. Las monedas de recompensa requieren membresía activa.</div>':''}`;
+}
+/* Laberinto perfecto por backtracking recursivo sobre una cuadrícula de
+   celdas impares (los muros viven en las posiciones pares). Garantiza un
+   único camino conectado entre cualquier par de celdas -- nunca genera un
+   layout sin solución. */
+function generarLaberinto(w,h){
+  const grid=Array.from({length:h},()=>Array(w).fill(1));
+  function tallar(r,c){
+    grid[r][c]=0;
+    const dirs=[[-2,0],[2,0],[0,-2],[0,2]].sort(()=>Math.random()-0.5);
+    for(const [dr,dc] of dirs){
+      const nr=r+dr,nc=c+dc;
+      if(nr>0&&nr<h-1&&nc>0&&nc<w-1&&grid[nr][nc]===1){
+        grid[r+dr/2][c+dc/2]=0;
+        tallar(nr,nc);
+      }
+    }
+  }
+  tallar(1,1);
+  return grid;
+}
+function iniciarNivelLaberinto(nivelId){
+  const nivel=LABERINTO_NIVELES.find(x=>x.id===nivelId);if(!nivel)return;
+  const ronda=Math.min((_laberintoRondasHechas[nivelId]||0)+1,nivel.rondas);
+  _laberinto={nivel:nivelId,ronda,w:nivel.w,h:nivel.h,grid:generarLaberinto(nivel.w,nivel.h),pos:{r:1,c:1},movimientos:0,ganado:false,enviando:false,mensaje:'Toca una flecha para avanzar desde el acceso hasta la salida.'};
+  renderLaberintoPlanos();
+}
+function nuevoLaberintoMismaRonda(){
+  const s=_laberinto;if(!s||s.enviando)return;
+  s.grid=generarLaberinto(s.w,s.h);s.pos={r:1,c:1};s.movimientos=0;s.ganado=false;
+  s.mensaje='Toca una flecha para avanzar desde el acceso hasta la salida.';
+  renderLaberintoPlanos();
+}
+function siguienteRondaLaberinto(){
+  const s=_laberinto;if(!s)return;
+  const nivel=LABERINTO_NIVELES.find(x=>x.id===s.nivel);if(!nivel)return;
+  _laberinto={nivel:s.nivel,ronda:s.ronda+1,w:nivel.w,h:nivel.h,grid:generarLaberinto(nivel.w,nivel.h),pos:{r:1,c:1},movimientos:0,ganado:false,enviando:false,mensaje:'Toca una flecha para avanzar desde el acceso hasta la salida.'};
+  renderLaberintoPlanos();
+}
+function renderLaberintoPlanos(){
+  const a=document.getElementById('juegos-area'),s=_laberinto;if(!a||!s)return;
+  const nivel=LABERINTO_NIVELES.find(x=>x.id===s.nivel)||LABERINTO_NIVELES[0];
+  const esUltimaRonda=s.ronda>=nivel.rondas;
+  const salida={r:s.h-2,c:s.w-2};
+  a.innerHTML=`${retoHead('Laberinto de planos',`Nivel ${nivel.label} · ronda ${s.ronda}/${nivel.rondas} · ${s.movimientos} movimientos`)}
+ <div class="visual-game maze-game"><div class="game-status"><b>${s.ganado?'¡Resuelto!':`${s.movimientos} movimientos`}</b><span>${escHtml(s.mensaje)}</span><button class="btn-ghost" onclick="nuevoLaberintoMismaRonda()">Nuevo laberinto</button></div>
+ <div class="maze-legend"><span><i class="maze-swatch maze-swatch-wall"></i>Muro</span><span><i class="maze-swatch maze-swatch-acceso">△</i>Acceso</span><span><i class="maze-swatch maze-swatch-salida">⚑</i>Salida</span></div>
+ <div class="maze-grid" role="grid" aria-label="Plano navegable" style="--maze-cols:${s.w}">${s.grid.map((row,r)=>row.map((cell,c)=>{
+   const esJugador=s.pos.r===r&&s.pos.c===c;
+   const esSalida=r===salida.r&&c===salida.c;
+   const esAcceso=r===1&&c===1&&!esJugador;
+   return `<div class="maze-cell ${cell===1?'wall':'path'} ${esJugador?'player':''} ${esSalida?'exit':''}">${esJugador?'●':esAcceso?'△':esSalida?'⚑':''}</div>`;
+ }).join('')).join('')}</div>
+ <div class="maze-controls"><button onclick="moverLaberinto(-1,0)" aria-label="Mover arriba">↑</button><button onclick="moverLaberinto(0,-1)" aria-label="Mover izquierda">←</button><button onclick="moverLaberinto(1,0)" aria-label="Mover abajo">↓</button><button onclick="moverLaberinto(0,1)" aria-label="Mover derecha">→</button></div>
+ ${s.ganado&&!s.enviando?`<div class="game-success"><b>¡Ruta encontrada!</b><span>${esUltimaRonda?'Vuelve a Zona de Retos para seguir al siguiente nivel.':'Buen trabajo. Sigue con el siguiente laberinto de este nivel.'}</span>${!esUltimaRonda?'<button class="btn-primary" style="width:auto;margin-top:10px;padding:10px 20px" onclick="siguienteRondaLaberinto()">Siguiente laberinto →</button>':''}</div>`:`<div class="game-tip">Misión: ${escHtml(nivel.misiones[s.ronda-1]||nivel.misiones[0])} Es una simulación didáctica, no una aprobación normativa.</div>`}
+ <div style="margin-top:14px"><button class="btn-ghost" onclick="renderNivelesLaberinto()">← Niveles</button></div>
+ </div>`;
+}
+function moverLaberinto(dr,dc){
+  const s=_laberinto;if(!s||s.ganado)return;
+  const r=s.pos.r+dr,c=s.pos.c+dc;
+  if(r<0||r>=s.h||c<0||c>=s.w||s.grid[r][c]===1){s.mensaje='Ese recorrido está bloqueado por un muro.';renderLaberintoPlanos();return;}
+  s.pos={r,c};s.movimientos++;
+  const salida={r:s.h-2,c:s.w-2};
+  if(r===salida.r&&c===salida.c){s.ganado=true;s.mensaje=`¡Ruta encontrada en ${s.movimientos} movimientos!`;confirmarLaberinto();}
+  else s.mensaje='Sigue el pasillo disponible hacia la salida.';
+  renderLaberintoPlanos();
+}
+async function confirmarLaberinto(){
+  const s=_laberinto;if(!s||s.enviando)return;
+  s.enviando=true;
+  try{
+    const r=await apiFetch('/laberinto-completar',{method:'POST',body:{nivel:s.nivel,ronda:s.ronda}});
+    _laberintoRondasHechas[s.nivel]=Math.max(_laberintoRondasHechas[s.nivel]||0,s.ronda);
+    const totalRondas=LABERINTO_NIVELES.find(x=>x.id===s.nivel).rondas;
+    confetti();
+    if(r.monedasGanadas>0){
+      actualizarSaldoJuegos(r.monedasGanadas,0);
+      toast(`¡Ronda ${s.ronda}/${totalRondas} completada! +${r.monedasGanadas} monedas 🎉`);
+    }else if(r.motivo==='membresia_requerida'){
+      toast('¡Ronda completada! Activa tu membresía para ganar las monedas de recompensa.');
+    }else if(r.motivo==='ya_recompensada'){
+      toast('Ya habías ganado la recompensa de esta ronda antes.');
+    }else{
+      toast('¡Ronda completada!');
+    }
+  }catch(e){
+    toast('Resuelto, pero no se pudo registrar tu recompensa. Intenta de nuevo más tarde.',{type:'err'});
+  }
+  s.enviando=false;
+  cargarProgresoMisiones();
+  renderLaberintoPlanos();
+}
 
 /* ====== Juego 3: Construye tu proyecto + monedas ======
    El costo/calidad/días/seguridad de cada opción se ve completo ANTES de
