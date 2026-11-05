@@ -2267,7 +2267,7 @@ const MISIONES_JUEGOS=[
   {id:'retos',n:2,icono:'🔎',titulo:'Detecta el error',desc:'Observa una fotografía real de obra e identifica los riesgos antes de que sea tarde.',portada:'assets/retos/mision-02.png',onclick:'abrirCaminoRetos()'},
   {id:'cambios',n:3,icono:'◉',titulo:'¿Qué cambió en el proyecto?',desc:'Compara dos propuestas arquitectónicas y encuentra los cambios visuales.',coverClass:'mision-art-cambios',onclick:'iniciarCambiosProyecto()'},
   {id:'puzzle',n:4,icono:'▦',titulo:'Rompecabezas arquitectónico',desc:'Reconstruye una composición arquitectónica y descubre sus decisiones de diseño.',coverClass:'mision-art-puzzle',onclick:'iniciarRompecabezas()'},
-  {id:'orden',n:5,icono:'↕',titulo:'Ordena la obra',desc:'Organiza actividades de construcción respetando sus dependencias reales.',coverClass:'mision-art-orden',onclick:'iniciarOrdenObra()'},
+  {id:'orden',n:5,icono:'↕',titulo:'Ordena la obra',desc:'10 escenarios constructivos: organiza cada secuencia de actividades respetando sus dependencias reales.',coverClass:'mision-art-orden',onclick:'iniciarOrdenObra()'},
   {id:'laberinto',n:6,icono:'⌘',titulo:'Laberinto de planos',desc:'Encuentra una ruta funcional dentro de una planta arquitectónica.',coverClass:'mision-art-laberinto',onclick:'iniciarLaberintoPlanos()'}
 ];
 function renderSelectorJuegos(){
@@ -2302,7 +2302,7 @@ async function cargarProgresoMisiones(){
     pintar('retos','Inicia sesión para ver tu avance',0);
     pintar('cambios',`0/${CAMBIOS_NIVELES.length} cambios encontrados`,0);
     pintar('puzzle','Nivel inicial disponible',0);
-    pintar('orden','Secuencia de obra disponible',0);
+    pintar('orden','10 escenarios constructivos',0);
     pintar('laberinto','Misión de circulación disponible',0);
     return;
   }
@@ -2339,10 +2339,11 @@ async function cargarProgresoMisiones(){
     const resueltos=recompensasSnap.size;
     pintar('laberinto',`${resueltos}/${totalRondas} rondas resueltas`,totalRondas?resueltos/totalRondas*100:0);
   }catch(e){ pintar('laberinto','3 niveles de dificultad',0); }
-  ['orden'].forEach(id=>{
-    const done=localStorage.getItem(`imdac-reto-${id}-${uid}`)==='done';
-    pintar(id,done?'Completado':'Disponible hoy',done?100:0);
-  });
+  try{
+    const recompensasSnap=await db.collection('progreso').doc(uid).collection('ordenObraRecompensas').get();
+    const resueltos=recompensasSnap.size;
+    pintar('orden',`${resueltos}/${ORDEN_OBRA_NIVELES.length} escenarios resueltos`,resueltos/ORDEN_OBRA_NIVELES.length*100);
+  }catch(e){ pintar('orden','10 escenarios constructivos',0); }
 }
 /* ====== "Tu camino": timeline de ítems individuales (Quiz y Detecta el error) ======
    Mismo concepto en los dos: se listan TODOS los ítems disponibles en orden,
@@ -2840,24 +2841,258 @@ async function confirmarRompecabezas(){
   renderRompecabezas();
 }
 
-/* 3. Ordena la obra: actividades con dependencias, reordenables por arrastre,
-   y también con botones para quien no use drag and drop. */
-const ORDEN_OBRA=[
- {id:'terreno',titulo:'Preparar el terreno',sub:'Limpieza, trazo y nivelación.'},
- {id:'cimentacion',titulo:'Ejecutar cimentación',sub:'Base lista antes de cargar muros.'},
- {id:'estructura',titulo:'Levantar estructura',sub:'Columnas y elementos principales.'},
- {id:'muros',titulo:'Levantar muros',sub:'Cierres y vanos definidos.'},
- {id:'cubierta',titulo:'Colocar cubierta',sub:'Protección del edificio.'},
- {id:'instalaciones',titulo:'Coordinar instalaciones',sub:'Pruebas antes de cerrar acabados.'},
- {id:'acabados',titulo:'Aplicar acabados',sub:'Recubrimientos y entrega final.'}
+/* 3. Ordena la obra: 10 escenarios constructivos reales (vivienda completa,
+   terreno, cimentación, muros, eléctrica, hidrosanitaria, pisos,
+   impermeabilización, losa, entrega), cada uno con su propia secuencia
+   técnica (sujeta a revisión del equipo IMDAC) y sus propias actividades --
+   no son 10 copias del mismo ejercicio. Mecánica de línea de tiempo: las
+   tarjetas se mezclan al iniciar y se colocan arrastrándolas o,
+   alternativa accesible, tocando primero la tarjeta y luego el espacio de
+   la línea de tiempo (funciona igual con teclado vía tabindex/Enter). Cada
+   actividad mal colocada se marca y explica técnicamente por qué depende
+   de la anterior. Un nivel se paga una sola vez para siempre
+   (progreso/{uid}/ordenObraRecompensas/{nivel}) y desbloquea progresivamente
+   el siguiente, igual que el resto de Zona de Retos. Las imágenes viven en
+   assets/retos/orden/{nivel}/{actividad}.jpg -- mientras no existan, la
+   tarjeta muestra un marcador "Imagen pendiente" en vez de una foto
+   genérica o rota (ver ordenImgFail).
+*/
+const ORDEN_OBRA_NIVELES=[
+  {id:'vivienda',n:1,titulo:'Construye una vivienda desde cero',dificultad:'Básico',monedas:15,actividades:[
+    {id:'terreno',titulo:'Preparación del terreno'},
+    {id:'cimentacion',titulo:'Cimentación',razon:"La cimentación necesita un terreno ya nivelado y trazado: colar sobre tierra sin preparar compromete el desplante de la estructura."},
+    {id:'estructura',titulo:'Estructura',razon:'Columnas y trabes requieren una cimentación ya curada que soporte su peso antes de cargarla.'},
+    {id:'muros',titulo:'Muros',razon:'Los muros se apoyan en la estructura; levantarlos antes arriesga que no coincidan con columnas y trabes.'},
+    {id:'instalaciones',titulo:'Instalaciones',razon:'Tuberías y canalizaciones se ahogan dentro de los muros ya construidos: no se pueden instalar sin ellos.'},
+    {id:'acabados',titulo:'Acabados y entrega',razon:'Pintar o colocar acabados antes de cerrar instalaciones obliga a romper y repetir el trabajo.'}
+  ]},
+  {id:'terreno',n:2,titulo:'Preparación del terreno',dificultad:'Básico',monedas:15,actividades:[
+    {id:'estudios',titulo:'Revisión de estudios y condiciones'},
+    {id:'delimitacion',titulo:'Delimitación',razon:'Sin conocer las condiciones del terreno (estudios, colindancias) no se puede delimitar con certeza dónde construir.'},
+    {id:'limpieza',titulo:'Limpieza',razon:'Limpiar antes de delimitar arriesga invadir terreno vecino o fuera del polígono autorizado.'},
+    {id:'trazo',titulo:'Trazo y nivelación',razon:'El trazo necesita un terreno limpio y libre de obstáculos para marcar ejes y niveles con precisión.'},
+    {id:'excavacion',titulo:'Excavación conforme al proyecto',razon:'Excavar sin trazo y nivelación previos no garantiza que los cortes coincidan con el proyecto.'}
+  ]},
+  {id:'cimentacion',n:3,titulo:'Cimentación',dificultad:'Básico',monedas:15,actividades:[
+    {id:'replanteo',titulo:'Replanteo'},
+    {id:'excavacion',titulo:'Excavación',razon:'La excavación sigue las referencias que dejó el replanteo; sin él no hay dónde excavar con precisión.'},
+    {id:'base',titulo:'Preparación de base',razon:'La base (plantilla, compactado) se prepara dentro de la excavación ya abierta.'},
+    {id:'acero_cimbra',titulo:'Colocación de acero y cimbra',razon:'El acero y la cimbra se arman sobre una base ya preparada, no sobre tierra suelta.'},
+    {id:'revision_tecnica',titulo:'Revisión técnica',razon:'Se revisa el armado y la cimbra antes de colar, cuando ya están colocados pero aún visibles.'},
+    {id:'colado',titulo:'Colado y curado',razon:'El colado solo procede después de que la revisión técnica aprueba el armado y la cimbra.'}
+  ]},
+  {id:'muros',n:4,titulo:'Levantamiento de muros',dificultad:'Intermedio',monedas:20,actividades:[
+    {id:'revision_planos',titulo:'Revisión de planos'},
+    {id:'trazo',titulo:'Trazo',razon:'El trazo de los muros depende de las medidas y ejes que marcan los planos ya revisados.'},
+    {id:'mezcla',titulo:'Preparación de mezcla',razon:'La mezcla se prepara cuando ya hay trazo, para no perder tiempo de fraguado antes de usarla.'},
+    {id:'primeras_hiladas',titulo:'Colocación de primeras hiladas',razon:'Las primeras hiladas se asientan sobre el trazo ya marcado y con mezcla ya lista.'},
+    {id:'levantamiento',titulo:'Levantamiento y verificación',razon:'El resto del muro se levanta a partir de las primeras hiladas ya niveladas y a plomo.'},
+    {id:'revision_final',titulo:'Revisión final',razon:'La revisión final evalúa el muro ya levantado completo, no uno a medias.'}
+  ]},
+  {id:'electrica',n:5,titulo:'Instalación eléctrica',dificultad:'Intermedio',monedas:20,actividades:[
+    {id:'revision_proyecto',titulo:'Revisión del proyecto'},
+    {id:'marcado_rutas',titulo:'Marcado de rutas',razon:'Las rutas de tubería se marcan siguiendo el proyecto eléctrico ya revisado.'},
+    {id:'canalizaciones',titulo:'Instalación de canalizaciones y cajas',razon:'Canalizaciones y cajas se colocan sobre las rutas ya marcadas en muro o losa.'},
+    {id:'conductores',titulo:'Tendido de conductores',razon:'Los cables se tienden dentro de canalizaciones y cajas ya instaladas.'},
+    {id:'conexiones',titulo:'Conexiones por personal competente',razon:'Las conexiones requieren que los conductores ya estén tendidos entre los puntos a unir.'},
+    {id:'pruebas',titulo:'Pruebas y verificación',razon:'Las pruebas evalúan conexiones ya realizadas; antes de eso no hay circuito que probar.'}
+  ]},
+  {id:'hidrosanitaria',n:6,titulo:'Instalación hidrosanitaria',dificultad:'Intermedio',monedas:20,actividades:[
+    {id:'revision_planos',titulo:'Revisión de planos'},
+    {id:'trazo',titulo:'Trazo',razon:'El trazo de tuberías sigue las rutas y pendientes que indican los planos ya revisados.'},
+    {id:'pasos_soportes',titulo:'Preparación de pasos y soportes',razon:'Pasos en muro/losa y soportes se preparan en los puntos que ya marcó el trazo.'},
+    {id:'montaje',titulo:'Montaje de tuberías',razon:'Las tuberías se montan apoyadas en los pasos y soportes ya preparados.'},
+    {id:'hermeticidad',titulo:'Pruebas de hermeticidad',razon:'La hermeticidad solo se prueba con tubería ya montada y conectada.'},
+    {id:'liberacion',titulo:'Correcciones y liberación para cierre',razon:'Las correcciones atienden fugas detectadas en la prueba; sin prueba no se sabe qué corregir.'}
+  ]},
+  {id:'pisos',n:7,titulo:'Instalación de pisos',dificultad:'Intermedio',monedas:20,actividades:[
+    {id:'inspeccion_base',titulo:'Inspección de base'},
+    {id:'preparacion_superficie',titulo:'Preparación de superficie',razon:'La superficie se prepara según lo que reveló la inspección de la base (nivel, humedad, grietas).'},
+    {id:'trazo',titulo:'Trazo',razon:'El trazo de piezas se marca sobre una superficie ya preparada y limpia.'},
+    {id:'adhesivo',titulo:'Aplicación de adhesivo',razon:'El adhesivo se aplica siguiendo el trazo, para controlar la alineación de las piezas.'},
+    {id:'colocacion',titulo:'Colocación y nivelación',razon:'Las piezas se colocan mientras el adhesivo aún está fresco, nunca antes de aplicarlo.'},
+    {id:'juntas',titulo:'Juntas, limpieza y protección',razon:'Las juntas se sellan cuando el piso ya está colocado y nivelado, no antes.'}
+  ]},
+  {id:'impermeabilizacion',n:8,titulo:'Impermeabilización',dificultad:'Avanzado',monedas:30,actividades:[
+    {id:'inspeccion_cubierta',titulo:'Inspección de cubierta'},
+    {id:'preparacion',titulo:'Preparación',razon:'La preparación (limpieza, desprendido de material suelto) responde a lo que encontró la inspección.'},
+    {id:'reparacion',titulo:'Reparación de puntos críticos',razon:'Reparar grietas o encuentros requiere una superficie ya limpia y preparada para trabajar.'},
+    {id:'imprimacion',titulo:'Imprimación si corresponde',razon:'La imprimación se aplica sobre una superficie ya reparada, nunca sobre daños sin resolver.'},
+    {id:'instalacion_sistema',titulo:'Instalación del sistema',razon:'El sistema impermeabilizante se instala sobre la imprimación ya aplicada, cuando corresponde.'},
+    {id:'revision_prueba',titulo:'Revisión y prueba según especificaciones',razon:'La prueba final evalúa el sistema ya instalado por completo.'}
+  ]},
+  {id:'losa',n:9,titulo:'Construcción de losa',dificultad:'Avanzado',monedas:30,actividades:[
+    {id:'revision_proyecto',titulo:'Revisión del proyecto'},
+    {id:'apuntalamiento',titulo:'Apuntalamiento y cimbra',razon:'La cimbra se arma siguiendo las medidas y cargas que define el proyecto ya revisado.'},
+    {id:'acero',titulo:'Colocación de acero y elementos previstos',razon:'El acero se coloca sobre la cimbra ya armada y apuntalada.'},
+    {id:'inspeccion_previa',titulo:'Inspección previa',razon:'Se inspecciona el armado ya colocado antes de colar, cuando aún es visible.'},
+    {id:'colado',titulo:'Colado',razon:'El colado solo procede después de que la inspección previa aprueba acero y cimbra.'},
+    {id:'curado',titulo:'Curado',razon:'El curado comienza justo después del colado, mientras el concreto aún está fraguando.'},
+    {id:'retiro_apoyos',titulo:'Retiro de apoyos cuando se autorice',razon:'Los apoyos se retiran hasta que el curado garantiza que la losa ya resiste su propio peso.'}
+  ]},
+  {id:'entrega',n:10,titulo:'Entrega de obra',dificultad:'Avanzado',monedas:35,actividades:[
+    {id:'inspeccion_final',titulo:'Inspección final'},
+    {id:'lista_pendientes',titulo:'Lista de pendientes',razon:'La lista de pendientes se arma con lo que detectó la inspección final.'},
+    {id:'correcciones',titulo:'Correcciones',razon:'Las correcciones atienden justamente los pendientes ya listados.'},
+    {id:'pruebas',titulo:'Pruebas y verificaciones',razon:'Las pruebas finales confirman que las correcciones ya resolvieron los pendientes.'},
+    {id:'documental',titulo:'Recopilación documental',razon:'La documentación (garantías, planos as-built) se integra una vez que la obra ya pasó sus pruebas.'},
+    {id:'recorrido',titulo:'Recorrido de entrega',razon:'El recorrido se hace con la obra ya probada y la documentación ya lista para mostrar.'},
+    {id:'acta',titulo:'Acta y cierre',razon:'El acta se firma al final del recorrido de entrega, no antes de mostrar la obra.'}
+  ]}
 ];
-function iniciarOrdenObra(){_ordenObra={items:[...ORDEN_OBRA].sort(()=>Math.random()-.5),mensaje:'Organiza las actividades según sus dependencias.'};renderOrdenObra();}
-function renderOrdenObra(){const a=document.getElementById('juegos-area'),s=_ordenObra;if(!a||!s)return;a.innerHTML=`${retoHead('Ordena la obra','Misión 05 · planifica una secuencia constructiva')}
- <div class="visual-game"><div class="game-status"><b>Reto de secuencias</b><span>${escHtml(s.mensaje)}</span><button class="btn-ghost" onclick="iniciarOrdenObra()">Nueva mezcla</button></div><div class="obra-story">${ORDEN_OBRA.map((it,i)=>`<span class="obra-step ${s.items.indexOf(it)===i?'is-ready':''}">${i+1}</span>`).join('')}</div><div class="sequence-list" ondragover="event.preventDefault()" ondrop="soltarActividadObra(event)">${s.items.map((it,i)=>`<article class="sequence-card" draggable="true" ondragstart="arrastrarActividadObra(event,${i})"><span class="sequence-num">${i+1}</span><div><b>${it.titulo}</b><small>${it.sub}</small></div><div class="sequence-actions"><button aria-label="Subir ${it.titulo}" onclick="moverActividadObra(${i},-1)" ${i?'':'disabled'}>↑</button><button aria-label="Bajar ${it.titulo}" onclick="moverActividadObra(${i},1)" ${i<s.items.length-1?'':'disabled'}>↓</button></div></article>`).join('')}</div><button class="btn-primary sequence-check" onclick="comprobarOrdenObra()">Comprobar secuencia</button><div class="game-tip">No es una regla universal de obra: este escenario asume una vivienda sencilla sin actividades paralelas.</div></div>`;}
-function arrastrarActividadObra(e,i){e.dataTransfer.setData('text/plain',String(i));}
-function soltarActividadObra(e){const from=Number(e.dataTransfer.getData('text/plain')),card=e.target.closest('.sequence-card');if(!Number.isFinite(from)||!card)return;const to=[...card.parentElement.children].indexOf(card);moverActividadObra(from,to-from);}
-function moverActividadObra(i,dir){const s=_ordenObra,j=i+dir;if(!s||j<0||j>=s.items.length)return;[s.items[i],s.items[j]]=[s.items[j],s.items[i]];renderOrdenObra();}
-function comprobarOrdenObra(){const s=_ordenObra;if(!s)return;const ok=s.items.every((it,i)=>it.id===ORDEN_OBRA[i].id);s.mensaje=ok?'¡Secuencia correcta! La vivienda puede avanzar con sus dependencias resueltas.':'Aún hay dependencias fuera de orden. Revisa qué actividad necesita un trabajo previo.';if(ok)completarRetoLocal('orden','¡La secuencia de obra quedó correctamente organizada!');renderOrdenObra();}
+let _ordenObraResueltos=new Set();
+function ordenObraImg(nivelId,actId){return `assets/retos/orden/${nivelId}/${actId}.jpg`;}
+function ordenImgFail(img){const w=img.parentElement;if(w)w.classList.add('img-pendiente');img.remove();}
+async function iniciarOrdenObra(){
+  await cargarNivelesOrdenObra();
+  renderNivelesOrdenObra();
+}
+async function cargarNivelesOrdenObra(){
+  _ordenObraResueltos=new Set();
+  if(!CURRENT_USER||CURRENT_USER.uid==='demo')return;
+  try{
+    const snap=await db.collection('progreso').doc(CURRENT_USER.uid).collection('ordenObraRecompensas').get();
+    snap.forEach(d=>_ordenObraResueltos.add(d.id));
+  }catch(e){}
+}
+function renderNivelesOrdenObra(){
+  const a=document.getElementById('juegos-area');if(!a)return;
+  a.innerHTML=`${retoHead('Ordena la obra','Misión 05 · 10 escenarios constructivos, elige uno')}
+  <div class="orden-niveles">${ORDEN_OBRA_NIVELES.map((nv,i)=>{
+    const resuelto=_ordenObraResueltos.has(nv.id);
+    const bloqueado=i>0&&!_ordenObraResueltos.has(ORDEN_OBRA_NIVELES[i-1].id);
+    return `<button type="button" class="rompe-nivel${bloqueado?' is-locked':''}${resuelto?' is-done':''}" ${bloqueado?'disabled':`onclick="iniciarNivelOrdenObra('${nv.id}')"`}>
+      <span class="rompe-nivel-ico">${bloqueado?'🔒':(resuelto?'✓':'↕')}</span>
+      <b>Nivel ${nv.n} · ${escHtml(nv.titulo)}</b>
+      <span>${nv.dificultad} · ${nv.actividades.length} actividades</span>
+      <span class="rompe-nivel-premio">${resuelto?'Completado':`+${nv.monedas} monedas`}</span>
+    </button>`;
+  }).join('')}</div>
+  ${!_tieneAcceso()?'<div class="game-tip">Puedes jugar los 10 escenarios libremente. Las monedas de recompensa requieren membresía activa.</div>':''}`;
+}
+function ordenObraBarajar(arr){const out=[...arr];for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]];}return out;}
+function iniciarNivelOrdenObra(nivelId){
+  const nivel=ORDEN_OBRA_NIVELES.find(x=>x.id===nivelId);if(!nivel)return;
+  _ordenObra={nivel:nivelId,pool:ordenObraBarajar(nivel.actividades),timeline:Array(nivel.actividades.length).fill(null),seleccionada:null,errores:new Set(),ganado:false,enviando:false,pista:null};
+  renderOrdenObra();
+}
+function ordenObraReiniciar(){
+  const s=_ordenObra;if(!s||s.enviando)return;
+  const nivel=ORDEN_OBRA_NIVELES.find(x=>x.id===s.nivel);if(!nivel)return;
+  _ordenObra={nivel:s.nivel,pool:ordenObraBarajar(nivel.actividades),timeline:Array(nivel.actividades.length).fill(null),seleccionada:null,errores:new Set(),ganado:false,enviando:false,pista:null};
+  renderOrdenObra();
+}
+function ordenSeleccionarPool(actId){
+  const s=_ordenObra;if(!s||s.ganado)return;
+  s.seleccionada=s.seleccionada===actId?null:actId;
+  renderOrdenObra();
+}
+function ordenColocarEnSlot(i){
+  const s=_ordenObra;if(!s||s.ganado||!s.seleccionada||s.timeline[i])return;
+  const idx=s.pool.findIndex(a=>a.id===s.seleccionada);if(idx<0)return;
+  const [act]=s.pool.splice(idx,1);
+  s.timeline[i]=act;s.seleccionada=null;s._colocada=act.id;
+  s.errores.delete(act.id);
+  renderOrdenObra();
+}
+function ordenQuitarDeSlot(i){
+  const s=_ordenObra;if(!s||s.ganado||!s.timeline[i])return;
+  const [act]=s.timeline.splice(i,1,null);
+  s.pool.push(act);s.errores.delete(act.id);
+  renderOrdenObra();
+}
+function ordenArrastrar(ev,actId){ev.dataTransfer.setData('text/plain',actId);}
+function ordenSoltar(ev,i){
+  ev.preventDefault();
+  const s=_ordenObra;if(!s||s.ganado)return;
+  const actId=ev.dataTransfer.getData('text/plain');if(!actId)return;
+  if(s.timeline[i]){ // slot ocupado: regresa esa actividad al pool antes de soltar la nueva
+    const [prev]=s.timeline.splice(i,1,null);s.pool.push(prev);
+  }
+  const idx=s.pool.findIndex(a=>a.id===actId);if(idx<0)return;
+  const [act]=s.pool.splice(idx,1);
+  s.timeline[i]=act;s.seleccionada=null;s._colocada=act.id;
+  s.errores.delete(act.id);
+  renderOrdenObra();
+}
+function ordenMostrarPista(){
+  const s=_ordenObra;if(!s)return;
+  const nivel=ORDEN_OBRA_NIVELES.find(x=>x.id===s.nivel);if(!nivel)return;
+  const i=s.timeline.findIndex((item,idx)=>!item||item.id!==nivel.actividades[idx].id);
+  s.pista=i<0?'Ya tienes la secuencia correcta: presiona "Comprobar secuencia".':`Pista: en la posición ${i+1} va "${nivel.actividades[i].titulo}".`;
+  renderOrdenObra();
+}
+function renderOrdenObra(){
+  const a=document.getElementById('juegos-area'),s=_ordenObra;if(!a||!s)return;
+  const nivel=ORDEN_OBRA_NIVELES.find(x=>x.id===s.nivel)||ORDEN_OBRA_NIVELES[0];
+  const colocadas=s.timeline.filter(Boolean).length,total=nivel.actividades.length,completo=colocadas===total;
+  a.innerHTML=`${retoHead('Ordena la obra',`Nivel ${nivel.n} · ${escHtml(nivel.titulo)} · ${nivel.dificultad}`)}
+  <div class="visual-game orden-game">
+    <div class="game-status"><b>${colocadas}/${total} colocadas</b><span>${s.ganado?'¡Secuencia correcta!':'Arrastra cada tarjeta a su lugar en la línea de tiempo, o tócala y luego toca el espacio.'}</span><button class="btn-ghost" onclick="ordenObraReiniciar()">Mezclar de nuevo</button></div>
+    <div class="progress" style="margin-bottom:16px"><i style="width:${total?colocadas/total*100:0}%"></i></div>
+    <div class="orden-timeline">${s.timeline.map((item,i)=>{
+      if(!item)return `<div class="orden-slot is-empty" ondragover="event.preventDefault()" ondrop="ordenSoltar(event,${i})" onclick="ordenColocarEnSlot(${i})"><span class="orden-slot-num">${i+1}</span><span class="orden-slot-placeholder">Suelta aquí</span></div>`;
+      const esError=s.errores.has(item.id);
+      return `<div class="orden-slot is-filled ${esError?'is-error':(s.ganado?'is-ok':'')} ${s._colocada===item.id?'is-nueva':''}" ondragover="event.preventDefault()" ondrop="ordenSoltar(event,${i})" onclick="ordenQuitarDeSlot(${i})">
+        <span class="orden-slot-num">${i+1}</span>
+        <div class="orden-card-img"><img src="${ordenObraImg(nivel.id,item.id)}" alt="${escHtml(item.titulo)}" onerror="ordenImgFail(this)"><span class="orden-img-pendiente-label">🖼️ Imagen pendiente</span></div>
+        <b>${escHtml(item.titulo)}</b>
+      </div>`;
+    }).join('')}</div>
+    ${s.pool.length?`<p class="orden-pool-label">Actividades por colocar</p><div class="orden-pool">${s.pool.map(act=>`
+      <div class="orden-card ${s.seleccionada===act.id?'is-selected':''}" draggable="true" ondragstart="ordenArrastrar(event,'${act.id}')" onclick="ordenSeleccionarPool('${act.id}')" tabindex="0" role="button" aria-label="Actividad: ${escHtml(act.titulo)}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ordenSeleccionarPool('${act.id}')}">
+        <div class="orden-card-img"><img src="${ordenObraImg(nivel.id,act.id)}" alt="${escHtml(act.titulo)}" onerror="ordenImgFail(this)"><span class="orden-img-pendiente-label">🖼️ Imagen pendiente</span></div>
+        <b>${escHtml(act.titulo)}</b>
+      </div>`).join('')}</div>`:''}
+    ${s.errores.size?`<div class="orden-errores">${[...s.errores].map(id=>{
+      const act=nivel.actividades.find(x=>x.id===id);if(!act)return '';
+      const idxCorrecta=nivel.actividades.findIndex(x=>x.id===id);
+      return `<div class="reto-hallazgo"><b>✕ ${escHtml(act.titulo)}</b><span>Va en la posición ${idxCorrecta+1}. ${escHtml(act.razon||'Depende de que la actividad anterior ya esté resuelta.')}</span></div>`;
+    }).join('')}</div>`:''}
+    ${s.pista&&!s.ganado?`<div class="game-tip">${escHtml(s.pista)}</div>`:''}
+    ${s.ganado?`<div class="game-success"><b>¡Secuencia correcta!</b><span>${s.enviando?'Registrando tu recompensa…':'Vuelve a Zona de Retos para seguir con el siguiente escenario.'}</span></div>`:`
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn-primary" style="width:auto;padding:11px 22px" ${completo?'':'disabled'} onclick="comprobarOrdenObra()">Comprobar secuencia</button>
+      <button class="btn-ghost" onclick="ordenMostrarPista()">💡 Mostrar pista</button>
+    </div>`}
+    <div style="margin-top:14px"><button class="btn-ghost" onclick="renderNivelesOrdenObra()">← Niveles</button></div>
+  </div>`;
+  delete s._colocada;
+}
+function comprobarOrdenObra(){
+  const s=_ordenObra;if(!s||s.ganado)return;
+  const nivel=ORDEN_OBRA_NIVELES.find(x=>x.id===s.nivel);if(!nivel)return;
+  if(s.timeline.some(x=>!x))return;
+  const errores=new Set();
+  s.timeline.forEach((item,i)=>{ if(item.id!==nivel.actividades[i].id) errores.add(item.id); });
+  s.errores=errores;
+  if(errores.size===0){ s.ganado=true; s.pista=null; confirmarOrdenObra(); }
+  renderOrdenObra();
+}
+async function confirmarOrdenObra(){
+  const s=_ordenObra;if(!s||s.enviando)return;
+  s.enviando=true;
+  try{
+    const r=await apiFetch('/orden-obra-completar',{method:'POST',body:{nivel:s.nivel}});
+    _ordenObraResueltos.add(s.nivel);
+    confetti();
+    if(r.monedasGanadas>0){
+      actualizarSaldoJuegos(r.monedasGanadas,0);
+      toast(`¡Secuencia correcta! +${r.monedasGanadas} monedas 🎉`);
+    }else if(r.motivo==='membresia_requerida'){
+      toast('¡Secuencia correcta! Activa tu membresía para ganar las monedas de recompensa.');
+    }else if(r.motivo==='ya_recompensada'){
+      toast('Ya habías ganado la recompensa de este nivel antes.');
+    }else{
+      toast('¡Secuencia correcta!');
+    }
+  }catch(e){
+    toast('Resuelto, pero no se pudo registrar tu recompensa. Intenta de nuevo más tarde.',{type:'err'});
+  }
+  s.enviando=false;
+  cargarProgresoMisiones();
+  renderOrdenObra();
+}
 
 /* 4. Laberinto de planos: recorrido sobre una planta conceptual generada al
    azar (laberinto perfecto por backtracking, siempre con un único camino
