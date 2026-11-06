@@ -91,7 +91,7 @@ const NAV=[
     {id:"canal",label:"Canal Privado",icon:'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z'},
   ]},
   {group:"Mi cuenta",items:[
-    {id:"perfil",label:"Mi Perfil",icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'},
+    {id:"mi-perfil",label:"Mi Perfil",icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'},
     {id:"suscripcion",label:"Suscripción",icon:'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'},
     {id:"configuracion",label:"Configuración",icon:'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z'},
   ]},
@@ -167,11 +167,11 @@ function hashActual(){
 }
 function seccionInicial(){
   const h=hashActual();
-  return (h && navItem(h)) ? h : 'inicio';
+  return (h && (navItem(h)||h==='perfil')) ? h : 'inicio';
 }
 window.addEventListener('hashchange',()=>{
   const sec=hashActual();
-  if(!sec || sec===currentSection || !navItem(sec)) return;
+  if(!sec || sec===currentSection || !(navItem(sec)||sec==='perfil')) return;
   _desdeHash=true;
   try{ go(sec); } finally { _desdeHash=false; }
 });
@@ -237,13 +237,15 @@ function renderSection(sec){
     'ficha-obra':renderFichaObra, checklist:renderChecklist, calculadora:renderCalculadora, honorarios:renderHonorarios, presupuesto:renderPresupuesto, conversor:renderConversor,
     normativas:renderNormativas, canal:renderCanal, directorio:renderDirectorio,
     suscripcion:renderSuscripcion,
-    logros:renderLogros, certificados:renderCertificados, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad
+    logros:renderLogros, certificados:renderCertificados, configuracion:renderConfig, terminos:renderTerminos, privacidad:renderPrivacidad,
+    'mi-perfil':renderPerfilPagina
   };
   const cr = sec==='inicio'?'':crumbs(navLabel(sec));
   c.innerHTML = `<div class="section active">${cr}${(R[sec]||renderInicio)()}</div>`;
   if(sec==='inicio'){ startCountdown(); initNewsCarousel(); }
   if(sec==='juegos'){ cargarProgresoMisiones(); }
   if(sec==='tienda') cargarTienda();
+  if(sec==='mi-perfil') cargarPerfilDatos();
 }
 let _newsRAF=null;
 function initNewsCarousel(){
@@ -1476,6 +1478,63 @@ function perfilDrawerDatosHTML(){
   <div class="field" style="margin-top:14px"><label>Profesión / Cédula</label><input id="pf-prof" placeholder="Arquitecto / Ing. Civil — Cédula..."></div>
   <div class="field" style="margin-top:14px"><label>Biografía</label><textarea id="pf-bio" rows="3" placeholder="Cuéntanos un poco sobre ti..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
   <button class="btn-primary" style="width:100%;padding:13px 30px;margin-top:18px" onclick="saveProfile()">Guardar cambios</button>`;
+}
+/* Página completa de "Mi Perfil": a diferencia del cajón de arriba (que
+   abre el avatar superior y es solo un resumen rápido), este es el destino
+   real del ítem "Mi Perfil" del menú lateral — una sección más, con sidebar
+   y topbar visibles, no un panel flotante. Reutiliza los mismos campos e
+   IDs (pf-name, pf-phone, etc.) y las mismas funciones cargarPerfilDatos()/
+   saveProfile() que ya existían para el cajón. */
+function renderPerfilPagina(){
+  const n=CURRENT_USER?.displayName||'Miembro';
+  const member=_tieneAcceso();
+  const cursosOrd=ordenarCursos(DATA.cursos);
+  const enProg=cursosOrd.filter(c=>{const p=DATA.progresos[c.id]||0;return p>0&&p<100;}).length;
+  const comp=cursosOrd.filter(c=>(DATA.progresos[c.id]||0)>=100).length;
+  const coins=Number(DATA.monedas)||0;
+  const xp=Number(DATA.xp)||0;
+  return `<div class="profile-hero" style="margin-bottom:22px">
+    <div class="av">${initials()}</div>
+    <div><h3>${escHtml(n)}</h3><div style="color:var(--muted);font-size:.9rem">${escHtml(CURRENT_USER?.email||'')}</div><span class="badge">${member?'✦ Miembro Premium':'Sin membresía activa'}</span></div>
+  </div>
+  <div class="perfil-page-grid">
+    <section class="command-panel">
+      <div class="command-panel-head"><h2>Datos personales</h2></div>
+      <p style="color:var(--muted);font-size:.84rem;margin:10px 0 16px">Los cambios se guardan al presionar "Guardar cambios".</p>
+      <div class="field"><label>Nombre</label><input id="pf-name" value="${escHtml(n)}"></div>
+      <div class="field" style="margin-top:14px"><label>Apellido</label><input id="pf-last" placeholder="Tu apellido"></div>
+      <div class="field" style="margin-top:14px"><label>Correo electrónico</label><input value="${escHtml(CURRENT_USER?.email||'')}" disabled></div>
+      <div class="field" style="margin-top:14px"><label>Teléfono</label><input id="pf-phone" placeholder="+52 ..."></div>
+      <div class="field" style="margin-top:14px"><label>Ciudad</label><input id="pf-city" placeholder="Tu ciudad, MX"></div>
+      <div class="field" style="margin-top:14px"><label>Profesión / Cédula</label><input id="pf-prof" placeholder="Arquitecto / Ing. Civil — Cédula..."></div>
+      <div class="field" style="margin-top:14px"><label>Biografía</label><textarea id="pf-bio" rows="3" placeholder="Cuéntanos un poco sobre ti..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
+      <button class="btn-primary" style="width:100%;padding:13px 30px;margin-top:18px" onclick="saveProfile()">Guardar cambios</button>
+    </section>
+    <div class="perfil-page-side">
+      <section class="command-panel">
+        <div class="command-panel-head"><h2>Tu actividad</h2></div>
+        <div class="perfil-stats" style="grid-template-columns:repeat(2,1fr);margin-top:14px">
+          <article><b>${coins.toLocaleString('es-MX')}</b><span>Monedas</span></article>
+          <article><b>${xp.toLocaleString('es-MX')}</b><span>XP</span></article>
+          <article><b>${enProg}</b><span>En progreso</span></article>
+          <article><b>${comp}</b><span>Completados</span></article>
+        </div>
+      </section>
+      <section class="command-panel">
+        <div class="command-panel-head"><h2>Accesos rápidos</h2></div>
+        <div class="perfil-grid" style="margin-top:14px">
+          <button type="button" onclick="go('logros')"><span class="ico">★</span><div><b>Mis logros</b><span>Avances y medallas</span></div></button>
+          <button type="button" onclick="go('suscripcion')"><span class="ico">♛</span><div><b>Membresía</b><span>Plan y beneficios</span></div></button>
+          <button type="button" onclick="go('configuracion')"><span class="ico">⚙</span><div><b>Configuración</b><span>Datos y seguridad</span></div></button>
+          <button type="button" onclick="go('tienda')"><span class="ico">⛁</span><div><b>Tienda</b><span>Canjea tus monedas</span></div></button>
+        </div>
+      </section>
+      <section class="command-panel">
+        <div class="command-panel-head"><h2>Seguridad</h2></div>
+        <button type="button" class="perfil-logout" style="margin-top:10px" onclick="doLogout()">⎋ Cerrar sesión</button>
+      </section>
+    </div>
+  </div>`;
 }
 function cargarPerfilDatos(){
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo')return;
@@ -4841,7 +4900,7 @@ const TOUR_PASOS=[
   {sel:'.sb-item[data-sec="logros"]',titulo:'Tus logros',texto:'Tu avance, insignias y certificados quedan registrados aquí.'},
   {sel:'.sb-group[data-group="Herramientas"] .sb-group-t',titulo:'Tus herramientas',texto:'Ficha, checklist, calculadoras y conversores. Pulsa la flechita para desplegarlas.'},
   {sel:'.sb-group[data-group="Comunidad"] .sb-group-t',titulo:'Comunidad',texto:'El foro, el directorio VIP y el canal privado. Pulsa la flechita para desplegarlos.'},
-  {sel:'.sb-item[data-sec="perfil"]',titulo:'Mi cuenta',texto:'Tu perfil, tu suscripción y la configuración del Club, todo desde aquí.'},
+  {sel:'.sb-item[data-sec="mi-perfil"]',titulo:'Mi cuenta',texto:'Tu perfil, tu suscripción y la configuración del Club, todo desde aquí.'},
   {sel:'#help-btn',titulo:'Vuelve a consultar esta guía',texto:'Cuando necesites recordar dónde está algo, pulsa este botón de ayuda para repetir el recorrido.'},
 ];
 let _tourPaso=0;
