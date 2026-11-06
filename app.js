@@ -775,7 +775,16 @@ function renderMaterial(){
   const sinCurso=DATA.material.filter(m=>!m.cursoId);
   const porCurso={};
   DATA.material.filter(m=>m.cursoId).forEach(m=>{(porCurso[m.cursoId]=porCurso[m.cursoId]||[]).push(m);});
-  const cursosConMaterial=ordenarCursos(DATA.cursos.filter(c=>porCurso[c.id]&&porCurso[c.id].length));
+  // El orden de los grupos de curso es el del catálogo (ordenarCursos), pero
+  // aquí además se antepone el material de los cursos que el socio ya está
+  // tomando (progreso) o su curso de prueba -- si no, su material queda
+  // enterrado hasta abajo cuando su curso tiene un `order` alto. El sort es
+  // estable, así que dentro de cada grupo (el suyo / el resto) se conserva
+  // el orden del catálogo.
+  const misCursosIds=new Set(Object.keys(DATA.progresos||{}));
+  if(DATA.cursoPrueba)misCursosIds.add(DATA.cursoPrueba);
+  const cursosConMaterial=ordenarCursos(DATA.cursos.filter(c=>porCurso[c.id]&&porCurso[c.id].length))
+    .sort((a,b)=>(misCursosIds.has(a.id)?0:1)-(misCursosIds.has(b.id)?0:1));
 
   let secciones='';
   cursosConMaterial.forEach(c=>{
