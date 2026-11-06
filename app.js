@@ -53,7 +53,7 @@ let CURRENT_USER=null;
 let LOADING=true;
 let BUNNY_READY=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{},xp:0,monedas:0,cursoPrueba:''};
+let DATA={cursos:[],webinars:[],noticias:[],material:[],foro:[],progresos:{},clasesHechas:{},xp:0,monedas:0,cursoPrueba:'',avatar:''};
 let _eligiendoCursoPrueba=false;
 let activeFilter="Todos";
 let courseQuery="";
@@ -883,7 +883,7 @@ function renderForo(){
   </div>`}
   <div class="foro-composer">
     <div class="fc-row">
-      <div class="fc-av">${puedePublicar?initials():'?'}</div>
+      <div class="fc-av">${puedePublicar?avHTML(40):'?'}</div>
       <div class="fc-body"><textarea id="nt-texto" rows="2" maxlength="1500" placeholder="¿Qué caso traes hoy? Comparte una pregunta o experiencia..." onfocus="requiereMembresiaAccion('Publicar en el foro requiere una membresía vigente.')" oninput="actualizarContadorForo()"></textarea></div>
     </div>
     <div class="fc-foot">
@@ -1445,7 +1445,7 @@ function perfilDrawerResumenHTML(){
     ?`Tienes ${enProg} curso${enProg===1?'':'s'} en progreso para continuar.`
     :(member?'Explora el catálogo y empieza tu próximo curso.':'Activa tu membresía para desbloquear todos los cursos y recompensas.');
   return `<div class="profile-hero" style="margin-bottom:18px">
-    <div class="av">${initials()}</div>
+    <div class="av">${avHTML(72,'18px')}</div>
     <div><h3>${escHtml(n)}</h3><div style="color:var(--muted);font-size:.9rem">${escHtml(CURRENT_USER?.email||'')}</div><span class="badge">${member?'✦ Miembro Premium':'Sin membresía activa'}</span></div>
   </div>
   <div class="perfil-stats">
@@ -1493,23 +1493,31 @@ function renderPerfilPagina(){
   const comp=cursosOrd.filter(c=>(DATA.progresos[c.id]||0)>=100).length;
   const coins=Number(DATA.monedas)||0;
   const xp=Number(DATA.xp)||0;
+  const avActual=avatarUrl();
   return `<div class="profile-hero" style="margin-bottom:22px">
-    <div class="av">${initials()}</div>
+    <div class="av">${avHTML(72,'18px')}</div>
     <div><h3>${escHtml(n)}</h3><div style="color:var(--muted);font-size:.9rem">${escHtml(CURRENT_USER?.email||'')}</div><span class="badge">${member?'✦ Miembro Premium':'Sin membresía activa'}</span></div>
   </div>
   <div class="perfil-page-grid">
-    <section class="command-panel">
-      <div class="command-panel-head"><h2>Datos personales</h2></div>
-      <p style="color:var(--muted);font-size:.84rem;margin:10px 0 16px">Los cambios se guardan al presionar "Guardar cambios".</p>
-      <div class="field"><label>Nombre</label><input id="pf-name" value="${escHtml(n)}"></div>
-      <div class="field" style="margin-top:14px"><label>Apellido</label><input id="pf-last" placeholder="Tu apellido"></div>
-      <div class="field" style="margin-top:14px"><label>Correo electrónico</label><input value="${escHtml(CURRENT_USER?.email||'')}" disabled></div>
-      <div class="field" style="margin-top:14px"><label>Teléfono</label><input id="pf-phone" placeholder="+52 ..."></div>
-      <div class="field" style="margin-top:14px"><label>Ciudad</label><input id="pf-city" placeholder="Tu ciudad, MX"></div>
-      <div class="field" style="margin-top:14px"><label>Profesión / Cédula</label><input id="pf-prof" placeholder="Arquitecto / Ing. Civil — Cédula..."></div>
-      <div class="field" style="margin-top:14px"><label>Biografía</label><textarea id="pf-bio" rows="3" placeholder="Cuéntanos un poco sobre ti..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
-      <button class="btn-primary" style="width:100%;padding:13px 30px;margin-top:18px" onclick="saveProfile()">Guardar cambios</button>
-    </section>
+    <div class="perfil-page-side">
+      <section class="command-panel">
+        <div class="command-panel-head"><h2>Elige tu avatar</h2></div>
+        <p style="color:var(--muted);font-size:.84rem;margin:10px 0 0">Elige la imagen con la que te verán en el Club.</p>
+        <div class="avatar-pick">${AVATARES.map(a=>`<button type="button" class="${a===avActual?'active':''}" onclick="elegirAvatar('${a}')" title="Elegir este avatar"><img src="${a}" alt=""></button>`).join('')}</div>
+      </section>
+      <section class="command-panel">
+        <div class="command-panel-head"><h2>Datos personales</h2></div>
+        <p style="color:var(--muted);font-size:.84rem;margin:10px 0 16px">Los cambios se guardan al presionar "Guardar cambios".</p>
+        <div class="field"><label>Nombre</label><input id="pf-name" value="${escHtml(n)}"></div>
+        <div class="field" style="margin-top:14px"><label>Apellido</label><input id="pf-last" placeholder="Tu apellido"></div>
+        <div class="field" style="margin-top:14px"><label>Correo electrónico</label><input value="${escHtml(CURRENT_USER?.email||'')}" disabled></div>
+        <div class="field" style="margin-top:14px"><label>Teléfono</label><input id="pf-phone" placeholder="+52 ..."></div>
+        <div class="field" style="margin-top:14px"><label>Ciudad</label><input id="pf-city" placeholder="Tu ciudad, MX"></div>
+        <div class="field" style="margin-top:14px"><label>Profesión / Cédula</label><input id="pf-prof" placeholder="Arquitecto / Ing. Civil — Cédula..."></div>
+        <div class="field" style="margin-top:14px"><label>Biografía</label><textarea id="pf-bio" rows="3" placeholder="Cuéntanos un poco sobre ti..." style="width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--base);color:var(--text);font-family:inherit;resize:none"></textarea></div>
+        <button class="btn-primary" style="width:100%;padding:13px 30px;margin-top:18px" onclick="saveProfile()">Guardar cambios</button>
+      </section>
+    </div>
     <div class="perfil-page-side">
       <section class="command-panel">
         <div class="command-panel-head"><h2>Tu actividad</h2></div>
@@ -4734,7 +4742,7 @@ async function apiFetch(path,{method='GET',body}={}){
 async function loadData(){
   // El catálogo premium se obtiene saneado desde el backend: las URLs privadas nunca llegan aquí.
   DATA.cursos=[]; DATA.webinars=[]; DATA.noticias=[];
-  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[]; DATA.xp=0; DATA.monedas=0; DATA.cursoPrueba=''; DATA.desbloqueoAnticipadoUsado=false;
+  DATA.foro=[]; DATA.material=[]; DATA.progresos={}; DATA.clasesHechas={}; DATA.directorio=[]; DATA.xp=0; DATA.monedas=0; DATA.cursoPrueba=''; DATA.desbloqueoAnticipadoUsado=false; DATA.avatar='';
   if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){
     DATA.cursos=DEMO.cursos; DATA.webinars=DEMO.webinars; DATA.noticias=DEMO.noticias;
     DATA.foro=DEMO.foro; DATA.material=DEMO.material; DATA.progresos=DEMO.progresos;
@@ -4758,6 +4766,7 @@ async function loadData(){
       if(cd.wa2){IMDAC.soporte.l2=waDigits(cd.wa2);IMDAC.soporte.l2Label=cd.wa2;}
       window._mantenimiento=!!cd.mantenimiento;
     try{const not=await db.collection('noticias').orderBy('fecha','desc').limit(20).get();DATA.noticias=not.docs.map(d=>({id:d.id,...d.data()})).filter(n=>n.img);}catch(e){DATA.noticias=[];}
+    try{const miembro=await db.collection('miembros').doc(CURRENT_USER.uid).get();DATA.avatar=(miembro.exists&&miembro.data().avatar)||'';}catch(e){DATA.avatar='';}
     // El saldo de bienvenida y el curso de prueba viven en el documento
     // progreso/{uid}; se leen aun sin membresía para que no desaparezcan al
     // recargar después de registrarse.
@@ -4773,11 +4782,35 @@ async function loadData(){
 
 /* ====== 11. UI helpers ====== */
 function initials(){const n=CURRENT_USER?.displayName||CURRENT_USER?.email||'U';return n.trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
+/* Galería de avatares para "Mi Perfil": un socio puede elegir uno de estos en
+   vez de quedarse con el círculo de iniciales. No hay subida de foto propia
+   -- eso requeriría Firebase Storage, que hoy no está activo en el proyecto
+   (ver DIRECTORIO_FOTOS_ACTIVAS=false más arriba) -- así que la elección se
+   guarda como un id de este catálogo fijo, nunca un archivo. */
+const AVATARES=Array.from({length:12},(_, i)=>`assets/avatares/avatar-${String(i+1).padStart(2,'0')}.png`);
+function avatarUrl(){
+  const id=DATA.avatar;
+  return (id&&AVATARES.includes(id))?id:'';
+}
+function avHTML(px,radius){
+  const u=avatarUrl();
+  if(!u)return initials();
+  return `<img src="${escHtml(u)}" alt="" style="width:${px}px;height:${px}px;object-fit:cover;border-radius:${radius||'50%'};display:block">`;
+}
+function elegirAvatar(id){
+  DATA.avatar=id;
+  refreshUserUI();
+  if(currentSection==='mi-perfil')renderSection('mi-perfil');
+  if(!FB_OK||!CURRENT_USER||CURRENT_USER.uid==='demo'){toast('Avatar actualizado (demo)');return;}
+  db.collection('miembros').doc(CURRENT_USER.uid).set({avatar:id},{merge:true})
+    .then(()=>toast('Avatar actualizado'))
+    .catch(()=>toast('No se pudo guardar el avatar'));
+}
 function refreshUserUI(){
   document.getElementById('u-name').textContent=CURRENT_USER?.displayName||'Miembro';
   document.getElementById('u-email').textContent=CURRENT_USER?.email||'';
-  document.getElementById('u-av').textContent=initials();
-  const topAvatar=document.getElementById('u-av-top');if(topAvatar)topAvatar.textContent=initials();
+  document.getElementById('u-av').innerHTML=avHTML(38,'12px');
+  const topAvatar=document.getElementById('u-av-top');if(topAvatar)topAvatar.innerHTML=avHTML(40);
 }
 function toggleSidebar(open){
   const sb=document.getElementById('sidebar'),bd=document.getElementById('sb-backdrop');
@@ -4825,6 +4858,7 @@ async function onLogged(){
   renderSidebar();refreshUserUI();updateThemeIcon();
   LOADING=true; go('inicio');
   await loadData();
+  refreshUserUI();
   aplicarVistaPreview();
   if(window._mantenimiento && !window._imdacAdmin){renderMantenimiento();return;}
   const q=new URLSearchParams(location.search);

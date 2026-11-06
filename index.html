@@ -178,6 +178,7 @@ body.logged #app{display:block}
 .tb-search svg{width:17px;height:17px;stroke-width:1.9;flex-shrink:0}
 .tb-profile{width:40px;height:40px;display:grid;place-items:center;border-radius:50%;background:var(--rojo);color:#fff;font-family:var(--font-display);font-weight:800;font-size:.8rem;transition:transform .16s,box-shadow .16s}
 .tb-profile:hover{transform:translateY(-1px);box-shadow:0 7px 18px rgba(255,44,44,.3)}
+.av,.fc-av,.tb-profile{overflow:hidden}
 .tb-logout{background:transparent;border-color:transparent}.tb-logout:hover{border-color:var(--line);color:var(--rojo)}
 .content{padding:8px 30px 50px;max-width:1500px;width:100%}
 .section{display:none;animation:fade .35s ease}
@@ -1148,6 +1149,12 @@ body.logged .content{max-width:1600px;padding-top:22px}
 .perfil-page-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start}
 .perfil-page-side{display:grid;gap:16px}
 @media(max-width:900px){.perfil-page-grid{grid-template-columns:1fr}}
+.avatar-pick{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px}
+.avatar-pick button{position:relative;padding:0;border:2px solid transparent;border-radius:50%;width:100%;aspect-ratio:1;overflow:hidden;cursor:pointer;background:var(--gris-100)}
+.avatar-pick button img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar-pick button.active{border-color:var(--rojo)}
+.avatar-pick button.active:after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;background:rgba(232,32,47,.55);color:#fff;font-weight:800;font-size:1.1rem}
+@media(max-width:600px){.avatar-pick{grid-template-columns:repeat(4,1fr)}}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .form-full{grid-column:1/-1}
 
